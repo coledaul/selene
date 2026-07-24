@@ -75,6 +75,7 @@ Shell 测试只验证构建失败传播和平台配置，不替代业务单元�
 | 参数 | 作用 |
 | --- | --- |
 | `--android-only` | 构建 Android ARM64 与 ARMv7 APK。 |
+| `--android-arm64-only` | 仅构建 Android ARM64 APK。 |
 | `--ios-only` | 构建无签名 iOS IPA。 |
 | `--macos-arm64-only` | 构建 macOS ARM64 DMG。 |
 | `--macos-x86_64-only` | 构建 macOS x86_64 DMG。 |
@@ -86,6 +87,7 @@ Shell 测试只验证构建失败传播和平台配置，不替代业务单元�
 
 ```bash
 ./build.sh --android-only
+./build.sh --android-arm64-only
 ./build.sh --apple-only
 ```
 
