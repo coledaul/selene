@@ -6,6 +6,7 @@ Selene 是基于 Flutter 和 `media_kit` 的 MoonTV 视频客户端，支持 Moo
 
 - 聚合搜索，以及电影、剧集、动漫、综艺和直播浏览；
 - 点播与直播播放、播放源测速、M3U8 代理和 DLNA 投屏；
+- HLS/普通视频下载、任务恢复、下载管理和本地离线播放；
 - 播放记录、收藏、搜索历史和浅色/深色主题；
 - Android、iOS、macOS 和 Windows 平台适配代码。
 
@@ -42,3 +43,4 @@ bash test/ci_config_test.sh
 - Selene 是客户端，不包含 MoonTV 服务端。
 - 本地模式的数据源和内容由用户配置的订阅提供。
 - 根目录 `build.sh` 当前只打包 Android、iOS 和 macOS；其他平台目录不代表已纳入发布流程。
+- 下载面向点播资源，不支持直播和 DRM；文件保存在应用私有持久目录，删除应用会同时删除这些文件。

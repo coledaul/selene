@@ -12,6 +12,7 @@ import '../services/local_search_cache_service.dart';
 import '../services/version_service.dart';
 import '../utils/device_utils.dart';
 import '../utils/font_utils.dart';
+import '../features/video_download/presentation/download_manager_screen.dart';
 import 'update_dialog.dart';
 
 class UserMenu extends StatefulWidget {
@@ -218,6 +219,22 @@ class _UserMenuState extends State<UserMenu> {
         );
       }
     }
+  }
+
+  void _openDownloadManager() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const DownloadManagerScreen()),
+    );
+    widget.onClose?.call();
+  }
+
+  void _openLicenses() {
+    showLicensePage(
+      context: context,
+      applicationName: 'Selene',
+      applicationVersion: _version.isEmpty ? null : _version,
+    );
+    widget.onClose?.call();
   }
 
   Widget _buildRoleTag() {
@@ -660,6 +677,9 @@ class _UserMenuState extends State<UserMenu> {
               onTap: () {}, // 阻止点击菜单内容时关闭
               child: Container(
                 width: 280,
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height - 40,
+                ),
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 decoration: BoxDecoration(
                   color: widget.isDarkMode
@@ -674,8 +694,9 @@ class _UserMenuState extends State<UserMenu> {
                     ),
                   ],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
                   children: [
                     // 用户信息区域
                     Container(
@@ -844,6 +865,46 @@ class _UserMenuState extends State<UserMenu> {
                           ? const Color(0xFF374151)
                           : const Color(0xFFe5e7eb),
                     ),
+                    // 下载管理入口
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _openDownloadManager,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                LucideIcons.download,
+                                size: 20,
+                                color: Color(0xFF10b981),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                '下载管理',
+                                style: FontUtils.poppins(
+                                  fontSize: 16,
+                                  color: widget.isDarkMode
+                                      ? const Color(0xFFffffff)
+                                      : const Color(0xFF1f2937),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // 分割线
+                    Container(
+                      height: 1,
+                      color: widget.isDarkMode
+                          ? const Color(0xFF374151)
+                          : const Color(0xFFe5e7eb),
+                    ),
                     // 清除豆瓣缓存按钮
                     Material(
                       color: Colors.transparent,
@@ -904,6 +965,46 @@ class _UserMenuState extends State<UserMenu> {
                               const SizedBox(width: 12),
                               Text(
                                 '检查更新',
+                                style: FontUtils.poppins(
+                                  fontSize: 16,
+                                  color: widget.isDarkMode
+                                      ? const Color(0xFFffffff)
+                                      : const Color(0xFF1f2937),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // 分割线
+                    Container(
+                      height: 1,
+                      color: widget.isDarkMode
+                          ? const Color(0xFF374151)
+                          : const Color(0xFFe5e7eb),
+                    ),
+                    // 开源许可
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _openLicenses,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.balance_outlined,
+                                size: 20,
+                                color: Color(0xFF8b5cf6),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                '开源许可',
                                 style: FontUtils.poppins(
                                   fontSize: 16,
                                   color: widget.isDarkMode

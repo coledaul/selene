@@ -7,7 +7,7 @@ Selene 是使用 Flutter 构建的 MoonTV 视频客户端。
 - **播放内核**：`media_kit`，统一承载点播和直播播放。
 - **状态管理**：Provider，当前主要用于主题状态。
 - **数据访问**：HTTP、SSE，以及本地模式下的下游资源站请求。
-- **本地持久化**：SharedPreferences 与内存缓存。
+- **本地持久化**：SharedPreferences、内存缓存和应用私有下载目录。
 - **运行模式**：MoonTV 服务端模式和 Base58 本地订阅模式。
 
 ## 运行模式
@@ -41,6 +41,7 @@ Selene 是使用 Flutter 构建的 MoonTV 视频客户端。
 Selene-Source/
 ├── lib/
 │   ├── models/                 # 领域数据模型
+│   ├── features/               # 按业务聚合的独立功能模块
 │   ├── screens/                # 登录、首页、搜索、分类和播放器页面
 │   ├── services/               # API、搜索、订阅、缓存和本地存储
 │   ├── utils/                  # 平台与展示工具
@@ -81,6 +82,19 @@ Selene-Source/
 ### 播放器
 
 `VideoPlayerWidget` 管理 `media_kit` Player、媒体地址、请求头和播放器生命周期。`PlayerScreen` 与 `LivePlayerScreen` 分别负责点播和直播编排，移动端与桌面端使用独立控制组件。
+
+### 视频下载
+
+`lib/features/video_download/` 是独立下载模块：
+
+- `domain/` 定义稳定任务身份、状态与持久化模型；
+- `application/` 负责单任务队列、去重、进度、取消、重试、删除和启动恢复；
+- `infrastructure/` 通过 FFmpegKit 处理 HLS/普通视频探测与 MKV 无损重封装，并管理临时文件和最终文件；
+- `presentation/` 提供分集多选、下载管理和本地播放页面。
+
+播放地址代理由 `MediaUrlResolver` 统一处理。点播时会先按“来源 + 内容 ID + 集数”查找已完成文件，命中后直接交给现有 `media_kit` 播放器；投屏仍使用远程地址。
+
+任务异常中断后会在下次启动清理半成品并重新排队。当前不伪装成字节级断点续传，也不支持暂停、直播或 DRM。
 
 ### 平台适配
 

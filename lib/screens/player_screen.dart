@@ -2,6 +2,9 @@ import 'dart:math' as math;
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../features/video_download/application/video_download_manager.dart';
+import '../features/video_download/presentation/download_selection_sheet.dart';
 import '../widgets/video_player_surface.dart';
 import '../widgets/video_player_widget.dart';
 import '../widgets/video_card.dart';
@@ -9,6 +12,7 @@ import '../services/api_service.dart';
 import '../services/m3u8_service.dart';
 import '../services/douban_service.dart';
 import '../services/user_data_service.dart';
+import '../services/media_url_resolver.dart';
 import '../services/search_service.dart';
 import '../models/search_result.dart';
 import '../models/douban_movie.dart';
@@ -653,18 +657,16 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   /// 动态更新视频数据源
   Future<void> updateVideoUrl(String newUrl, {Duration? startAt}) async {
-    print("newUrl: $newUrl, startAt: $startAt");
     try {
-      // 获取 M3U8 代理 URL
-      final m3u8ProxyUrl = await UserDataService.getM3u8ProxyUrl();
-
-      // 如果代理 URL 不为空，则将 newUrl encode 后拼接到代理 URL 后面
-      String finalUrl = newUrl;
-      if (m3u8ProxyUrl.isNotEmpty) {
-        final encodedUrl = Uri.encodeComponent(newUrl);
-        finalUrl = '$m3u8ProxyUrl$encodedUrl';
-        print("使用 M3U8 代理: $finalUrl");
+      String? localPath;
+      if (!_isCasting) {
+        localPath = await context.read<VideoDownloadManager>().completedPathFor(
+              source: currentSource,
+              contentId: currentID,
+              episodeIndex: currentEpisodeIndex,
+            );
       }
+      final finalUrl = localPath ?? await MediaUrlResolver.resolve(newUrl);
 
       if (_isCasting) {
         // 构建标题：{title} - {第 x 集} - {sourceName}
@@ -688,6 +690,22 @@ class _PlayerScreenState extends State<PlayerScreen>
     } catch (e) {
       // 静默处理错误
     }
+  }
+
+  Future<void> _showDownloadSelector() async {
+    final detail = currentDetail;
+    if (detail == null || detail.episodes.isEmpty) {
+      return;
+    }
+    final count = await showDownloadSelectionSheet(
+      context: context,
+      detail: detail,
+      currentEpisodeIndex: currentEpisodeIndex,
+    );
+    if (!mounted || count == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已加入 $count 个下载任务')),
+    );
   }
 
   /// 跳转到指定进度
@@ -1273,6 +1291,18 @@ class _PlayerScreenState extends State<PlayerScreen>
                     ),
                   ),
                   const SizedBox(width: 12),
+                  IconButton(
+                    onPressed: _showDownloadSelector,
+                    tooltip: '下载视频',
+                    constraints:
+                        const BoxConstraints.tightFor(width: 44, height: 44),
+                    icon: Icon(
+                      Icons.download_for_offline_outlined,
+                      color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   GestureDetector(
                     onTap: _toggleFavorite,
                     child: Icon(

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
@@ -9,7 +12,7 @@ import 'services/theme_service.dart';
 import 'services/douban_cache_service.dart';
 import 'services/local_mode_storage_service.dart';
 import 'services/subscription_service.dart';
-import 'dart:io' show Platform;
+import 'features/video_download/application/video_download_manager.dart';
 import 'package:macos_window_utils/macos_window_utils.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
@@ -59,8 +62,22 @@ class SeleneApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ThemeService(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeService()),
+        ChangeNotifierProvider(
+          lazy: false,
+          create: (_) {
+            final manager = VideoDownloadManager();
+            unawaited(
+              manager.initialize().catchError((Object error, StackTrace stack) {
+                debugPrint('VideoDownloadManager initialization failed');
+              }),
+            );
+            return manager;
+          },
+        ),
+      ],
       child: Consumer<ThemeService>(
         builder: (context, themeService, child) {
           return MaterialApp(
@@ -122,11 +139,13 @@ class _AppWrapperState extends State<AppWrapper> {
                   await SubscriptionService.parseSubscriptionContent(
                       response.body);
               if (content != null) {
-                if (content.searchResources != null && content.searchResources!.isNotEmpty) {
+                if (content.searchResources != null &&
+                    content.searchResources!.isNotEmpty) {
                   await LocalModeStorageService.saveSearchSources(
                       content.searchResources!);
                 }
-                if (content.liveSources != null && content.liveSources!.isNotEmpty) {
+                if (content.liveSources != null &&
+                    content.liveSources!.isNotEmpty) {
                   await LocalModeStorageService.saveLiveSources(
                       content.liveSources!);
                 }

@@ -27,7 +27,8 @@ android {
         applicationId = "org.moontechlab.selene"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // FFmpegKit 预编译包要求 Android API 24 及以上。
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
