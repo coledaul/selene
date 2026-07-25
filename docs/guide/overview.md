@@ -5,9 +5,9 @@
 Selene 是使用 Flutter 构建的 MoonTV 视频客户端。
 
 - **播放内核**：`media_kit`，统一承载点播和直播播放。
-- **状态管理**：Provider，当前主要用于主题状态。
-- **数据访问**：HTTP、SSE，以及本地模式下的下游资源站请求。
-- **本地持久化**：SharedPreferences、内存缓存和应用私有下载目录。
+- **状态管理**：Provider，统一提供主题、认证会话、API、缓存与下载服务。
+- **数据访问**：Dio 统一承载 MoonTV HTTP、Cookie、401 重认证和 SSE；本地模式直接访问下游资源站。
+- **本地持久化**：SharedPreferences 保存普通配置，平台安全存储保存可选密码，Cookie 仅驻留内存，下载文件进入应用私有目录。
 - **运行模式**：MoonTV 服务端模式和 Base58 本地订阅模式。
 
 ## 运行模式
@@ -17,11 +17,12 @@ Selene 是使用 Flutter 构建的 MoonTV 视频客户端。
 ```text
 页面
   -> ApiService / SSESearchService
+  -> MoonTvApiClient + AuthSessionController
   -> MoonTV API
   -> 搜索、详情、直播、播放记录、收藏和搜索历史
 ```
 
-账号登录后，服务端地址、登录信息和 Cookie 由 `UserDataService` 读取。普通接口统一经过 `ApiService`，流式搜索使用 `SSESearchService`。
+`AuthSessionController` 是唯一会话状态来源。`AuthProfileStore` 保存连接资料，`SecureCredentialStore` 保存用户明确允许记住的密码，内存 CookieJar 按标准 Cookie 规则维护当前会话。普通接口和 SSE 共用 `MoonTvApiClient`，网络层不持有页面上下文或执行导航。
 
 ### 本地模式
 
@@ -41,6 +42,8 @@ Selene 是使用 Flutter 构建的 MoonTV 视频客户端。
 Selene-Source/
 ├── lib/
 │   ├── models/                 # 领域数据模型
+│   ├── app/                    # 根级依赖组装
+│   ├── core/network/           # Dio、Cookie 与 401 重认证
 │   ├── features/               # 按业务聚合的独立功能模块
 │   ├── screens/                # 登录、首页、搜索、分类和播放器页面
 │   ├── services/               # API、搜索、订阅、缓存和本地存储
@@ -62,7 +65,7 @@ Selene-Source/
 
 ### 应用入口
 
-`lib/main.dart` 初始化 `media_kit`、平台窗口和豆瓣缓存。`AppWrapper` 根据运行模式刷新本地订阅或执行服务端自动登录，然后进入首页。
+`lib/main.dart` 初始化 `media_kit`、平台窗口和豆瓣缓存，并通过 `AppDependencies` 组装应用级服务。`AppWrapper` 根据认证状态创建独立 Navigator；登录失效、退出或切换模式时会销毁旧页面栈。
 
 ### 页面与导航
 
@@ -70,7 +73,9 @@ Selene-Source/
 
 ### 数据服务
 
-- `ApiService`：MoonTV HTTP API、认证请求和统一响应处理。
+- `features/auth/`：连接资料、安全凭据、登录状态机、自动登录和单航班重认证。
+- `core/network/`：Dio 客户端、内存 CookieJar、认证登录与 401 单次重试。
+- `ApiService`：可注入的 MoonTV 业务 API 门面与统一响应转换，不处理导航。
 - `SearchService`：搜索资源管理、本地并发搜索和视频详情解析。
 - `SSESearchService`：服务端流式搜索及结果、进度、错误流。
 - `SubscriptionService`：解析本地模式的 Base58 订阅。

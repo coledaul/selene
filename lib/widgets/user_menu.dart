@@ -1,10 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../features/auth/application/auth_session_controller.dart';
+import '../features/auth/domain/auth_models.dart';
 import '../services/user_data_service.dart';
-import '../screens/login_screen.dart';
 import '../services/douban_cache_service.dart';
 import '../services/page_cache_service.dart';
 import '../services/live_service.dart';
@@ -57,9 +58,9 @@ class _UserMenuState extends State<UserMenu> {
   }
 
   Future<void> _loadUserInfo() async {
-    final isLocalMode = await UserDataService.getIsLocalMode();
-    final username = await UserDataService.getUsername();
-    final cookies = await UserDataService.getCookies();
+    final session = context.read<AuthSessionController>();
+    final isLocalMode = session.status == AuthStatus.localMode;
+    final username = session.profile.username;
     final doubanDataSource =
         await UserDataService.getDoubanDataSourceDisplayName();
     final doubanImageSource =
@@ -72,7 +73,7 @@ class _UserMenuState extends State<UserMenu> {
       setState(() {
         _isLocalMode = isLocalMode;
         _username = username;
-        _role = _parseRoleFromCookies(cookies);
+        _role = session.role;
         _doubanDataSource = doubanDataSource;
         _doubanImageSource = doubanImageSource;
         _m3u8ProxyUrl = m3u8ProxyUrl;
@@ -82,77 +83,20 @@ class _UserMenuState extends State<UserMenu> {
     }
   }
 
-  String _parseRoleFromCookies(String? cookies) {
-    if (cookies == null || cookies.isEmpty) {
-      return 'user';
-    }
-
-    try {
-      // 解析cookies字符串
-      final cookieMap = <String, String>{};
-      final cookiePairs = cookies.split(';');
-
-      for (final cookie in cookiePairs) {
-        final trimmed = cookie.trim();
-        final firstEqualIndex = trimmed.indexOf('=');
-
-        if (firstEqualIndex > 0) {
-          final key = trimmed.substring(0, firstEqualIndex);
-          final value = trimmed.substring(firstEqualIndex + 1);
-          if (key.isNotEmpty && value.isNotEmpty) {
-            cookieMap[key] = value;
-          }
-        }
-      }
-
-      final authCookie = cookieMap['auth'];
-      if (authCookie == null) {
-        return 'user';
-      }
-
-      // 处理可能的双重编码
-      String decoded = Uri.decodeComponent(authCookie);
-
-      // 如果解码后仍然包含 %，说明是双重编码，需要再次解码
-      if (decoded.contains('%')) {
-        decoded = Uri.decodeComponent(decoded);
-      }
-
-      final authData = json.decode(decoded);
-      final role = authData['role'] as String?;
-
-      return role ?? 'user';
-    } catch (e) {
-      // 解析失败时默认为user
-      return 'user';
-    }
-  }
-
   Future<void> _handleLogout() async {
     // 清空所有缓存
-    LiveService.clearAllCache();
+    context.read<LiveService>().clearAllCache();
     LocalSearchCacheService().clearCache();
-    PageCacheService().clearAllCache();
-
-    // 只清除密码和cookies，保留服务器地址和用户名
-    await UserDataService.clearPasswordAndCookies();
-
-    await UserDataService.saveIsLocalMode(false);
-
-    // 跳转到登录页，并移除所有之前的路由（强制销毁所有页面）
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
-    }
+    context.read<PageCacheService>().clearAllCache();
+    await context.read<AuthSessionController>().logout();
   }
 
   Future<void> _handleClearDoubanCache() async {
+    final pageCacheService = context.read<PageCacheService>();
     try {
       await DoubanCacheService().clearAll();
       // 同时清空 Bangumi 的函数级与内存级缓存
-      PageCacheService().clearCache('bangumi_calendar');
+      pageCacheService.clearCache('bangumi_calendar');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('已清除豆瓣缓存')),

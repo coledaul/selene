@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import '../app/app_dependencies.dart';
 import '../services/page_cache_service.dart';
 import '../services/theme_service.dart';
 import '../services/sse_search_service.dart';
@@ -122,7 +123,7 @@ class _SearchScreenState extends State<SearchScreen>
   void initState() {
     super.initState();
 
-    _searchService = SSESearchService();
+    _searchService = context.read<AppDependencies>().createSseSearchService();
     _setupSearchListeners();
     _loadSearchHistory();
 
@@ -224,7 +225,7 @@ class _SearchScreenState extends State<SearchScreen>
   Future<void> _loadSearchHistory() async {
     // 首先尝试从缓存加载数据
     try {
-      final result = await PageCacheService().getSearchHistory(context);
+      final result = await context.read<PageCacheService>().getSearchHistory();
       if (mounted) {
         setState(() {
           _searchHistory = result.success ? (result.data ?? []) : [];
@@ -241,12 +242,13 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Future<void> _refreshSearchHistory() async {
+    final pageCacheService = context.read<PageCacheService>();
     try {
       // 刷新缓存数据
-      await PageCacheService().refreshSearchHistory(context);
+      await pageCacheService.refreshSearchHistory();
 
       // 重新获取搜索历史数据
-      final result = await PageCacheService().getSearchHistory(context);
+      final result = await pageCacheService.getSearchHistory();
       if (mounted) {
         setState(() {
           _searchHistory = result.success ? (result.data ?? []) : [];
@@ -261,7 +263,7 @@ class _SearchScreenState extends State<SearchScreen>
   Future<void> _refreshFavorites() async {
     try {
       // 刷新收藏夹缓存数据
-      await PageCacheService().refreshFavorites(context);
+      await context.read<PageCacheService>().refreshFavorites();
     } catch (e) {
       // 错误处理，静默处理
     }
@@ -274,7 +276,7 @@ class _SearchScreenState extends State<SearchScreen>
     final trimmedQuery = query.trim();
 
     // 立即添加到缓存
-    PageCacheService().addSearchHistory(trimmedQuery, context);
+    context.read<PageCacheService>().addSearchHistory(trimmedQuery);
 
     // 立即更新本地状态和UI
     if (mounted) {
@@ -417,7 +419,8 @@ class _SearchScreenState extends State<SearchScreen>
   /// 清空搜索历史
   Future<void> _clearSearchHistory() async {
     try {
-      final result = await PageCacheService().clearSearchHistory(context);
+      final result =
+          await context.read<PageCacheService>().clearSearchHistory();
 
       if (result.success) {
         // 立即清空本地状态
@@ -459,8 +462,9 @@ class _SearchScreenState extends State<SearchScreen>
   /// 删除单个搜索历史
   Future<void> _deleteSearchHistory(String historyItem) async {
     try {
-      final result =
-          await PageCacheService().deleteSearchHistory(historyItem, context);
+      final result = await context
+          .read<PageCacheService>()
+          .deleteSearchHistory(historyItem);
 
       if (result.success) {
         // 立即从UI中移除
@@ -1308,8 +1312,9 @@ class _SearchScreenState extends State<SearchScreen>
       };
 
       // 使用统一的收藏方法（包含缓存操作和API调用）
-      final result = await PageCacheService()
-          .addFavorite(videoInfo.source, videoInfo.id, favoriteData, context);
+      final result = await context
+          .read<PageCacheService>()
+          .addFavorite(videoInfo.source, videoInfo.id, favoriteData);
 
       if (result.success) {
         // 通知UI刷新收藏状态
@@ -1370,8 +1375,9 @@ class _SearchScreenState extends State<SearchScreen>
       }
 
       // 使用统一的取消收藏方法（包含缓存操作和API调用）
-      final result = await PageCacheService()
-          .removeFavorite(videoInfo.source, videoInfo.id, context);
+      final result = await context
+          .read<PageCacheService>()
+          .removeFavorite(videoInfo.source, videoInfo.id);
 
       if (!result.success) {
         // 显示错误提示

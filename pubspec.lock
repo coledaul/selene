@@ -161,6 +161,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.19.1"
+  cookie_jar:
+    dependency: "direct main"
+    description:
+      name: cookie_jar
+      sha256: "963da02c1ef64cb5ac20de948c9e5940aa351f1e34a12b1d327c83d85b7e8fff"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "4.0.9"
   crypto:
     dependency: transitive
     description:
@@ -201,6 +209,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "5.10.0"
+  dio_cookie_manager:
+    dependency: "direct main"
+    description:
+      name: dio_cookie_manager
+      sha256: "0db1a7b997a0455e488ac35744c68eed3f2a4280d3ab531835a65641b0a08744"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "3.4.0"
   dio_web_adapter:
     dependency: transitive
     description:
@@ -237,10 +253,10 @@ packages:
     dependency: "direct main"
     description:
       name: ffmpeg_kit_flutter_new_full
-      sha256: "93e1b85f062516913f2d0fed325ca09d30426646a033ba186f76464ec1160c09"
+      sha256: a9b6e8090c57e25bcef17e0d23c0bdb1fa9e953711d4166995b5247adc398095
       url: "https://pub.flutter-io.cn"
     source: hosted
-    version: "2.4.2"
+    version: "2.4.3"
   ffmpeg_kit_flutter_platform_interface:
     dependency: transitive
     description:
@@ -307,6 +323,54 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "0.7.4"
+  flutter_secure_storage:
+    dependency: "direct main"
+    description:
+      name: flutter_secure_storage
+      sha256: "7686b1d6a29985dcbb808c59518226e603e3bfa7c0ddfd1a0d00e4cda77c868e"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "10.3.1"
+  flutter_secure_storage_darwin:
+    dependency: transitive
+    description:
+      name: flutter_secure_storage_darwin
+      sha256: "82329fa5cdf343773b1b6897dea959105a29f092454259edff92f9f6637e8149"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.3.2"
+  flutter_secure_storage_linux:
+    dependency: transitive
+    description:
+      name: flutter_secure_storage_linux
+      sha256: a5f35ddab43cf5c8215d2feb4ce1957851f28c5c37e6f04335066a0602087bf5
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "3.0.1"
+  flutter_secure_storage_platform_interface:
+    dependency: transitive
+    description:
+      name: flutter_secure_storage_platform_interface
+      sha256: "06686df417f34fe9f963ed217b7fdce250e2f637ddd6c374d7eb054549770633"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.0.2"
+  flutter_secure_storage_web:
+    dependency: transitive
+    description:
+      name: flutter_secure_storage_web
+      sha256: "073a62b3aeb866ab4ce795f960413948e51e5a42a9b0c8333b6daf5bb3208a1c"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.1.1"
+  flutter_secure_storage_windows:
+    dependency: transitive
+    description:
+      name: flutter_secure_storage_windows
+      sha256: "3b7c8e068875dfd46719ff57c90d8c459c87f2302ed6b00ff006b3c9fcad1613"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "4.1.0"
   flutter_svg:
     dependency: "direct main"
     description:
@@ -1018,6 +1082,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.4.0"
+  universal_io:
+    dependency: transitive
+    description:
+      name: universal_io
+      sha256: f63cbc48103236abf48e345e07a03ce5757ea86285ed313a6a032596ed9301e2
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.3.1"
   universal_platform:
     dependency: transitive
     description:

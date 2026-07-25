@@ -3,6 +3,8 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../features/auth/application/auth_session_controller.dart';
+import '../features/auth/domain/auth_models.dart';
 import '../features/video_download/application/video_download_manager.dart';
 import '../features/video_download/presentation/download_selection_sheet.dart';
 import '../widgets/video_player_surface.dart';
@@ -276,7 +278,8 @@ class _PlayerScreenState extends State<PlayerScreen>
     int playEpisodeIndex = 0;
     int playTime = 0;
     if (mounted) {
-      final allPlayRecords = await PageCacheService().getPlayRecords(context);
+      final allPlayRecords =
+          await context.read<PageCacheService>().getPlayRecords();
       if (!_isActiveLoad(loadGeneration)) return;
       // 查找是否有当前视频的播放记录
       if (allPlayRecords.success && allPlayRecords.data != null) {
@@ -565,7 +568,7 @@ class _PlayerScreenState extends State<PlayerScreen>
       );
 
       // 异步保存播放记录（不等待结果）
-      PageCacheService().savePlayRecord(playRecord, context).then((_) {
+      context.read<PageCacheService>().savePlayRecord(playRecord).then((_) {
         debugPrint(
             '保存播放进度 [场景: $scene]: source: $currentSourceSnapshot, id: $currentIDSnapshot, 第${currentEpisodeIndexSnapshot + 1}集, 时间: ${playTime}秒');
       }).catchError((e) {
@@ -846,7 +849,7 @@ class _PlayerScreenState extends State<PlayerScreen>
   /// 检查收藏状态
   void _checkFavoriteStatus() {
     if (currentSource.isNotEmpty && currentID.isNotEmpty) {
-      final cacheService = PageCacheService();
+      final cacheService = context.read<PageCacheService>();
       final isFavorited =
           cacheService.isFavoritedSync(currentSource, currentID);
       if (mounted) {
@@ -861,12 +864,12 @@ class _PlayerScreenState extends State<PlayerScreen>
   void _toggleFavorite() async {
     if (currentSource.isEmpty || currentID.isEmpty) return;
 
-    final cacheService = PageCacheService();
+    final cacheService = context.read<PageCacheService>();
 
     if (_isFavorite) {
       // 取消收藏
       final result =
-          await cacheService.removeFavorite(currentSource, currentID, context);
+          await cacheService.removeFavorite(currentSource, currentID);
       if (!mounted) return;
       if (result.success) {
         setState(() {
@@ -885,7 +888,10 @@ class _PlayerScreenState extends State<PlayerScreen>
       };
 
       final result = await cacheService.addFavorite(
-          currentSource, currentID, favoriteData, context);
+        currentSource,
+        currentID,
+        favoriteData,
+      );
       if (!mounted) return;
       if (result.success) {
         setState(() {
@@ -995,7 +1001,9 @@ class _PlayerScreenState extends State<PlayerScreen>
         oldID.isNotEmpty &&
         (oldSource != newSource.source || oldID != newSource.id)) {
       try {
-        await PageCacheService().deletePlayRecord(oldSource, oldID, context);
+        await context
+            .read<PageCacheService>()
+            .deletePlayRecord(oldSource, oldID);
         if (!mounted) return;
         debugPrint('删除旧源播放记录: $oldSource+$oldID');
       } catch (e) {
@@ -2547,28 +2555,33 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   /// 获取视频详情
   Future<List<SearchResult>> fetchSourceDetail(String source, String id) async {
+    final searchService = context.read<SearchService>();
+    final apiService = context.read<ApiService>();
     // 检查是否启用本地搜索
     final isLocalSearch = await UserDataService.getLocalSearch();
     if (isLocalSearch) {
-      return await SearchService.getDetailSync(source, id);
+      return await searchService.getDetailSync(source, id);
     } else {
-      return await ApiService.fetchSourceDetail(source, id);
+      return await apiService.fetchSourceDetail(source, id);
     }
   }
 
   /// 搜索视频源数据（带过滤）
   Future<List<SearchResult>> fetchSourcesData(String query) async {
+    final authController = context.read<AuthSessionController>();
+    final searchService = context.read<SearchService>();
+    final apiService = context.read<ApiService>();
     // 检查是否启用本地搜索
     final isLocalSearch = await UserDataService.getLocalSearch();
-    final isLocalMode = await UserDataService.getIsLocalMode();
+    final isLocalMode = authController.status == AuthStatus.localMode;
 
     List<SearchResult> results;
     if (isLocalSearch || isLocalMode) {
       // 使用本地搜索
-      results = await SearchService.searchSync(query);
+      results = await searchService.searchSync(query);
     } else {
       // 使用服务器搜索
-      results = await ApiService.fetchSourcesData(query);
+      results = await apiService.fetchSourcesData(query);
     }
 
     // 直接在这里展开过滤逻辑

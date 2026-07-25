@@ -3,6 +3,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:selene/services/search_service.dart';
 import 'package:selene/services/user_data_service.dart';
+import '../features/auth/application/auth_session_controller.dart';
+import '../features/auth/domain/auth_models.dart';
 import '../services/theme_service.dart';
 import '../services/api_service.dart';
 import '../utils/device_utils.dart';
@@ -111,14 +113,17 @@ class _MainLayoutState extends State<MainLayout> {
     }
 
     final currentQuery = query;
-    final isLocalMode = await UserDataService.getIsLocalMode();
+    final authController = context.read<AuthSessionController>();
+    final searchService = context.read<SearchService>();
+    final apiService = context.read<ApiService>();
+    final isLocalMode = authController.status == AuthStatus.localMode;
     final isLocalSearch = await UserDataService.getLocalSearch();
 
     List<String> suggestionResults;
     if (isLocalMode || isLocalSearch) {
-      suggestionResults = await SearchService.searchRecommand(query.trim());
+      suggestionResults = await searchService.searchRecommand(query.trim());
     } else {
-      suggestionResults = await ApiService.getSearchSuggestions(query.trim());
+      suggestionResults = await apiService.getSearchSuggestions(query.trim());
     }
 
     // 检查搜索框内容是否已变化

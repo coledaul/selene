@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/favorite_item.dart';
 import '../widgets/video_card.dart';
 import '../models/play_record.dart';
@@ -40,7 +41,7 @@ class _FavoritesGridState extends State<FavoritesGrid>
   List<PlayRecord> _playRecords = [];
   bool _isLoading = true;
   String? _errorMessage;
-  final PageCacheService _cacheService = PageCacheService();
+  PageCacheService get _cacheService => context.read<PageCacheService>();
 
   // 静态变量存储当前实例
   static _FavoritesGridState? _currentInstance;
@@ -114,11 +115,11 @@ class _FavoritesGridState extends State<FavoritesGrid>
     try {
       if (!mounted) return;
       // 刷新缓存数据
-      await _cacheService.refreshFavorites(context);
+      await _cacheService.refreshFavorites();
       if (!mounted) return;
 
       // 重新获取收藏夹数据
-      final result = await _cacheService.getFavorites(context);
+      final result = await _cacheService.getFavorites();
       if (!mounted) return;
 
       if (result.success && result.data != null) {
@@ -140,8 +141,7 @@ class _FavoritesGridState extends State<FavoritesGrid>
   Future<void> _refreshPlayRecords() async {
     try {
       if (!mounted) return;
-      final cachedRecordsResult =
-          await _cacheService.getPlayRecordsDirect(context);
+      final cachedRecordsResult = await _cacheService.getPlayRecordsDirect();
       if (!mounted) return;
       if (cachedRecordsResult.success && cachedRecordsResult.data != null) {
         final cachedRecords = cachedRecordsResult.data!;
@@ -200,7 +200,7 @@ class _FavoritesGridState extends State<FavoritesGrid>
     try {
       if (!mounted) return;
       // 使用缓存服务获取数据
-      final result = await _cacheService.getFavorites(context);
+      final result = await _cacheService.getFavorites();
       if (!mounted) return;
 
       if (result.success && result.data != null) {
@@ -219,7 +219,7 @@ class _FavoritesGridState extends State<FavoritesGrid>
     try {
       if (!mounted) return;
       // 使用缓存服务获取数据
-      final result = await _cacheService.getPlayRecords(context);
+      final result = await _cacheService.getPlayRecords();
       if (!mounted) return;
 
       if (result.success && result.data != null) {

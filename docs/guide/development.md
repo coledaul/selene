@@ -5,6 +5,7 @@
 - 安装 Flutter stable，并满足 `pubspec.yaml` 中 Dart `>=3.4.3 <4.0.0` 的约束。
 - Android 构建需要 Android SDK；iOS 和 macOS 构建需要 macOS 与 Xcode。
 - 当前 Android 工具链基线为 Gradle 8.14、Android Gradle Plugin 8.11.1、Kotlin 2.2.20 和 NDK 29。
+- 鉴权使用 Dio 5.10、内存 CookieJar 和 `flutter_secure_storage` 10.3.1；Android 最低 API 24 满足安全存储 API 23+ 的要求。
 - 视频下载依赖社区预编译的 `ffmpeg_kit_flutter_new_full` LGPL 变体：Android 最低 API 24、iOS 最低 14.0、macOS 最低要求由当前工程的 11.0 满足。
 - 使用仓库现有 `pubspec.lock`，不要混入其他依赖管理方式。
 
@@ -42,6 +43,8 @@ dart format lib test
 ```bash
 flutter analyze
 flutter test
+flutter test test/auth_session_controller_test.dart test/auth_network_test.dart
+flutter test test/api_service_test.dart test/login_screen_test.dart
 flutter test test/video_download_test.dart
 ```
 
@@ -120,7 +123,8 @@ Android Release 使用混淆和 split debug info；iOS 产物不签名；macOS �
 1. Dart 代码：格式检查、`flutter analyze` 和相关测试。
 2. 平台工程：对应平台构建或最小平台验证。
 3. 下载模块：运行 `flutter test test/video_download_test.dart`，并以合法自有 HLS/MP4 样本验证下载、取消、重试、重启恢复、离线播放和删除。
-4. 构建脚本：运行两个 Shell 测试；确需发布时再执行 `build.sh`。
-5. 配置、目录或构建行为：同步更新 `README.md` 或 `docs/guide/`。
+4. 鉴权模块：验证记住/不记住、启动恢复、本地模式、并发 401、单次重试、SSE、退出和安全存储失败；测试与日志中不得出现真实凭据。
+5. 构建脚本：运行两个 Shell 测试；确需发布时再执行 `build.sh`。
+6. 配置、目录或构建行为：同步更新 `README.md` 或 `docs/guide/`。
 
 无法执行的检查应在交付说明中明确列出，不要把未运行的命令描述为已通过。

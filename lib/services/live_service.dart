@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:selene/services/local_mode_storage_service.dart';
-import 'package:selene/services/user_data_service.dart';
+import '../features/auth/application/auth_session_controller.dart';
+import '../features/auth/domain/auth_models.dart';
 
 import '../models/live_channel.dart';
 import '../models/live_source.dart';
@@ -30,18 +31,22 @@ class _CacheItem<T> {
 
 /// 直播服务
 class LiveService {
+  LiveService(this._apiService, this._sessionController);
+
+  final ApiService _apiService;
+  final AuthSessionController _sessionController;
+
   // 缓存存储
-  static _CacheItem<List<LiveSource>>? _liveSourcesCache;
-  static final Map<String, _CacheItem<M3uContent>> _channelsCache = {};
-  static final Map<String, _CacheItem<Map<String, EpgData>>> _epgCache = {};
+  _CacheItem<List<LiveSource>>? _liveSourcesCache;
+  final Map<String, _CacheItem<M3uContent>> _channelsCache = {};
+  final Map<String, _CacheItem<Map<String, EpgData>>> _epgCache = {};
 
   static const Duration _sourceCacheDuration = Duration(hours: 2);
   static const Duration _channelCacheDuration = Duration(hours: 2);
   static const Duration _epgCacheDuration = Duration(hours: 2);
 
   /// 获取所有直播源（乐观缓存：过期时先返回旧数据，后台异步刷新）
-  static Future<List<LiveSource>> getLiveSources(
-      {bool forceRefresh = false}) async {
+  Future<List<LiveSource>> getLiveSources({bool forceRefresh = false}) async {
     // 如果有缓存且未过期，直接返回
     if (!forceRefresh &&
         _liveSourcesCache != null &&
@@ -62,14 +67,14 @@ class LiveService {
   }
 
   /// 获取并缓存直播源
-  static Future<List<LiveSource>> _fetchAndCacheLiveSources() async {
+  Future<List<LiveSource>> _fetchAndCacheLiveSources() async {
     try {
-      final isLocalMode = await UserDataService.getIsLocalMode();
+      final isLocalMode = _sessionController.status == AuthStatus.localMode;
       List<LiveSource> sources;
       if (isLocalMode) {
         sources = await LocalModeStorageService.getLiveSources();
       } else {
-        sources = await ApiService.getLiveSources();
+        sources = await _apiService.getLiveSources();
       }
       _liveSourcesCache = _CacheItem(sources, DateTime.now());
       return sources;
@@ -80,7 +85,7 @@ class LiveService {
   }
 
   /// 获取指定直播源的频道列表（乐观缓存：过期时先返回旧数据，后台异步刷新）
-  static Future<List<LiveChannel>> getLiveChannels(String sourceKey,
+  Future<List<LiveChannel>> getLiveChannels(String sourceKey,
       {bool forceRefresh = false}) async {
     // 如果有缓存且未过期，直接返回
     if (!forceRefresh && _channelsCache.containsKey(sourceKey)) {
@@ -103,8 +108,7 @@ class LiveService {
   }
 
   /// 获取并缓存频道列表
-  static Future<List<LiveChannel>> _fetchAndCacheChannels(
-      String sourceKey) async {
+  Future<List<LiveChannel>> _fetchAndCacheChannels(String sourceKey) async {
     try {
       // 从缓存中获取对应的 LiveSource
       final liveSource = _liveSourcesCache?.data.firstWhere(
@@ -145,7 +149,7 @@ class LiveService {
   }
 
   /// 智能解码响应内容，支持 UTF-8、GBK、GB2312 等编码
-  static String _decodeResponse(List<int> bytes) {
+  String _decodeResponse(List<int> bytes) {
     // 1. 首先尝试 UTF-8 解码
     try {
       final utf8Text = utf8.decode(bytes, allowMalformed: false);
@@ -173,7 +177,7 @@ class LiveService {
   }
 
   /// 解析 M3U 内容
-  static M3uContent _parseM3U(String sourceKey, String m3uContent) {
+  M3uContent _parseM3U(String sourceKey, String m3uContent) {
     final channels = <LiveChannel>[];
     final lines = m3uContent
         .split('\n')
@@ -254,7 +258,7 @@ class LiveService {
   }
 
   /// 获取 EPG 节目单（乐观缓存：过期时先返回旧数据，后台异步刷新）
-  static Future<EpgData?> getLiveEpg(String tvgId, String sourceKey,
+  Future<EpgData?> getLiveEpg(String tvgId, String sourceKey,
       {bool forceRefresh = false}) async {
     // 如果有缓存且未过期，从缓存中查找对应 tvgId 的数据
     if (!forceRefresh && _epgCache.containsKey(sourceKey)) {
@@ -284,7 +288,7 @@ class LiveService {
   }
 
   /// 获取并缓存 EPG 数据
-  static Future<void> _fetchAndCacheEpg(String sourceKey) async {
+  Future<void> _fetchAndCacheEpg(String sourceKey) async {
     try {
       // 从缓存中获取对应的 LiveSource
       final liveSource = _liveSourcesCache?.data.firstWhere(
@@ -359,7 +363,7 @@ class LiveService {
   }
 
   /// 解析 EPG XML 数据（使用流式解析）
-  static Future<Map<String, List<Map<String, String>>>> _parseEpg(
+  Future<Map<String, List<Map<String, String>>>> _parseEpg(
       String epgUrl, String userAgent, List<String> tvgIds) async {
     if (epgUrl.isEmpty) {
       return {};
@@ -460,7 +464,7 @@ class LiveService {
   }
 
   /// 解析 EPG 时间格式 "20251021235000 +0900"
-  static DateTime _parseEpgDateTime(String dateTimeStr) {
+  DateTime _parseEpgDateTime(String dateTimeStr) {
     if (dateTimeStr.isEmpty) return DateTime.now();
 
     try {
@@ -486,29 +490,29 @@ class LiveService {
   }
 
   /// 清除所有缓存
-  static void clearAllCache() {
+  void clearAllCache() {
     _liveSourcesCache = null;
     _channelsCache.clear();
     _epgCache.clear();
   }
 
   /// 清除直播源缓存
-  static void clearSourcesCache() {
+  void clearSourcesCache() {
     _liveSourcesCache = null;
   }
 
   /// 清除指定源的频道缓存
-  static void clearChannelsCache(String sourceKey) {
+  void clearChannelsCache(String sourceKey) {
     _channelsCache.remove(sourceKey);
   }
 
   /// 清除指定的 EPG 缓存
-  static void clearEpgCache(String sourceKey) {
+  void clearEpgCache(String sourceKey) {
     _epgCache.remove(sourceKey);
   }
 
   /// 一键清除所有频道和 EPG 缓存（保留直播源缓存）
-  static void clearAllChannelsAndEpgCache() {
+  void clearAllChannelsAndEpgCache() {
     _channelsCache.clear();
     _epgCache.clear();
   }

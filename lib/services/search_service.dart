@@ -1,22 +1,28 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../features/auth/application/auth_session_controller.dart';
+import '../features/auth/domain/auth_models.dart';
 import '../models/search_result.dart';
 import '../models/search_resource.dart';
 import 'api_service.dart';
 import 'downstream_service.dart';
-import '../services/user_data_service.dart';
 import '../services/local_mode_storage_service.dart';
 
 /// 搜索服务
 class SearchService {
+  SearchService(this._apiService, this._sessionController);
+
+  final ApiService _apiService;
+  final AuthSessionController _sessionController;
+
   // 内存缓存
-  static List<SearchResource>? _cachedResources;
-  static bool _isRefreshing = false;
+  List<SearchResource>? _cachedResources;
+  bool _isRefreshing = false;
 
   /// 获取搜索资源列表（带缓存）
   /// 本地模式直接返回，服务器模式先返回缓存数据然后异步刷新
-  static Future<List<SearchResource>> _getSearchResourcesWithCache() async {
-    final isLocalMode = await UserDataService.getIsLocalMode();
+  Future<List<SearchResource>> _getSearchResourcesWithCache() async {
+    final isLocalMode = _sessionController.status == AuthStatus.localMode;
 
     // 本地模式不使用缓存，直接返回
     if (isLocalMode) {
@@ -38,7 +44,7 @@ class SearchService {
   }
 
   /// 刷新缓存（仅用于服务器模式）
-  static Future<List<SearchResource>> _refreshCache() async {
+  Future<List<SearchResource>> _refreshCache() async {
     if (_isRefreshing) {
       // 如果正在刷新，等待当前刷新完成
       while (_isRefreshing) {
@@ -49,7 +55,7 @@ class SearchService {
 
     _isRefreshing = true;
     try {
-      final resources = await ApiService.getSearchResources();
+      final resources = await _apiService.getSearchResources();
       _cachedResources = resources;
       return resources;
     } catch (e) {
@@ -60,13 +66,13 @@ class SearchService {
   }
 
   /// 清除缓存（在需要强制刷新时调用）
-  static void clearCache() {
+  void clearCache() {
     _cachedResources = null;
   }
 
   /// 搜索推荐（只搜索第一个资源）
   /// 用于快速获取搜索建议
-  static Future<List<String>> searchRecommand(String query) async {
+  Future<List<String>> searchRecommand(String query) async {
     try {
       // 获取搜索资源列表（使用缓存）
       final allResources = await _getSearchResourcesWithCache();
@@ -99,7 +105,7 @@ class SearchService {
 
   /// 同步搜索（本地搜索）
   /// 并发调用所有资源的搜索，返回所有结果
-  static Future<List<SearchResult>> searchSync(String query) async {
+  Future<List<SearchResult>> searchSync(String query) async {
     try {
       // 获取搜索资源列表（使用缓存）
       final allResources = await _getSearchResourcesWithCache();
@@ -140,8 +146,7 @@ class SearchService {
   }
 
   /// 获取视频详情（本地直接调用下游API）
-  static Future<List<SearchResult>> getDetailSync(
-      String source, String id) async {
+  Future<List<SearchResult>> getDetailSync(String source, String id) async {
     try {
       // 获取搜索资源列表（使用缓存）
       final allResources = await _getSearchResourcesWithCache();
@@ -257,7 +262,7 @@ class SearchService {
   }
 
   /// 处理特殊源的详情（通过 HTML 页面解析）
-  static Future<SearchResult> _handleSpecialSourceDetail(
+  Future<SearchResult> _handleSpecialSourceDetail(
       String id, dynamic apiSite) async {
     final detailUrl = '${apiSite.detail}/index.php/vod/detail/id/$id.html';
 
@@ -347,7 +352,7 @@ class SearchService {
   }
 
   /// 清理 HTML 标签
-  static String _cleanHtmlTags(String text) {
+  String _cleanHtmlTags(String text) {
     if (text.isEmpty) return '';
 
     String cleanedText = text
@@ -361,7 +366,7 @@ class SearchService {
   }
 
   /// 解码 HTML 实体
-  static String _decodeHtmlEntities(String text) {
+  String _decodeHtmlEntities(String text) {
     return text
         .replaceAll('&amp;', '&')
         .replaceAll('&lt;', '<')

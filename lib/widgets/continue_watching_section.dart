@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/play_record.dart';
 import '../models/video_info.dart';
-import '../services/api_service.dart';
 import '../services/page_cache_service.dart';
 import '../services/theme_service.dart';
 import '../utils/device_utils.dart';
@@ -47,7 +46,7 @@ class _ContinueWatchingSectionState extends State<ContinueWatchingSection>
   List<PlayRecord> _playRecords = [];
   bool _isLoading = true;
   bool _hasError = false;
-  final PageCacheService _cacheService = PageCacheService();
+  PageCacheService get _cacheService => context.read<PageCacheService>();
 
   // 静态变量存储当前实例
   static _ContinueWatchingSectionState? _currentInstance;
@@ -57,7 +56,7 @@ class _ContinueWatchingSectionState extends State<ContinueWatchingSection>
   bool _showLeftScroll = false;
   bool _showRightScroll = false;
   bool _isHovered = false;
-  
+
   // hover 状态
   bool _isClearButtonHovered = false;
   bool _isMoreButtonHovered = false;
@@ -117,17 +116,19 @@ class _ContinueWatchingSectionState extends State<ContinueWatchingSection>
 
   void _scrollLeft() {
     if (!_scrollController.hasClients) return;
-    
+
     // 根据可见卡片数动态计算滚动距离
-    final double visibleCards = DeviceUtils.getHorizontalVisibleCards(context, 2.75);
+    final double visibleCards =
+        DeviceUtils.getHorizontalVisibleCards(context, 2.75);
     final double screenWidth = MediaQuery.of(context).size.width;
     const double padding = 32.0;
     const double spacing = 12.0;
     final double availableWidth = screenWidth - padding;
-    final double cardWidth = (availableWidth - (spacing * (visibleCards - 1))) / visibleCards;
+    final double cardWidth =
+        (availableWidth - (spacing * (visibleCards - 1))) / visibleCards;
     // 每次滚动约 5 个卡片的距离
     final double scrollDistance = (cardWidth + spacing) * 5;
-    
+
     _scrollController.animateTo(
       math.max(0, _scrollController.offset - scrollDistance),
       duration: const Duration(milliseconds: 300),
@@ -137,17 +138,19 @@ class _ContinueWatchingSectionState extends State<ContinueWatchingSection>
 
   void _scrollRight() {
     if (!_scrollController.hasClients) return;
-    
+
     // 根据可见卡片数动态计算滚动距离
-    final double visibleCards = DeviceUtils.getHorizontalVisibleCards(context, 2.75);
+    final double visibleCards =
+        DeviceUtils.getHorizontalVisibleCards(context, 2.75);
     final double screenWidth = MediaQuery.of(context).size.width;
     const double padding = 32.0;
     const double spacing = 12.0;
     final double availableWidth = screenWidth - padding;
-    final double cardWidth = (availableWidth - (spacing * (visibleCards - 1))) / visibleCards;
+    final double cardWidth =
+        (availableWidth - (spacing * (visibleCards - 1))) / visibleCards;
     // 每次滚动约 5 个卡片的距离
     final double scrollDistance = (cardWidth + spacing) * 5;
-    
+
     _scrollController.animateTo(
       math.min(
         _scrollController.position.maxScrollExtent,
@@ -170,7 +173,7 @@ class _ContinueWatchingSectionState extends State<ContinueWatchingSection>
         });
       }
 
-      final cachedRecordsRes = await _cacheService.getPlayRecords(context);
+      final cachedRecordsRes = await _cacheService.getPlayRecords();
 
       if (cachedRecordsRes.success && cachedRecordsRes.data != null) {
         final cachedRecords = cachedRecordsRes.data!;
@@ -343,7 +346,7 @@ class _ContinueWatchingSectionState extends State<ContinueWatchingSection>
   /// 清空播放记录
   Future<void> _clearPlayRecords() async {
     try {
-      final response = await PageCacheService().clearPlayRecord(context);
+      final response = await context.read<PageCacheService>().clearPlayRecord();
       if (!mounted) return;
 
       if (response.success) {
@@ -669,7 +672,8 @@ class _ContinueWatchingSectionState extends State<ContinueWatchingSection>
     return LayoutBuilder(
       builder: (context, constraints) {
         // 根据宽度动态展示卡片数：平板模式 5.75/6.75/7.75，手机模式 2.75
-        final double visibleCards = DeviceUtils.getHorizontalVisibleCards(context, 2.75);
+        final double visibleCards =
+            DeviceUtils.getHorizontalVisibleCards(context, 2.75);
 
         // 计算卡片宽度
         final double screenWidth = constraints.maxWidth;
@@ -720,7 +724,8 @@ class _ContinueWatchingSectionState extends State<ContinueWatchingSection>
     return LayoutBuilder(
       builder: (context, constraints) {
         // 根据宽度动态展示卡片数：平板模式 5.75/6.75/7.75，手机模式 2.75
-        final double visibleCards = DeviceUtils.getHorizontalVisibleCards(context, 2.75);
+        final double visibleCards =
+            DeviceUtils.getHorizontalVisibleCards(context, 2.75);
         final isTablet = DeviceUtils.isTablet(context);
         final int skeletonCount = isTablet ? visibleCards.ceil() : 3; // 骨架卡片数量
 
@@ -837,7 +842,7 @@ class _ContinueWatchingSectionState extends State<ContinueWatchingSection>
 
     try {
       if (mounted) {
-        final cachedRecordsResult = await _cacheService.getPlayRecordsDirect(context);
+        final cachedRecordsResult = await _cacheService.getPlayRecordsDirect();
         if (!mounted) return;
         if (cachedRecordsResult.success && cachedRecordsResult.data != null) {
           final cachedRecords = cachedRecordsResult.data!;

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/search_result.dart';
 import '../models/video_info.dart';
@@ -33,7 +34,7 @@ class SearchResultsGrid extends StatefulWidget {
 
 class _SearchResultsGridState extends State<SearchResultsGrid>
     with AutomaticKeepAliveClientMixin {
-  final PageCacheService _cacheService = PageCacheService();
+  PageCacheService get _cacheService => context.read<PageCacheService>();
 
   @override
   bool get wantKeepAlive => true;
@@ -56,13 +57,14 @@ class _SearchResultsGridState extends State<SearchResultsGrid>
         final int crossAxisCount = DeviceUtils.getTabletColumnCount(context);
         final bool isTablet = DeviceUtils.isTablet(context);
         final double mainAxisSpacing = isTablet ? 0.0 : 16.0; // 平板行间距为0
-        
+
         // 计算每列的宽度
         final double screenWidth = constraints.maxWidth;
         const double padding = 16.0; // 左右padding
         const double spacing = 12.0; // 列间距
-        final double availableWidth =
-            screenWidth - (padding * 2) - (spacing * (crossAxisCount - 1)); // 减去padding和间距
+        final double availableWidth = screenWidth -
+            (padding * 2) -
+            (spacing * (crossAxisCount - 1)); // 减去padding和间距
         // 确保最小宽度，防止负宽度约束
         const double minItemWidth = 80.0; // 最小项目宽度
         final double calculatedItemWidth = availableWidth / crossAxisCount;
@@ -86,8 +88,7 @@ class _SearchResultsGridState extends State<SearchResultsGrid>
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOut,
               child: VideoCard(
-                key: ValueKey(
-                    '${result.id}_${result.source}'), // 为每个卡片添加唯一key
+                key: ValueKey('${result.id}_${result.source}'), // 为每个卡片添加唯一key
                 videoInfo: videoInfo,
                 onTap: widget.onVideoTap != null
                     ? () => widget.onVideoTap!(videoInfo)

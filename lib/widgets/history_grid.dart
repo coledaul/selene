@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/play_record.dart';
 import '../models/video_info.dart';
 import '../widgets/video_card.dart';
@@ -38,7 +39,7 @@ class _HistoryGridState extends State<HistoryGrid>
   List<PlayRecord> _playRecords = [];
   bool _isLoading = true;
   String? _errorMessage;
-  final PageCacheService _cacheService = PageCacheService();
+  PageCacheService get _cacheService => context.read<PageCacheService>();
 
   // 静态变量存储当前实例
   static _HistoryGridState? _currentInstance;
@@ -98,8 +99,7 @@ class _HistoryGridState extends State<HistoryGrid>
   Future<void> _refreshPlayRecords() async {
     try {
       if (!mounted) return;
-      final cachedRecordsResult =
-          await _cacheService.getPlayRecordsDirect(context);
+      final cachedRecordsResult = await _cacheService.getPlayRecordsDirect();
       if (!mounted) return;
       if (cachedRecordsResult.success && cachedRecordsResult.data != null) {
         final cachedRecords = cachedRecordsResult.data!;
@@ -126,7 +126,7 @@ class _HistoryGridState extends State<HistoryGrid>
     try {
       if (!mounted) return;
       // 使用缓存服务获取数据
-      final result = await _cacheService.getPlayRecords(context);
+      final result = await _cacheService.getPlayRecords();
       if (!mounted) return;
 
       if (result.success && result.data != null) {

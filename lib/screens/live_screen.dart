@@ -70,7 +70,7 @@ class _LiveScreenState extends State<LiveScreen>
 
     try {
       // 1. 获取所有直播源
-      final liveSources = await LiveService.getLiveSources();
+      final liveSources = await context.read<LiveService>().getLiveSources();
       if (!mounted) return;
 
       if (liveSources.isEmpty) {
@@ -97,7 +97,8 @@ class _LiveScreenState extends State<LiveScreen>
       }
 
       // 3. 获取该直播源的频道列表
-      final channels = await LiveService.getLiveChannels(targetSource.key);
+      final channels =
+          await context.read<LiveService>().getLiveChannels(targetSource.key);
       if (!mounted) return;
 
       if (channels.isEmpty) {
@@ -156,9 +157,10 @@ class _LiveScreenState extends State<LiveScreen>
     _refreshIconController.repeat();
 
     try {
-      LiveService.clearAllChannelsAndEpgCache();
+      context.read<LiveService>().clearAllChannelsAndEpgCache();
       // 1. 重新获取所有直播源
-      final liveSources = await LiveService.getLiveSources(forceRefresh: true);
+      final liveSources =
+          await context.read<LiveService>().getLiveSources(forceRefresh: true);
       if (!mounted) return;
 
       if (liveSources.isEmpty) {
@@ -191,7 +193,8 @@ class _LiveScreenState extends State<LiveScreen>
       }
 
       // 3. 获取目标源的频道列表
-      final channels = await LiveService.getLiveChannels(targetSource.key);
+      final channels =
+          await context.read<LiveService>().getLiveChannels(targetSource.key);
       if (!mounted) return;
 
       if (channels.isEmpty) {

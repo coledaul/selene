@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../widgets/continue_watching_section.dart';
 import '../widgets/hot_movies_section.dart';
 import '../widgets/hot_tv_section.dart';
@@ -86,10 +87,10 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 进入首页时刷新缓存
   Future<void> _refreshCacheOnHomeEnter() async {
     try {
-      final cacheService = PageCacheService();
+      final cacheService = context.read<PageCacheService>();
 
       // 异步刷新播放记录缓存
-      cacheService.refreshPlayRecords(context).then((_) {
+      cacheService.refreshPlayRecords().then((_) {
         // 刷新成功后通知继续观看组件和播放历史组件更新UI
         if (mounted) {
           ContinueWatchingSection.refreshPlayRecords();
@@ -100,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
       });
 
       // 异步刷新收藏夹缓存
-      cacheService.refreshFavorites(context).then((_) {
+      cacheService.refreshFavorites().then((_) {
         // 刷新成功后通知收藏夹组件更新UI
         if (mounted) {
           FavoritesGrid.refreshFavorites();
@@ -110,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
       });
 
       // 异步刷新搜索历史缓存
-      cacheService.refreshSearchHistory(context).catchError((e) {
+      cacheService.refreshSearchHistory().catchError((e) {
         // 静默处理错误
       });
     } catch (e) {
@@ -657,11 +658,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _removePlayRecordFromUI(playRecord);
 
       // 使用统一的删除方法（包含缓存操作和API调用）
-      final cacheService = PageCacheService();
+      final cacheService = context.read<PageCacheService>();
       final result = await cacheService.deletePlayRecord(
         playRecord.source,
         playRecord.id,
-        context,
       );
 
       if (!result.success) {
@@ -696,8 +696,8 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 异步刷新播放记录缓存
   Future<void> _refreshPlayRecordsCache() async {
     try {
-      final cacheService = PageCacheService();
-      await cacheService.refreshPlayRecords(context);
+      final cacheService = context.read<PageCacheService>();
+      await cacheService.refreshPlayRecords();
     } catch (e) {
       // 刷新缓存失败，静默处理
     }
@@ -742,9 +742,12 @@ class _HomeScreenState extends State<HomeScreen> {
       };
 
       // 使用统一的收藏方法（包含缓存操作和API调用）
-      final cacheService = PageCacheService();
+      final cacheService = context.read<PageCacheService>();
       final result = await cacheService.addFavorite(
-          playRecord.source, playRecord.id, favoriteData, context);
+        playRecord.source,
+        playRecord.id,
+        favoriteData,
+      );
 
       if (result.success) {
         // 通知UI刷新收藏状态
@@ -805,9 +808,9 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       // 使用统一的取消收藏方法（包含缓存操作和API调用）
-      final cacheService = PageCacheService();
-      final result = await cacheService.removeFavorite(
-          playRecord.source, playRecord.id, context);
+      final cacheService = context.read<PageCacheService>();
+      final result =
+          await cacheService.removeFavorite(playRecord.source, playRecord.id);
 
       if (!result.success) {
         // 显示错误提示
@@ -857,7 +860,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _refreshFavorites() async {
     try {
       // 刷新收藏夹缓存数据
-      await PageCacheService().refreshFavorites(context);
+      await context.read<PageCacheService>().refreshFavorites();
 
       // 通知收藏夹组件刷新UI
       FavoritesGrid.refreshFavorites();

@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:async';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
+import '../core/network/moon_tv_api_client.dart';
+import '../features/auth/application/auth_session_controller.dart';
+import '../features/auth/domain/auth_models.dart';
 import '../models/search_result.dart';
 import '../models/search_resource.dart';
 import 'user_data_service.dart';
@@ -10,7 +13,19 @@ import 'local_mode_storage_service.dart';
 
 /// SSE 搜索服务
 class SSESearchService {
-  http.Client? _client;
+  SSESearchService({
+    required ApiService apiService,
+    required MoonTvClient client,
+    required AuthSessionController sessionController,
+  })  : _apiService = apiService,
+        _client = client,
+        _sessionController = sessionController;
+
+  final ApiService _apiService;
+  final MoonTvClient _client;
+  final AuthSessionController _sessionController;
+
+  CancelToken? _cancelToken;
   StreamSubscription? _subscription;
   StreamController<List<SearchResult>>? _incrementalResultsController;
   StreamController<String>? _errorController;
@@ -46,12 +61,12 @@ class SSESearchService {
   Future<void> localSearch(String query) async {
     try {
       // 检查是否是本地模式
-      final isLocalMode = await UserDataService.getIsLocalMode();
+      final isLocalMode = _sessionController.status == AuthStatus.localMode;
 
       // 获取搜索资源列表
       final allResources = isLocalMode
           ? await LocalModeStorageService.getSearchSources()
-          : await ApiService.getSearchResources();
+          : await _apiService.getSearchResources();
 
       // 过滤掉被禁用的资源
       final resources =
@@ -184,7 +199,7 @@ class SSESearchService {
     });
 
     // 检查是否启用本地搜索或本地模式
-    final isLocalMode = await UserDataService.getIsLocalMode();
+    final isLocalMode = _sessionController.status == AuthStatus.localMode;
     if (isLocalMode) {
       localSearch(query);
       return;
@@ -197,38 +212,26 @@ class SSESearchService {
     }
 
     try {
-      // 获取服务器地址和认证信息
-      final baseUrl = await UserDataService.getServerUrl();
-      final cookies = await UserDataService.getCookies();
-
-      if (baseUrl == null) {
-        throw Exception('服务器地址未配置，请先登录');
-      }
-
-      if (cookies == null) {
-        throw Exception('用户未登录');
-      }
-
-      // 构建 SSE URL
-      final baseUri = Uri.parse(baseUrl);
-      final sseUri = baseUri.replace(
-        path: '/api/search/ws',
-        queryParameters: {
-          'q': _currentQuery!,
+      _cancelToken = CancelToken();
+      final response = await _client.request(
+        '/api/search/ws',
+        queryParameters: <String, dynamic>{'q': _currentQuery!},
+        headers: const <String, String>{
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
         },
+        responseType: ResponseType.stream,
+        cancelToken: _cancelToken,
       );
+      final body = response.data;
+      if (body is! ResponseBody) {
+        throw const FormatException('服务器未返回有效的 SSE 数据流');
+      }
 
-      // 创建 HTTP 客户端并开始 SSE 连接
-      _client = http.Client();
-      final request = http.Request('GET', sseUri);
-      request.headers.addAll({
-        'Accept': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Cookie': cookies,
-      });
-
-      _subscription = _client!.send(request).asStream().listen(
-        _handleSSEResponse,
+      _buffer = '';
+      _subscription =
+          body.stream.cast<List<int>>().transform(utf8.decoder).listen(
+        _handleSSEChunk,
         onError: (error) {
           // 静默处理连接关闭错误，不显示给用户
           final errorString = error.toString().toLowerCase();
@@ -259,46 +262,18 @@ class SSESearchService {
     }
   }
 
-  /// 处理 SSE 响应
-  void _handleSSEResponse(http.StreamedResponse response) async {
-    if (response.statusCode != 200) {
-      _errorController?.add('SSE 连接失败: ${response.statusCode}');
-      return;
+  /// 处理 SSE 文本块
+  void _handleSSEChunk(String chunk) {
+    _buffer += chunk;
+    final lines = _buffer.split('\n');
+    if (lines.isNotEmpty) {
+      _buffer = lines.removeLast();
     }
 
-    // 重置缓冲区
-    _buffer = '';
-
-    // 使用流式 UTF-8 解码器，自动处理跨 chunk 的多字节字符
-    final utf8Decoder = const Utf8Decoder(allowMalformed: false);
-
-    // 流式处理 SSE 数据
-    await for (final chunk in response.stream.transform(utf8Decoder)) {
-      try {
-        // 将新数据添加到缓冲区
-        _buffer += chunk;
-
-        // 按行分割并处理
-        final lines = _buffer.split('\n');
-
-        // 保留最后一行（可能不完整）
-        if (lines.isNotEmpty) {
-          _buffer = lines.last;
-          lines.removeLast();
-        }
-
-        for (final line in lines) {
-          if (line.trim().isEmpty) continue;
-
-          // SSE 格式: data: {...}
-          if (line.startsWith('data: ')) {
-            final jsonStr = line.substring(6); // 移除 'data: ' 前缀
-            _handleSSEData(jsonStr);
-          }
-        }
-      } catch (e) {
-        // 如果解码失败，尝试跳过这个块
-        continue;
+    for (final line in lines) {
+      final normalized = line.trimRight();
+      if (normalized.startsWith('data: ')) {
+        _handleSSEData(normalized.substring(6));
       }
     }
   }
@@ -420,8 +395,8 @@ class SSESearchService {
     _isConnected = false;
     _timeoutTimer?.cancel();
     _timeoutTimer = null;
-    _client?.close();
-    _client = null;
+    _cancelToken?.cancel('搜索已停止');
+    _cancelToken = null;
   }
 
   /// 处理 SSE 错误
@@ -455,8 +430,8 @@ class SSESearchService {
     _timeoutTimer?.cancel();
     _timeoutTimer = null;
 
-    _client?.close();
-    _client = null;
+    _cancelToken?.cancel('搜索已停止');
+    _cancelToken = null;
 
     _isConnected = false;
     _currentQuery = null;

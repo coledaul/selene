@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- 兼容用户配置的 HTTP 自托管服务与媒体源；登录页会明确提示凭据传输风险。 -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system"/>
+            <certificates src="user"/>
         </trust-anchors>
     </base-config>
 </network-security-config>
