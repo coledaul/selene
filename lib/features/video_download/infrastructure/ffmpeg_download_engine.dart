@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:ffmpeg_kit_flutter_new_full/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_full/ffmpeg_session.dart';
 import 'package:ffmpeg_kit_flutter_new_full/ffprobe_kit.dart';
+import 'package:ffmpeg_kit_flutter_new_full/media_information_session.dart';
 import 'package:ffmpeg_kit_flutter_new_full/return_code.dart';
 
 class DownloadProbeResult {
@@ -50,6 +51,7 @@ class DownloadEngineException implements Exception {
 
 abstract interface class VideoDownloadEngine {
   Future<DownloadProbeResult> probe({
+    required String taskId,
     required String mediaUrl,
     required Map<String, String> headers,
   });
@@ -62,7 +64,10 @@ abstract interface class VideoDownloadEngine {
     required void Function(DownloadProgress progress) onProgress,
   });
 
-  Future<void> verify(String filePath);
+  Future<void> verify({
+    required String taskId,
+    required String filePath,
+  });
 
   Future<void> cancel(String taskId);
 }
@@ -72,10 +77,12 @@ class FfmpegDownloadEngine implements VideoDownloadEngine {
       'Mozilla/5.0 (Selene Video Downloader; Flutter) AppleWebKit/537.36';
 
   final Map<String, int> _activeSessions = <String, int>{};
-  final Set<String> _pendingCancellations = <String>{};
+  final Map<String, Completer<int?>> _startingSessions =
+      <String, Completer<int?>>{};
 
   @override
   Future<DownloadProbeResult> probe({
+    required String taskId,
     required String mediaUrl,
     required Map<String, String> headers,
   }) async {
@@ -97,11 +104,15 @@ class FfmpegDownloadEngine implements VideoDownloadEngine {
       '-i',
       mediaUrl,
     ];
-    final session = await FFprobeKit.getMediaInformationFromCommandArguments(
-      arguments,
-      20000,
+    final completedSession = await _executeMediaInformationSession(
+      taskId: taskId,
+      arguments: arguments,
+      timeoutMs: 20000,
+      creationError: '媒体信息会话创建失败',
+      failureError: '无法读取媒体信息',
+      cancellationError: '媒体信息读取已取消',
     );
-    final information = session.getMediaInformation();
+    final information = completedSession.getMediaInformation();
     if (information == null) {
       throw const DownloadEngineException('无法读取媒体信息');
     }
@@ -127,6 +138,8 @@ class FfmpegDownloadEngine implements VideoDownloadEngine {
   }) async {
     _validateMediaUrl(mediaUrl);
     final completion = Completer<FFmpegSession>();
+    final sessionReady = Completer<int?>();
+    _startingSessions[taskId] = sessionReady;
     final elapsed = Stopwatch()..start();
     try {
       final session = await FFmpegKit.executeWithArgumentsAsync(
@@ -181,12 +194,11 @@ class FfmpegDownloadEngine implements VideoDownloadEngine {
 
       final sessionId = session.getSessionId();
       if (sessionId == null) {
+        sessionReady.complete(null);
         throw const DownloadEngineException('下载会话创建失败');
       }
       _activeSessions[taskId] = sessionId;
-      if (_pendingCancellations.remove(taskId)) {
-        await FFmpegKit.cancel(sessionId);
-      }
+      sessionReady.complete(sessionId);
 
       final completedSession = await completion.future;
       final returnCode = await completedSession.getReturnCode();
@@ -201,14 +213,40 @@ class FfmpegDownloadEngine implements VideoDownloadEngine {
         );
       }
     } finally {
+      if (!sessionReady.isCompleted) {
+        sessionReady.complete(null);
+      }
+      if (identical(_startingSessions[taskId], sessionReady)) {
+        _startingSessions.remove(taskId);
+      }
       _activeSessions.remove(taskId);
-      _pendingCancellations.remove(taskId);
     }
   }
 
   @override
-  Future<void> verify(String filePath) async {
-    final session = await FFprobeKit.getMediaInformation(filePath, 15000);
+  Future<void> verify({
+    required String taskId,
+    required String filePath,
+  }) async {
+    final session = await _executeMediaInformationSession(
+      taskId: taskId,
+      arguments: <String>[
+        '-v',
+        'error',
+        '-hide_banner',
+        '-print_format',
+        'json',
+        '-show_format',
+        '-show_streams',
+        '-show_chapters',
+        '-i',
+        filePath,
+      ],
+      timeoutMs: 15000,
+      creationError: '文件校验会话创建失败',
+      failureError: '下载文件无法播放',
+      cancellationError: '文件校验已取消',
+    );
     final information = session.getMediaInformation();
     final hasVideo = information?.getStreams().any(
               (stream) => stream.getType() == 'video',
@@ -219,14 +257,72 @@ class FfmpegDownloadEngine implements VideoDownloadEngine {
     }
   }
 
+  Future<MediaInformationSession> _executeMediaInformationSession({
+    required String taskId,
+    required List<String> arguments,
+    required int timeoutMs,
+    required String creationError,
+    required String failureError,
+    required String cancellationError,
+  }) async {
+    final completion = Completer<MediaInformationSession>();
+    final sessionReady = Completer<int?>();
+    _startingSessions[taskId] = sessionReady;
+    try {
+      final session =
+          await FFprobeKit.getMediaInformationFromCommandArgumentsAsync(
+        arguments,
+        (completedSession) {
+          if (!completion.isCompleted) {
+            completion.complete(completedSession);
+          }
+        },
+        null,
+        timeoutMs,
+      );
+      final sessionId = session.getSessionId();
+      if (sessionId == null) {
+        sessionReady.complete(null);
+        throw DownloadEngineException(creationError);
+      }
+      _activeSessions[taskId] = sessionId;
+      sessionReady.complete(sessionId);
+
+      final completedSession = await completion.future;
+      final returnCode = await completedSession.getReturnCode();
+      if (ReturnCode.isCancel(returnCode)) {
+        throw DownloadEngineException(cancellationError);
+      }
+      if (!ReturnCode.isSuccess(returnCode)) {
+        throw DownloadEngineException(failureError);
+      }
+      return completedSession;
+    } finally {
+      if (!sessionReady.isCompleted) {
+        sessionReady.complete(null);
+      }
+      if (identical(_startingSessions[taskId], sessionReady)) {
+        _startingSessions.remove(taskId);
+      }
+      _activeSessions.remove(taskId);
+    }
+  }
+
   @override
   Future<void> cancel(String taskId) async {
     final sessionId = _activeSessions[taskId];
-    if (sessionId == null) {
-      _pendingCancellations.add(taskId);
+    if (sessionId != null) {
+      await FFmpegKit.cancel(sessionId);
       return;
     }
-    await FFmpegKit.cancel(sessionId);
+    final startingSession = _startingSessions[taskId];
+    if (startingSession == null) {
+      return;
+    }
+    final startingSessionId = await startingSession.future;
+    if (startingSessionId != null) {
+      await FFmpegKit.cancel(startingSessionId);
+    }
   }
 
   static List<String> _inputHeaderArguments(Map<String, String> headers) {

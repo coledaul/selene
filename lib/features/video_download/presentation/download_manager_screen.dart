@@ -7,6 +7,7 @@ import '../../../widgets/video_player_surface.dart';
 import '../../../widgets/video_player_widget.dart';
 import '../application/video_download_manager.dart';
 import '../domain/video_download_task.dart';
+import 'download_settings_dialog.dart';
 
 class DownloadManagerScreen extends StatelessWidget {
   const DownloadManagerScreen({super.key});
@@ -14,7 +15,16 @@ class DownloadManagerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('下载管理')),
+      appBar: AppBar(
+        title: const Text('下载管理'),
+        actions: [
+          IconButton(
+            tooltip: '下载设置',
+            onPressed: () => _showDownloadSettings(context),
+            icon: const Icon(Icons.settings_outlined),
+          ),
+        ],
+      ),
       body: Consumer<VideoDownloadManager>(
         builder: (context, manager, _) {
           if (!manager.isInitialized) {
@@ -54,6 +64,25 @@ class DownloadManagerScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Future<void> _showDownloadSettings(BuildContext context) async {
+    final manager = context.read<VideoDownloadManager>();
+    final selected = await showDownloadSettingsDialog(
+      context: context,
+      currentValue: manager.maxConcurrentDownloads,
+    );
+    if (selected == null || selected == manager.maxConcurrentDownloads) {
+      return;
+    }
+    try {
+      await manager.setMaxConcurrentDownloads(selected);
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('下载设置保存失败，请重试')),
+      );
+    }
   }
 }
 

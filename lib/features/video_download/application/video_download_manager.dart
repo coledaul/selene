@@ -3,31 +3,40 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../domain/video_download_settings.dart';
 import '../domain/video_download_task.dart';
 import '../infrastructure/download_file_store.dart';
+import '../infrastructure/download_settings_store.dart';
 import '../infrastructure/download_task_store.dart';
 import '../infrastructure/ffmpeg_download_engine.dart';
 
 class VideoDownloadManager extends ChangeNotifier {
   VideoDownloadManager({
     DownloadTaskStore? taskStore,
+    DownloadSettingsStore? settingsStore,
     DownloadFileStore? fileStore,
     VideoDownloadEngine? engine,
   })  : _taskStore = taskStore ?? SharedPreferencesDownloadTaskStore(),
+        _settingsStore =
+            settingsStore ?? SharedPreferencesDownloadSettingsStore(),
         _fileStore = fileStore ?? DownloadFileStore(),
         _engine = engine ?? FfmpegDownloadEngine();
 
   final DownloadTaskStore _taskStore;
+  final DownloadSettingsStore _settingsStore;
   final DownloadFileStore _fileStore;
   final VideoDownloadEngine _engine;
   final List<VideoDownloadTask> _tasks = <VideoDownloadTask>[];
   final Set<String> _runningTaskIds = <String>{};
 
   Future<void> _persistTail = Future<void>.value();
+  Future<void> _settingsUpdateTail = Future<void>.value();
   Timer? _progressPersistTimer;
   Future<void>? _initializationFuture;
   bool _initialized = false;
   bool _pumping = false;
+  int _maxConcurrentDownloads =
+      VideoDownloadSettings.defaultMaxConcurrentDownloads;
   String? _initializationError;
 
   List<VideoDownloadTask> get tasks =>
@@ -36,6 +45,8 @@ class VideoDownloadManager extends ChangeNotifier {
   bool get isInitialized => _initialized;
 
   String? get initializationError => _initializationError;
+
+  int get maxConcurrentDownloads => _maxConcurrentDownloads;
 
   int get activeCount => _tasks.where((task) => task.isActive).length;
 
@@ -69,6 +80,8 @@ class VideoDownloadManager extends ChangeNotifier {
 
   Future<void> _initialize() async {
     final storedTasks = await _taskStore.load();
+    final settings = await _settingsStore.load();
+    _maxConcurrentDownloads = settings.maxConcurrentDownloads;
     _tasks
       ..clear()
       ..addAll(storedTasks);
@@ -100,6 +113,27 @@ class VideoDownloadManager extends ChangeNotifier {
     await _persist();
     notifyListeners();
     unawaited(_pumpQueue());
+  }
+
+  Future<void> setMaxConcurrentDownloads(int value) async {
+    await initialize();
+    final normalized = VideoDownloadSettings.normalized(value);
+    Future<void> update() async {
+      if (normalized.maxConcurrentDownloads == _maxConcurrentDownloads) {
+        return;
+      }
+      await _settingsStore.save(normalized);
+      _maxConcurrentDownloads = normalized.maxConcurrentDownloads;
+      notifyListeners();
+      unawaited(_pumpQueue());
+    }
+
+    final updateFuture = _settingsUpdateTail.then(
+      (_) => update(),
+      onError: (_) => update(),
+    );
+    _settingsUpdateTail = updateFuture;
+    await updateFuture;
   }
 
   Future<List<VideoDownloadTask>> enqueueAll(
@@ -169,7 +203,9 @@ class VideoDownloadManager extends ChangeNotifier {
     _tasks[index] = task.copyWith(status: VideoDownloadStatus.cancelled);
     notifyListeners();
     await _persist();
-    if (task.status == VideoDownloadStatus.downloading) {
+    if (task.status == VideoDownloadStatus.probing ||
+        task.status == VideoDownloadStatus.downloading ||
+        task.status == VideoDownloadStatus.finalizing) {
       await _engine.cancel(taskId);
     }
   }
@@ -248,9 +284,11 @@ class VideoDownloadManager extends ChangeNotifier {
     }
     _pumping = true;
     try {
-      while (_runningTaskIds.isEmpty) {
+      while (_runningTaskIds.length < _maxConcurrentDownloads) {
         final task = _tasks.cast<VideoDownloadTask?>().firstWhere(
-              (item) => item?.status == VideoDownloadStatus.queued,
+              (item) =>
+                  item?.status == VideoDownloadStatus.queued &&
+                  !_runningTaskIds.contains(item?.id),
               orElse: () => null,
             );
         if (task == null) {
@@ -258,7 +296,6 @@ class VideoDownloadManager extends ChangeNotifier {
         }
         _runningTaskIds.add(task.id);
         unawaited(_runTaskSafely(task.id));
-        break;
       }
     } finally {
       _pumping = false;
@@ -283,6 +320,10 @@ class VideoDownloadManager extends ChangeNotifier {
     }
     try {
       await _fileStore.removeTemporary(task);
+      task = _taskById(taskId);
+      if (task == null || task.status != VideoDownloadStatus.queued) {
+        return;
+      }
       _replace(
         task.copyWith(
           status: VideoDownloadStatus.probing,
@@ -300,6 +341,7 @@ class VideoDownloadManager extends ChangeNotifier {
       var isLiveStream = false;
       try {
         final probe = await _engine.probe(
+          taskId: taskId,
           mediaUrl: task.mediaUrl,
           headers: task.headers,
         );
@@ -366,9 +408,21 @@ class VideoDownloadManager extends ChangeNotifier {
       await _persist();
       notifyListeners();
 
-      await _engine.verify(paths.temporaryPath);
+      await _engine.verify(
+        taskId: taskId,
+        filePath: paths.temporaryPath,
+      );
+      task = _taskById(taskId);
+      if (task == null || task.status == VideoDownloadStatus.cancelled) {
+        return;
+      }
       final finalPath = await _fileStore.finalize(task);
       final finalSize = await File(finalPath).length();
+      task = _taskById(taskId);
+      if (task == null || task.status == VideoDownloadStatus.cancelled) {
+        await _fileStore.deleteCompletedFile(finalPath);
+        return;
+      }
       final completedAt = DateTime.now();
       _replace(
         task.copyWith(
