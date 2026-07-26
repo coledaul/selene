@@ -1,19 +1,18 @@
 # Selene
 
-Selene 是基于 Flutter 和 `media_kit` 的 MoonTV 视频客户端，支持 MoonTV 服务端和本地订阅两种运行模式。
+Selene 是基于 Flutter 与 `media_kit` 的 MoonTV 视频客户端，支持 MoonTV 服务端和本地订阅两种运行模式。
 
-主要能力：
+核心能力：
 
-- 聚合搜索，以及电影、剧集、动漫、综艺和直播浏览；
-- 点播与直播播放、播放源测速、M3U8 代理和 DLNA 投屏；
-- HLS/普通视频下载、任务恢复、下载管理和本地离线播放；
-- 播放记录、收藏、搜索历史和浅色/深色主题；
-- 统一鉴权、并发 401 自动重认证，以及基于平台安全存储的可选“记住登录”；
-- Android、iOS、macOS 和 Windows 平台适配代码。
+- 电影、剧集、动漫、综艺、直播与聚合搜索；
+- 点播、直播、播放源优选、M3U8 代理与 DLNA 投屏；
+- HLS/普通视频下载、任务恢复、下载管理与离线播放；
+- 播放记录、收藏、搜索历史、主题和可选的安全登录记忆；
+- Android、iOS、macOS 与 Windows 平台适配。
 
 ## 快速开始
 
-安装 [Flutter](https://docs.flutter.dev/get-started/install)，然后在项目根目录执行：
+安装满足项目版本要求的 [Flutter](https://docs.flutter.dev/get-started/install)，在项目根目录执行：
 
 ```bash
 flutter pub get
@@ -21,17 +20,7 @@ flutter devices
 flutter run -d <device-id>
 ```
 
-启动后可连接 MoonTV 服务端。登录页连续点击 Logo 10 次可切换至本地订阅模式。
-
-## 常用检查
-
-```bash
-dart format --output=none --set-exit-if-changed lib test
-flutter analyze
-flutter test
-bash test/build_sh_parallel_failure_test.sh
-bash test/ci_config_test.sh
-```
+应用默认连接 MoonTV 服务端；登录页连续点击 Logo 10 次可进入本地订阅模式。
 
 ## 文档
 
@@ -39,9 +28,4 @@ bash test/ci_config_test.sh
 - [配置说明](./docs/guide/configuration.md)
 - [开发与构建](./docs/guide/development.md)
 
-## 边界
-
-- Selene 是客户端，不包含 MoonTV 服务端。
-- 本地模式的数据源和内容由用户配置的订阅提供。
-- 根目录 `build.sh` 当前只打包 Android、iOS 和 macOS；其他平台目录不代表已纳入发布流程。
-- 下载面向点播资源，不支持直播和 DRM；文件保存在应用私有持久目录，删除应用会同时删除这些文件。
+Selene 仅提供客户端。当前发布脚本覆盖 Android、iOS 和 macOS；下载仅支持非 DRM 点播资源。完整平台、配置和构建边界见上述指南。

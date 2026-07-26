@@ -3,15 +3,15 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
-import 'package:selene/features/video_download/application/video_download_manager.dart';
-import 'package:selene/features/video_download/domain/video_download_settings.dart';
-import 'package:selene/features/video_download/domain/video_download_task.dart';
-import 'package:selene/features/video_download/infrastructure/download_file_store.dart';
-import 'package:selene/features/video_download/infrastructure/download_settings_store.dart';
-import 'package:selene/features/video_download/infrastructure/download_task_store.dart';
-import 'package:selene/features/video_download/infrastructure/ffmpeg_download_engine.dart';
-import 'package:selene/features/video_download/presentation/download_manager_screen.dart';
+import 'package:selene/data/repositories/default_download_repository.dart';
+import 'package:selene/data/services/download_file_service.dart';
+import 'package:selene/data/services/download_settings_service.dart';
+import 'package:selene/data/services/download_task_service.dart';
+import 'package:selene/data/services/ffmpeg_download_service.dart';
+import 'package:selene/domain/models/video_download_settings.dart';
+import 'package:selene/domain/models/video_download_task.dart';
+import 'package:selene/ui/downloads/widgets/download_manager_screen.dart';
+import 'package:selene/ui/downloads/view_models/download_view_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -118,12 +118,12 @@ void main() {
     });
   });
 
-  group('VideoDownloadManager', () {
+  group('DefaultDownloadRepository', () {
     late Directory temporaryDirectory;
     late _MemoryTaskStore taskStore;
     late _MemorySettingsStore settingsStore;
     late _FakeDownloadEngine engine;
-    late VideoDownloadManager manager;
+    late DefaultDownloadRepository manager;
 
     setUp(() async {
       temporaryDirectory = await Directory.systemTemp.createTemp(
@@ -132,7 +132,7 @@ void main() {
       taskStore = _MemoryTaskStore();
       settingsStore = _MemorySettingsStore();
       engine = _FakeDownloadEngine();
-      manager = VideoDownloadManager(
+      manager = DefaultDownloadRepository(
         taskStore: taskStore,
         settingsStore: settingsStore,
         fileStore: DownloadFileStore(
@@ -151,10 +151,7 @@ void main() {
     });
 
     test('相同来源、内容和集数只创建一个任务', () async {
-      await manager.enqueueAll(<VideoDownloadRequest>[
-        _request(),
-        _request(),
-      ]);
+      await manager.enqueueAll(<VideoDownloadRequest>[_request(), _request()]);
 
       await _waitUntil(() => manager.completedCount == 1);
 
@@ -167,7 +164,7 @@ void main() {
     test('默认同时启动三个独立下载任务', () async {
       manager.dispose();
       final controlledEngine = _ControlledDownloadEngine();
-      manager = VideoDownloadManager(
+      manager = DefaultDownloadRepository(
         taskStore: taskStore,
         settingsStore: settingsStore,
         fileStore: DownloadFileStore(
@@ -199,7 +196,7 @@ void main() {
     test('任务完成或失败后立即补充等待任务', () async {
       manager.dispose();
       final controlledEngine = _ControlledDownloadEngine();
-      manager = VideoDownloadManager(
+      manager = DefaultDownloadRepository(
         taskStore: taskStore,
         settingsStore: settingsStore,
         fileStore: DownloadFileStore(
@@ -236,7 +233,7 @@ void main() {
     test('取消运行任务后只停止该任务并立即补位', () async {
       manager.dispose();
       final controlledEngine = _ControlledDownloadEngine();
-      manager = VideoDownloadManager(
+      manager = DefaultDownloadRepository(
         taskStore: taskStore,
         settingsStore: settingsStore,
         fileStore: DownloadFileStore(
@@ -271,11 +268,12 @@ void main() {
 
     test('取消媒体探测任务后立即释放并发槽位', () async {
       manager.dispose();
-      settingsStore.stored =
-          const VideoDownloadSettings(maxConcurrentDownloads: 1);
+      settingsStore.stored = const VideoDownloadSettings(
+        maxConcurrentDownloads: 1,
+      );
       final controlledEngine = _ControlledProbeDownloadEngine();
       addTearDown(controlledEngine.completeAllProbes);
-      manager = VideoDownloadManager(
+      manager = DefaultDownloadRepository(
         taskStore: taskStore,
         settingsStore: settingsStore,
         fileStore: DownloadFileStore(
@@ -302,11 +300,12 @@ void main() {
 
     test('校验整理阶段取消不会被覆盖为已完成', () async {
       manager.dispose();
-      settingsStore.stored =
-          const VideoDownloadSettings(maxConcurrentDownloads: 1);
+      settingsStore.stored = const VideoDownloadSettings(
+        maxConcurrentDownloads: 1,
+      );
       final controlledEngine = _ControlledFinalizeDownloadEngine();
       addTearDown(controlledEngine.completeFirstVerification);
-      manager = VideoDownloadManager(
+      manager = DefaultDownloadRepository(
         taskStore: taskStore,
         settingsStore: settingsStore,
         fileStore: DownloadFileStore(
@@ -329,14 +328,12 @@ void main() {
 
       await manager.cancel(finalizingTask.id);
 
-      expect(
-        controlledEngine.cancelledTaskIds,
-        contains(finalizingTask.id),
-      );
+      expect(controlledEngine.cancelledTaskIds, contains(finalizingTask.id));
       await _waitUntil(() => manager.completedCount == 1);
 
-      final cancelledTask =
-          manager.tasks.singleWhere((task) => task.id == finalizingTask.id);
+      final cancelledTask = manager.tasks.singleWhere(
+        (task) => task.id == finalizingTask.id,
+      );
       expect(cancelledTask.status, VideoDownloadStatus.cancelled);
       expect(cancelledTask.filePath, isNull);
       expect(
@@ -349,10 +346,11 @@ void main() {
 
     test('调高并发数立即补位，调低时不取消正在下载的任务', () async {
       manager.dispose();
-      settingsStore.stored =
-          const VideoDownloadSettings(maxConcurrentDownloads: 1);
+      settingsStore.stored = const VideoDownloadSettings(
+        maxConcurrentDownloads: 1,
+      );
       final controlledEngine = _ControlledDownloadEngine();
-      manager = VideoDownloadManager(
+      manager = DefaultDownloadRepository(
         taskStore: taskStore,
         settingsStore: settingsStore,
         fileStore: DownloadFileStore(
@@ -389,7 +387,7 @@ void main() {
     test('并发设置保存失败时保持原值', () async {
       manager.dispose();
       final failingSettingsStore = _MemorySettingsStore()..failSave = true;
-      manager = VideoDownloadManager(
+      manager = DefaultDownloadRepository(
         taskStore: taskStore,
         settingsStore: failingSettingsStore,
         fileStore: DownloadFileStore(
@@ -399,10 +397,7 @@ void main() {
       );
       await manager.initialize();
 
-      await expectLater(
-        manager.setMaxConcurrentDownloads(5),
-        throwsStateError,
-      );
+      await expectLater(manager.setMaxConcurrentDownloads(5), throwsStateError);
 
       expect(
         manager.maxConcurrentDownloads,
@@ -428,7 +423,7 @@ void main() {
       manager.dispose();
       final delayedSettingsStore = _DelayedSettingsStore();
       addTearDown(delayedSettingsStore.completeAll);
-      manager = VideoDownloadManager(
+      manager = DefaultDownloadRepository(
         taskStore: taskStore,
         settingsStore: delayedSettingsStore,
         fileStore: DownloadFileStore(
@@ -467,19 +462,19 @@ void main() {
 
     test('应用异常退出遗留的活动任务会清理临时文件并恢复下载', () async {
       manager.dispose();
-      final interruptedTask =
-          VideoDownloadTask.fromRequest(_request()).copyWith(
-        status: VideoDownloadStatus.downloading,
-        progress: 0.6,
-        downloadedBytes: 1024,
-      );
+      final interruptedTask = VideoDownloadTask.fromRequest(_request())
+          .copyWith(
+            status: VideoDownloadStatus.downloading,
+            progress: 0.6,
+            downloadedBytes: 1024,
+          );
       taskStore.stored = <VideoDownloadTask>[interruptedTask];
       final fileStore = DownloadFileStore(
         rootDirectoryProvider: () async => temporaryDirectory,
       );
       final paths = await fileStore.pathsFor(interruptedTask);
       await File(paths.temporaryPath).writeAsString('partial');
-      manager = VideoDownloadManager(
+      manager = DefaultDownloadRepository(
         taskStore: taskStore,
         settingsStore: settingsStore,
         fileStore: fileStore,
@@ -510,7 +505,7 @@ void main() {
     test('初始化失败可见并可重试', () async {
       manager.dispose();
       final failOnceStore = _FailOnceTaskStore();
-      manager = VideoDownloadManager(
+      manager = DefaultDownloadRepository(
         taskStore: failOnceStore,
         settingsStore: settingsStore,
         fileStore: DownloadFileStore(
@@ -542,7 +537,7 @@ void main() {
   });
 
   testWidgets('下载管理可修改同时下载任务数', (tester) async {
-    final manager = VideoDownloadManager(
+    final manager = DefaultDownloadRepository(
       taskStore: _MemoryTaskStore(),
       settingsStore: _MemorySettingsStore(),
       engine: _FakeDownloadEngine(),
@@ -551,9 +546,10 @@ void main() {
     addTearDown(manager.dispose);
 
     await tester.pumpWidget(
-      ChangeNotifierProvider<VideoDownloadManager>.value(
-        value: manager,
-        child: const MaterialApp(home: DownloadManagerScreen()),
+      MaterialApp(
+        home: DownloadManagerScreen(
+          viewModelFactory: () => DownloadViewModel(repository: manager),
+        ),
       ),
     );
 
@@ -571,28 +567,28 @@ void main() {
 }
 
 VideoDownloadRequest _request() => const VideoDownloadRequest(
-      source: 'source-a',
-      contentId: 'video-1',
-      sourceName: '测试源',
-      title: '测试视频',
-      coverUrl: '',
-      episodeIndex: 0,
-      episodeTitle: '第 1 集',
-      totalEpisodes: 1,
-      mediaUrl: 'https://example.com/video.m3u8',
-    );
+  source: 'source-a',
+  contentId: 'video-1',
+  sourceName: '测试源',
+  title: '测试视频',
+  coverUrl: '',
+  episodeIndex: 0,
+  episodeTitle: '第 1 集',
+  totalEpisodes: 1,
+  mediaUrl: 'https://example.com/video.m3u8',
+);
 
 VideoDownloadRequest _requestForEpisode(int index) => VideoDownloadRequest(
-      source: 'source-a',
-      contentId: 'video-1',
-      sourceName: '测试源',
-      title: '测试视频',
-      coverUrl: '',
-      episodeIndex: index,
-      episodeTitle: '第 ${index + 1} 集',
-      totalEpisodes: 5,
-      mediaUrl: 'https://example.com/video-$index.m3u8',
-    );
+  source: 'source-a',
+  contentId: 'video-1',
+  sourceName: '测试源',
+  title: '测试视频',
+  coverUrl: '',
+  episodeIndex: index,
+  episodeTitle: '第 ${index + 1} 集',
+  totalEpisodes: 5,
+  mediaUrl: 'https://example.com/video-$index.m3u8',
+);
 
 Future<void> _waitUntil(bool Function() condition) async {
   final deadline = DateTime.now().add(const Duration(seconds: 3));
@@ -636,7 +632,7 @@ class _MemorySettingsStore implements DownloadSettingsStore {
 class _DelayedSettingsStore implements DownloadSettingsStore {
   VideoDownloadSettings stored = const VideoDownloadSettings();
   final List<({VideoDownloadSettings settings, Completer<void> completion})>
-      _pendingSaves = [];
+  _pendingSaves = [];
 
   int get pendingSaveCount => _pendingSaves.length;
 
@@ -748,8 +744,7 @@ class _ControlledDownloadEngine implements VideoDownloadEngine {
     required String taskId,
     required String mediaUrl,
     required Map<String, String> headers,
-  }) async =>
-      const DownloadProbeResult(durationMs: 1000, isLiveStream: false);
+  }) async => const DownloadProbeResult(durationMs: 1000, isLiveStream: false);
 
   @override
   Future<void> download({
@@ -794,9 +789,7 @@ class _ControlledDownloadEngine implements VideoDownloadEngine {
   void fail(String taskId) {
     final completion = _completions[taskId];
     if (completion != null && !completion.isCompleted) {
-      completion.completeError(
-        const DownloadEngineException('模拟下载失败'),
-      );
+      completion.completeError(const DownloadEngineException('模拟下载失败'));
     }
   }
 
@@ -884,8 +877,7 @@ class _ControlledFinalizeDownloadEngine implements VideoDownloadEngine {
     required String taskId,
     required String mediaUrl,
     required Map<String, String> headers,
-  }) async =>
-      const DownloadProbeResult(durationMs: 1000, isLiveStream: false);
+  }) async => const DownloadProbeResult(durationMs: 1000, isLiveStream: false);
 
   @override
   Future<void> download({

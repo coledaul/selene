@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:selene/features/auth/domain/auth_models.dart';
-import 'package:selene/features/auth/infrastructure/auth_profile_store.dart';
+import 'package:selene/domain/models/auth_models.dart';
+import 'package:selene/data/services/auth_profile_service.dart';
 
 void main() {
   test('连接资料与运行模式可保存，密码和 Cookie 键会被清除', () async {
@@ -24,7 +24,10 @@ void main() {
       await store.load(),
       isA<AuthProfile>()
           .having(
-              (value) => value.serverUrl, 'serverUrl', 'https://example.com')
+            (value) => value.serverUrl,
+            'serverUrl',
+            'https://example.com',
+          )
           .having((value) => value.username, 'username', 'alice')
           .having((value) => value.rememberLogin, 'rememberLogin', isTrue),
     );

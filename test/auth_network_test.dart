@@ -4,24 +4,25 @@ import 'dart:typed_data';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:selene/core/network/auth_retry_interceptor.dart';
-import 'package:selene/core/network/dio_authenticator.dart';
-import 'package:selene/core/network/moon_tv_api_client.dart';
-import 'package:selene/core/network/session_cookie_store.dart';
-import 'package:selene/features/auth/application/auth_session_controller.dart';
-import 'package:selene/features/auth/domain/auth_models.dart';
-import 'package:selene/features/auth/infrastructure/auth_profile_store.dart';
-import 'package:selene/features/auth/infrastructure/credential_store.dart';
+import 'package:selene/data/services/auth_retry_interceptor.dart';
+import 'package:selene/data/services/dio_auth_api_service.dart';
+import 'package:selene/data/services/moon_tv_api_service.dart';
+import 'package:selene/data/services/session_cookie_service.dart';
+import 'package:selene/data/repositories/auth_repository.dart';
+import 'package:selene/data/services/auth_api_service.dart';
+import 'package:selene/domain/models/auth_models.dart';
+import 'package:selene/data/services/auth_profile_service.dart';
+import 'package:selene/data/services/credential_service.dart';
 
 void main() {
-  group('SessionCookieStore', () {
+  group('SessionCookieService', () {
     test('使用标准 CookieJar 保存认证 Cookie 并集中解析角色', () async {
       final jar = CookieJar();
-      final store = SessionCookieStore(cookieJar: jar);
+      final store = SessionCookieService(cookieJar: jar);
       final uri = Uri.parse('https://example.com/api/login');
-      final value = Uri.encodeComponent(jsonEncode(<String, Object>{
-        'role': 'admin',
-      }));
+      final value = Uri.encodeComponent(
+        jsonEncode(<String, Object>{'role': 'admin'}),
+      );
       await jar.saveFromResponse(uri, <Cookie>[Cookie('auth', value)]);
 
       final identity = await store.readIdentity('https://example.com');
@@ -33,7 +34,7 @@ void main() {
     });
   });
 
-  group('DioAuthenticator', () {
+  group('DioAuthApiService', () {
     test('登录成功必须由 CookieManager 收到有效 auth Cookie', () async {
       final dio = Dio();
       dio.httpClientAdapter = _CallbackAdapter((options, count) {
@@ -43,15 +44,13 @@ void main() {
           headers: <String, List<String>>{
             Headers.contentTypeHeader: <String>['application/json'],
             'set-cookie': <String>[
-              'auth=${Uri.encodeComponent(jsonEncode(<String, Object>{
-                    'role': 'admin'
-                  }))}; Path=/; HttpOnly',
+              'auth=${Uri.encodeComponent(jsonEncode(<String, Object>{'role': 'admin'}))}; Path=/; HttpOnly',
             ],
           },
         );
       });
-      final cookieStore = SessionCookieStore();
-      final authenticator = DioAuthenticator(
+      final cookieStore = SessionCookieService();
+      final authenticator = DioAuthApiService(
         dio: dio,
         cookieStore: cookieStore,
       );
@@ -71,9 +70,9 @@ void main() {
       dio.httpClientAdapter = _CallbackAdapter(
         (options, count) => ResponseBody.fromString('{}', 200),
       );
-      final authenticator = DioAuthenticator(
+      final authenticator = DioAuthApiService(
         dio: dio,
-        cookieStore: SessionCookieStore(),
+        cookieStore: SessionCookieService(),
       );
 
       final result = await authenticator.login(
@@ -148,22 +147,19 @@ void main() {
         );
       final client = MoonTvApiClient(
         sessionController: controller,
-        cookieStore: SessionCookieStore(),
+        cookieStore: SessionCookieService(),
         dio: dio,
       );
 
-      expect(
-        () => client.request('/api/data'),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => client.request('/api/data'), throwsA(isA<StateError>()));
     });
   });
 }
 
-Future<AuthSessionController> _authenticatedController(
+Future<AuthRepository> _authenticatedController(
   _MemoryAuthenticator authenticator,
 ) async {
-  final controller = AuthSessionController(
+  final controller = DefaultAuthRepository(
     profileStore: _MemoryProfileStore(),
     credentialStore: _MemoryCredentialStore(),
     authenticator: authenticator,
@@ -197,11 +193,14 @@ class _CallbackAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-class _MemoryAuthenticator implements Authenticator {
+class _MemoryAuthenticator implements AuthApiService {
   int loginCount = 0;
 
   @override
   Future<void> clearSession() async {}
+
+  @override
+  void dispose() {}
 
   @override
   Future<AuthLoginResult> login({

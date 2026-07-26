@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:selene/core/network/moon_tv_api_client.dart';
-import 'package:selene/services/api_service.dart';
+import 'package:selene/data/services/moon_tv_api_service.dart';
+import 'package:selene/data/services/api_service.dart';
 
 void main() {
   group('ApiService response contract', () {
@@ -87,6 +87,9 @@ class _FakeMoonTvClient implements MoonTvClient {
 
   final Response<dynamic>? response;
   final Object? error;
+
+  @override
+  void dispose() {}
 
   @override
   Future<Response<dynamic>> request(

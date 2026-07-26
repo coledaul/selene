@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
-import 'package:selene/features/auth/application/auth_session_controller.dart';
-import 'package:selene/features/auth/domain/auth_models.dart';
-import 'package:selene/features/auth/infrastructure/auth_profile_store.dart';
-import 'package:selene/features/auth/infrastructure/credential_store.dart';
-import 'package:selene/screens/login_screen.dart';
+import 'package:selene/data/repositories/auth_repository.dart';
+import 'package:selene/data/repositories/subscription_repository.dart';
+import 'package:selene/data/services/auth_api_service.dart';
+import 'package:selene/domain/models/auth_models.dart';
+import 'package:selene/domain/models/subscription.dart';
+import 'package:selene/data/services/auth_profile_service.dart';
+import 'package:selene/data/services/credential_service.dart';
+import 'package:selene/ui/auth/view_models/login_view_model.dart';
+import 'package:selene/ui/auth/widgets/login_screen.dart';
+import 'package:selene/utils/result.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('手机和平板共用唯一服务器登录表单并预填连接资料', (tester) async {
     final fixture = await _Fixture.create(
-      const AuthProfile(
-        serverUrl: 'https://example.com',
-        username: 'alice',
-      ),
+      const AuthProfile(serverUrl: 'https://example.com', username: 'alice'),
     );
 
     for (final size in <Size>[const Size(390, 844), const Size(1024, 768)]) {
       await tester.binding.setSurfaceSize(size);
-      await tester.pumpWidget(_app(fixture.controller));
+      await tester.pumpWidget(_app(fixture));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('server-url-field')), findsOneWidget);
@@ -54,9 +55,14 @@ void main() {
     await tester.binding.setSurfaceSize(null);
   });
 
+  test('登录表单保持手机 420 和平板 480 的原有最大宽度', () {
+    expect(LoginScreen.contentMaxWidth(isTablet: false), 420);
+    expect(LoginScreen.contentMaxWidth(isTablet: true), 480);
+  });
+
   testWidgets('勾选记住登录后通过会话控制器安全保存密码', (tester) async {
     final fixture = await _Fixture.create(const AuthProfile());
-    await tester.pumpWidget(_app(fixture.controller));
+    await tester.pumpWidget(_app(fixture));
     await tester.pumpAndSettle();
 
     await tester.enterText(
@@ -78,39 +84,37 @@ void main() {
 
   testWidgets('HTTP 登录地址显示明文传输风险', (tester) async {
     final fixture = await _Fixture.create(const AuthProfile());
-    await tester.pumpWidget(_app(fixture.controller));
+    await tester.pumpWidget(_app(fixture));
     await tester.enterText(
       find.byKey(const Key('server-url-field')),
       'http://192.168.1.2:3000',
     );
     await tester.pump();
 
-    expect(
-      find.text('HTTP 不会加密传输用户名和密码，仅建议在可信局域网中使用。'),
-      findsOneWidget,
-    );
+    expect(find.text('HTTP 不会加密传输用户名和密码，仅建议在可信局域网中使用。'), findsOneWidget);
   });
 
   testWidgets('服务器会话失效后在登录页展示原因', (tester) async {
     final fixture = await _Fixture.create(
-      const AuthProfile(
-        serverUrl: 'https://example.com',
-        username: 'alice',
-      ),
+      const AuthProfile(serverUrl: 'https://example.com', username: 'alice'),
     );
     await fixture.controller.invalidateSession(message: '登录已失效，请重新登录');
 
-    await tester.pumpWidget(_app(fixture.controller));
+    await tester.pumpWidget(_app(fixture));
     await tester.pumpAndSettle();
 
     expect(find.text('登录已失效，请重新登录'), findsOneWidget);
   });
 }
 
-Widget _app(AuthSessionController controller) {
-  return ChangeNotifierProvider<AuthSessionController>.value(
-    value: controller,
-    child: const MaterialApp(home: LoginScreen()),
+Widget _app(_Fixture fixture) {
+  return MaterialApp(
+    home: LoginScreen(
+      viewModelFactory: () => LoginViewModel(
+        authRepository: fixture.controller,
+        subscriptionRepository: fixture.subscriptions,
+      ),
+    ),
   );
 }
 
@@ -119,16 +123,18 @@ class _Fixture {
     required this.controller,
     required this.credentials,
     required this.authenticator,
+    required this.subscriptions,
   });
 
-  final AuthSessionController controller;
+  final AuthRepository controller;
   final _MemoryCredentialStore credentials;
   final _MemoryAuthenticator authenticator;
+  final _MemorySubscriptionRepository subscriptions;
 
   static Future<_Fixture> create(AuthProfile profile) async {
     final credentials = _MemoryCredentialStore();
     final authenticator = _MemoryAuthenticator();
-    final controller = AuthSessionController(
+    final controller = DefaultAuthRepository(
       profileStore: _MemoryProfileStore(profile),
       credentialStore: credentials,
       authenticator: authenticator,
@@ -138,8 +144,36 @@ class _Fixture {
       controller: controller,
       credentials: credentials,
       authenticator: authenticator,
+      subscriptions: _MemorySubscriptionRepository(),
     );
   }
+}
+
+class _MemorySubscriptionRepository implements SubscriptionRepository {
+  @override
+  Future<String> loadUrl() async => '';
+
+  @override
+  Future<Result<SubscriptionCandidate>> prepare(String url) async {
+    return Success(
+      SubscriptionCandidate(
+        url: url,
+        searchSources: const [],
+        liveSources: const [],
+        replacesExistingData: false,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<void>> refresh() async => const Success<void>(null);
+
+  @override
+  Future<Result<void>> save(SubscriptionCandidate candidate) async =>
+      const Success<void>(null);
+
+  @override
+  void dispose() {}
 }
 
 class _MemoryProfileStore implements AuthProfileStore {
@@ -174,12 +208,15 @@ class _MemoryCredentialStore implements CredentialStore {
   }
 }
 
-class _MemoryAuthenticator implements Authenticator {
+class _MemoryAuthenticator implements AuthApiService {
   int loginCount = 0;
   String? lastServerUrl;
 
   @override
   Future<void> clearSession() async {}
+
+  @override
+  void dispose() {}
 
   @override
   Future<AuthLoginResult> login({

@@ -1,13 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:selene/features/auth/application/auth_session_controller.dart';
-import 'package:selene/features/auth/domain/auth_models.dart';
-import 'package:selene/features/auth/infrastructure/auth_profile_store.dart';
-import 'package:selene/features/auth/infrastructure/credential_store.dart';
+import 'package:selene/data/repositories/auth_repository.dart';
+import 'package:selene/data/services/auth_api_service.dart';
+import 'package:selene/domain/models/auth_models.dart';
+import 'package:selene/data/services/auth_profile_service.dart';
+import 'package:selene/data/services/credential_service.dart';
 
 void main() {
-  group('AuthSessionController', () {
+  group('AuthRepository', () {
     test('本地模式启动不会继续发起服务器自动登录', () async {
       final profileStore = _MemoryProfileStore(
         const AuthProfile(
@@ -206,15 +207,28 @@ void main() {
       expect(controller.profile.isLocalMode, isFalse);
       expect(profileStore.profile.isLocalMode, isFalse);
     });
+
+    test('销毁 Repository 时同步释放鉴权 HTTP Service', () {
+      final authenticator = _FakeAuthenticator();
+      final controller = _controller(
+        _MemoryProfileStore(const AuthProfile()),
+        _MemoryCredentialStore(),
+        authenticator,
+      );
+
+      controller.dispose();
+
+      expect(authenticator.disposeCount, 1);
+    });
   });
 }
 
-AuthSessionController _controller(
+AuthRepository _controller(
   AuthProfileStore profileStore,
   CredentialStore credentialStore,
-  Authenticator authenticator,
+  AuthApiService authenticator,
 ) {
-  return AuthSessionController(
+  return DefaultAuthRepository(
     profileStore: profileStore,
     credentialStore: credentialStore,
     authenticator: authenticator,
@@ -272,16 +286,22 @@ class _MemoryCredentialStore implements CredentialStore {
   }
 }
 
-class _FakeAuthenticator implements Authenticator {
+class _FakeAuthenticator implements AuthApiService {
   bool delayLogin = false;
   AuthLoginResult nextResult = const AuthLoginResult.success(role: 'admin');
   int loginCount = 0;
   int clearCount = 0;
+  int disposeCount = 0;
   Completer<AuthLoginResult>? _pending;
 
   @override
   Future<void> clearSession() async {
     clearCount++;
+  }
+
+  @override
+  void dispose() {
+    disposeCount++;
   }
 
   @override

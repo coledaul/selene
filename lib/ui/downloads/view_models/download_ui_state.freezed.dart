@@ -1,0 +1,427 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
+// ignore_for_file: type=lint
+// ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
+
+part of 'download_ui_state.dart';
+
+// **************************************************************************
+// FreezedGenerator
+// **************************************************************************
+
+T _$identity<T>(T value) => value;
+
+/// @nodoc
+mixin _$DownloadUiState {
+  List<VideoDownloadTask> get tasks;
+  bool get initialized;
+  String? get initializationError;
+  int get maxConcurrentDownloads;
+
+  /// Create a copy of DownloadUiState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $DownloadUiStateCopyWith<DownloadUiState> get copyWith =>
+      _$DownloadUiStateCopyWithImpl<DownloadUiState>(
+        this as DownloadUiState,
+        _$identity,
+      );
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is DownloadUiState &&
+            const DeepCollectionEquality().equals(other.tasks, tasks) &&
+            (identical(other.initialized, initialized) ||
+                other.initialized == initialized) &&
+            (identical(other.initializationError, initializationError) ||
+                other.initializationError == initializationError) &&
+            (identical(other.maxConcurrentDownloads, maxConcurrentDownloads) ||
+                other.maxConcurrentDownloads == maxConcurrentDownloads));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    const DeepCollectionEquality().hash(tasks),
+    initialized,
+    initializationError,
+    maxConcurrentDownloads,
+  );
+
+  @override
+  String toString() {
+    return 'DownloadUiState(tasks: $tasks, initialized: $initialized, initializationError: $initializationError, maxConcurrentDownloads: $maxConcurrentDownloads)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $DownloadUiStateCopyWith<$Res> {
+  factory $DownloadUiStateCopyWith(
+    DownloadUiState value,
+    $Res Function(DownloadUiState) _then,
+  ) = _$DownloadUiStateCopyWithImpl;
+  @useResult
+  $Res call({
+    List<VideoDownloadTask> tasks,
+    bool initialized,
+    String? initializationError,
+    int maxConcurrentDownloads,
+  });
+}
+
+/// @nodoc
+class _$DownloadUiStateCopyWithImpl<$Res>
+    implements $DownloadUiStateCopyWith<$Res> {
+  _$DownloadUiStateCopyWithImpl(this._self, this._then);
+
+  final DownloadUiState _self;
+  final $Res Function(DownloadUiState) _then;
+
+  /// Create a copy of DownloadUiState
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? tasks = null,
+    Object? initialized = null,
+    Object? initializationError = freezed,
+    Object? maxConcurrentDownloads = null,
+  }) {
+    return _then(
+      _self.copyWith(
+        tasks: null == tasks
+            ? _self.tasks
+            : tasks // ignore: cast_nullable_to_non_nullable
+                  as List<VideoDownloadTask>,
+        initialized: null == initialized
+            ? _self.initialized
+            : initialized // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        initializationError: freezed == initializationError
+            ? _self.initializationError
+            : initializationError // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        maxConcurrentDownloads: null == maxConcurrentDownloads
+            ? _self.maxConcurrentDownloads
+            : maxConcurrentDownloads // ignore: cast_nullable_to_non_nullable
+                  as int,
+      ),
+    );
+  }
+}
+
+/// Adds pattern-matching-related methods to [DownloadUiState].
+extension DownloadUiStatePatterns on DownloadUiState {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>(
+    TResult Function(_DownloadUiState value)? $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _DownloadUiState() when $default != null:
+        return $default(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>(
+    TResult Function(_DownloadUiState value) $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _DownloadUiState():
+        return $default(_that);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>(
+    TResult? Function(_DownloadUiState value)? $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _DownloadUiState() when $default != null:
+        return $default(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>(
+    TResult Function(
+      List<VideoDownloadTask> tasks,
+      bool initialized,
+      String? initializationError,
+      int maxConcurrentDownloads,
+    )?
+    $default, {
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _DownloadUiState() when $default != null:
+        return $default(
+          _that.tasks,
+          _that.initialized,
+          _that.initializationError,
+          _that.maxConcurrentDownloads,
+        );
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>(
+    TResult Function(
+      List<VideoDownloadTask> tasks,
+      bool initialized,
+      String? initializationError,
+      int maxConcurrentDownloads,
+    )
+    $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _DownloadUiState():
+        return $default(
+          _that.tasks,
+          _that.initialized,
+          _that.initializationError,
+          _that.maxConcurrentDownloads,
+        );
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>(
+    TResult? Function(
+      List<VideoDownloadTask> tasks,
+      bool initialized,
+      String? initializationError,
+      int maxConcurrentDownloads,
+    )?
+    $default,
+  ) {
+    final _that = this;
+    switch (_that) {
+      case _DownloadUiState() when $default != null:
+        return $default(
+          _that.tasks,
+          _that.initialized,
+          _that.initializationError,
+          _that.maxConcurrentDownloads,
+        );
+      case _:
+        return null;
+    }
+  }
+}
+
+/// @nodoc
+
+class _DownloadUiState implements DownloadUiState {
+  const _DownloadUiState({
+    final List<VideoDownloadTask> tasks = const <VideoDownloadTask>[],
+    this.initialized = false,
+    this.initializationError,
+    this.maxConcurrentDownloads = 3,
+  }) : _tasks = tasks;
+
+  final List<VideoDownloadTask> _tasks;
+  @override
+  @JsonKey()
+  List<VideoDownloadTask> get tasks {
+    if (_tasks is EqualUnmodifiableListView) return _tasks;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_tasks);
+  }
+
+  @override
+  @JsonKey()
+  final bool initialized;
+  @override
+  final String? initializationError;
+  @override
+  @JsonKey()
+  final int maxConcurrentDownloads;
+
+  /// Create a copy of DownloadUiState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$DownloadUiStateCopyWith<_DownloadUiState> get copyWith =>
+      __$DownloadUiStateCopyWithImpl<_DownloadUiState>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _DownloadUiState &&
+            const DeepCollectionEquality().equals(other._tasks, _tasks) &&
+            (identical(other.initialized, initialized) ||
+                other.initialized == initialized) &&
+            (identical(other.initializationError, initializationError) ||
+                other.initializationError == initializationError) &&
+            (identical(other.maxConcurrentDownloads, maxConcurrentDownloads) ||
+                other.maxConcurrentDownloads == maxConcurrentDownloads));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    const DeepCollectionEquality().hash(_tasks),
+    initialized,
+    initializationError,
+    maxConcurrentDownloads,
+  );
+
+  @override
+  String toString() {
+    return 'DownloadUiState(tasks: $tasks, initialized: $initialized, initializationError: $initializationError, maxConcurrentDownloads: $maxConcurrentDownloads)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$DownloadUiStateCopyWith<$Res>
+    implements $DownloadUiStateCopyWith<$Res> {
+  factory _$DownloadUiStateCopyWith(
+    _DownloadUiState value,
+    $Res Function(_DownloadUiState) _then,
+  ) = __$DownloadUiStateCopyWithImpl;
+  @override
+  @useResult
+  $Res call({
+    List<VideoDownloadTask> tasks,
+    bool initialized,
+    String? initializationError,
+    int maxConcurrentDownloads,
+  });
+}
+
+/// @nodoc
+class __$DownloadUiStateCopyWithImpl<$Res>
+    implements _$DownloadUiStateCopyWith<$Res> {
+  __$DownloadUiStateCopyWithImpl(this._self, this._then);
+
+  final _DownloadUiState _self;
+  final $Res Function(_DownloadUiState) _then;
+
+  /// Create a copy of DownloadUiState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $Res call({
+    Object? tasks = null,
+    Object? initialized = null,
+    Object? initializationError = freezed,
+    Object? maxConcurrentDownloads = null,
+  }) {
+    return _then(
+      _DownloadUiState(
+        tasks: null == tasks
+            ? _self._tasks
+            : tasks // ignore: cast_nullable_to_non_nullable
+                  as List<VideoDownloadTask>,
+        initialized: null == initialized
+            ? _self.initialized
+            : initialized // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        initializationError: freezed == initializationError
+            ? _self.initializationError
+            : initializationError // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        maxConcurrentDownloads: null == maxConcurrentDownloads
+            ? _self.maxConcurrentDownloads
+            : maxConcurrentDownloads // ignore: cast_nullable_to_non_nullable
+                  as int,
+      ),
+    );
+  }
+}
