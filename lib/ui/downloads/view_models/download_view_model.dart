@@ -1,4 +1,5 @@
 import '../../../data/repositories/download_repository.dart';
+import '../../../domain/models/download_export_outcome.dart';
 import '../../../domain/models/video_download_task.dart';
 import '../../../domain/models/search_result.dart';
 import '../../../utils/command.dart';
@@ -15,20 +16,25 @@ final class DownloadViewModel extends ViewModel {
     retry = Command1<void, String>(_retry)..addListener(_notifyCommand);
     cancel = Command1<void, String>(_cancel)..addListener(_notifyCommand);
     delete = Command1<void, String>(_delete)..addListener(_notifyCommand);
+    export = Command1<DownloadExportOutcome, String>(_export)
+      ..addListener(_notifyCommand);
     _repository.addListener(_sync);
     _sync();
   }
 
   final DownloadRepository _repository;
   DownloadUiState _state = const DownloadUiState();
+  String? _exportingTaskId;
 
   late final Command0<void> initialize;
   late final Command1<void, int> setConcurrency;
   late final Command1<void, String> retry;
   late final Command1<void, String> cancel;
   late final Command1<void, String> delete;
+  late final Command1<DownloadExportOutcome, String> export;
 
   DownloadUiState get state => _state;
+  String? get exportingTaskId => _exportingTaskId;
 
   Future<Result<List<VideoDownloadTask>>> enqueueAll(
     Iterable<VideoDownloadRequest> requests,
@@ -81,6 +87,19 @@ final class DownloadViewModel extends ViewModel {
   Future<Result<void>> _delete(String taskId) =>
       _run(() => _repository.delete(taskId), '删除下载失败');
 
+  Future<Result<DownloadExportOutcome>> _export(String taskId) async {
+    _exportingTaskId = taskId;
+    notifyIfActive();
+    try {
+      return Success(await _repository.export(taskId));
+    } catch (error, stackTrace) {
+      return _failure('导出下载失败，请重试', error, stackTrace);
+    } finally {
+      _exportingTaskId = null;
+      notifyIfActive();
+    }
+  }
+
   Future<Result<void>> _run(
     Future<void> Function() action,
     String message,
@@ -121,6 +140,9 @@ final class DownloadViewModel extends ViewModel {
   @override
   void dispose() {
     _repository.removeListener(_sync);
+    export
+      ..removeListener(_notifyCommand)
+      ..dispose();
     for (final command in <Command<void>>[
       initialize,
       setConcurrency,

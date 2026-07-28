@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../domain/models/download_export_outcome.dart';
 import '../../domain/models/video_download_task.dart';
 import '../../domain/models/search_result.dart';
 
@@ -24,6 +25,7 @@ abstract interface class DownloadRepository implements Listenable {
   Future<void> cancel(String taskId);
   Future<void> retry(String taskId);
   Future<void> delete(String taskId);
+  Future<DownloadExportOutcome> export(String taskId);
   Future<String?> completedPathFor({
     required String source,
     required String contentId,

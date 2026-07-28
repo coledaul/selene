@@ -17,6 +17,7 @@ import '../data/repositories/theme_repository.dart';
 import '../data/repositories/update_repository.dart';
 import '../data/services/auth_profile_service.dart';
 import '../data/services/credential_service.dart';
+import '../data/services/download_export_service.dart';
 import '../data/services/settings_preferences_service.dart';
 import '../data/services/search_stream_service.dart';
 import '../data/services/subscription_api_service.dart';
@@ -111,7 +112,9 @@ class AppDependencies {
       localSearchCacheService: localSearchCacheService,
     );
     final catalogRepository = DefaultCatalogRepository();
-    final downloadRepository = DefaultDownloadRepository();
+    final downloadRepository = DefaultDownloadRepository(
+      exportService: PlatformDownloadExportService(),
+    );
     final playerRepository = DefaultPlayerRepository(apiService: apiService);
     final metadataRepository = DefaultMetadataRepository();
     final sessionCacheCoordinator = SessionCacheCoordinator(

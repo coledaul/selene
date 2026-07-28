@@ -3,9 +3,11 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../../domain/models/download_export_outcome.dart';
 import '../../domain/models/search_result.dart';
 import '../../domain/models/video_download_settings.dart';
 import '../../domain/models/video_download_task.dart';
+import '../services/download_export_service.dart';
 import '../services/download_file_service.dart';
 import '../services/download_settings_service.dart';
 import '../services/download_task_service.dart';
@@ -20,16 +22,19 @@ final class DefaultDownloadRepository extends ChangeNotifier
     DownloadSettingsStore? settingsStore,
     DownloadFileStore? fileStore,
     VideoDownloadEngine? engine,
+    DownloadExportService? exportService,
   }) : _taskStore = taskStore ?? SharedPreferencesDownloadTaskStore(),
        _settingsStore =
            settingsStore ?? SharedPreferencesDownloadSettingsStore(),
        _fileStore = fileStore ?? DownloadFileStore(),
-       _engine = engine ?? FfmpegDownloadEngine();
+       _engine = engine ?? FfmpegDownloadEngine(),
+       _exportService = exportService ?? PlatformDownloadExportService();
 
   final DownloadTaskStore _taskStore;
   final DownloadSettingsStore _settingsStore;
   final DownloadFileStore _fileStore;
   final VideoDownloadEngine _engine;
+  final DownloadExportService _exportService;
   final List<VideoDownloadTask> _tasks = <VideoDownloadTask>[];
   final Set<String> _runningTaskIds = <String>{};
 
@@ -300,6 +305,23 @@ final class DefaultDownloadRepository extends ChangeNotifier
   }
 
   @override
+  Future<DownloadExportOutcome> export(String taskId) async {
+    await initialize();
+    final index = _indexOf(taskId);
+    if (index < 0) {
+      throw StateError('下载任务不存在');
+    }
+    if (_tasks[index].status != VideoDownloadStatus.completed) {
+      throw StateError('下载任务尚未完成');
+    }
+    final filePath = await _validCompletedPathAt(index);
+    if (filePath == null) {
+      throw const FileSystemException('下载文件已丢失或为空');
+    }
+    return _exportService.export(filePath);
+  }
+
+  @override
   Future<String?> completedPathFor({
     required String source,
     required String contentId,
@@ -317,6 +339,10 @@ final class DefaultDownloadRepository extends ChangeNotifier
     if (index < 0) {
       return null;
     }
+    return _validCompletedPathAt(index);
+  }
+
+  Future<String?> _validCompletedPathAt(int index) async {
     final task = _tasks[index];
     if (await _fileStore.isValidCompletedFile(task.filePath)) {
       return task.filePath;

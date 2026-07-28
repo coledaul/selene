@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import 'package:selene/domain/models/download_export_outcome.dart';
 import 'package:selene/domain/models/video_download_task.dart';
 import 'package:selene/ui/downloads/view_models/download_view_model.dart';
 import 'package:selene/ui/player/widgets/video_player_surface.dart';
@@ -259,6 +260,7 @@ class _DownloadTaskCard extends StatelessWidget {
               ),
             ),
           ),
+          _exportButton(context),
           _actionButton(
             tooltip: '删除',
             icon: Icons.delete_outline_rounded,
@@ -296,7 +298,7 @@ class _DownloadTaskCard extends StatelessWidget {
   Widget _actionButton({
     required String tooltip,
     required IconData icon,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
     return IconButton(
       constraints: const BoxConstraints.tightFor(width: 44, height: 44),
@@ -304,6 +306,41 @@ class _DownloadTaskCard extends StatelessWidget {
       icon: Icon(icon),
       onPressed: onPressed,
     );
+  }
+
+  Widget _exportButton(BuildContext context) {
+    final isExporting = viewModel.exportingTaskId == task.id;
+    return IconButton(
+      constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+      tooltip: '导出',
+      onPressed: viewModel.export.running ? null : () => _export(context),
+      icon: isExporting
+          ? const SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.save_alt_rounded),
+    );
+  }
+
+  Future<void> _export(BuildContext context) async {
+    final result = await viewModel.export.execute(task.id);
+    if (!context.mounted || result == null) {
+      return;
+    }
+    if (result case Success<DownloadExportOutcome>(:final value)) {
+      if (value == DownloadExportOutcome.exported) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('已导出')));
+      }
+      return;
+    }
+    if (result case FailureResult<DownloadExportOutcome>(:final failure)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failure.message)));
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context) async {

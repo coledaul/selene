@@ -4,10 +4,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:selene/data/repositories/default_download_repository.dart';
+import 'package:selene/data/services/download_export_service.dart';
 import 'package:selene/data/services/download_file_service.dart';
 import 'package:selene/data/services/download_settings_service.dart';
 import 'package:selene/data/services/download_task_service.dart';
 import 'package:selene/data/services/ffmpeg_download_service.dart';
+import 'package:selene/domain/models/download_export_outcome.dart';
 import 'package:selene/domain/models/video_download_settings.dart';
 import 'package:selene/domain/models/video_download_task.dart';
 import 'package:selene/ui/downloads/widgets/download_manager_screen.dart';
@@ -123,6 +125,7 @@ void main() {
     late _MemoryTaskStore taskStore;
     late _MemorySettingsStore settingsStore;
     late _FakeDownloadEngine engine;
+    late _FakeDownloadExportService exportService;
     late DefaultDownloadRepository manager;
 
     setUp(() async {
@@ -132,6 +135,7 @@ void main() {
       taskStore = _MemoryTaskStore();
       settingsStore = _MemorySettingsStore();
       engine = _FakeDownloadEngine();
+      exportService = _FakeDownloadExportService();
       manager = DefaultDownloadRepository(
         taskStore: taskStore,
         settingsStore: settingsStore,
@@ -139,6 +143,7 @@ void main() {
           rootDirectoryProvider: () async => temporaryDirectory,
         ),
         engine: engine,
+        exportService: exportService,
       );
       await manager.initialize();
     });
@@ -159,6 +164,72 @@ void main() {
       expect(engine.downloadCount, 1);
       expect(manager.tasks.single.filePath, endsWith('.mkv'));
       expect(await File(manager.tasks.single.filePath!).exists(), isTrue);
+    });
+
+    test('仅把有效完成文件交给导出 Service', () async {
+      await manager.enqueueAll(<VideoDownloadRequest>[_request()]);
+      await _waitUntil(() => manager.completedCount == 1);
+      final task = manager.tasks.single;
+
+      final outcome = await manager.export(task.id);
+
+      expect(outcome, DownloadExportOutcome.exported);
+      expect(exportService.sourceFilePaths, <String>[task.filePath!]);
+      expect(manager.tasks.single.filePath, task.filePath);
+    });
+
+    test('用户取消导出时保留取消结果和私有完成文件', () async {
+      exportService.outcome = DownloadExportOutcome.cancelled;
+      await manager.enqueueAll(<VideoDownloadRequest>[_request()]);
+      await _waitUntil(() => manager.completedCount == 1);
+      final task = manager.tasks.single;
+
+      final outcome = await manager.export(task.id);
+
+      expect(outcome, DownloadExportOutcome.cancelled);
+      expect(await File(task.filePath!).exists(), isTrue);
+      expect(manager.tasks.single.status, VideoDownloadStatus.completed);
+    });
+
+    test('非完成任务不能导出', () async {
+      manager.dispose();
+      taskStore.stored = <VideoDownloadTask>[
+        VideoDownloadTask.fromRequest(
+          _request(),
+        ).copyWith(status: VideoDownloadStatus.cancelled),
+      ];
+      manager = DefaultDownloadRepository(
+        taskStore: taskStore,
+        settingsStore: settingsStore,
+        fileStore: DownloadFileStore(
+          rootDirectoryProvider: () async => temporaryDirectory,
+        ),
+        engine: engine,
+        exportService: exportService,
+      );
+      await manager.initialize();
+
+      await expectLater(
+        manager.export(manager.tasks.single.id),
+        throwsStateError,
+      );
+      expect(exportService.sourceFilePaths, isEmpty);
+    });
+
+    test('导出前发现完成文件丢失会修复任务状态并明确失败', () async {
+      await manager.enqueueAll(<VideoDownloadRequest>[_request()]);
+      await _waitUntil(() => manager.completedCount == 1);
+      final task = manager.tasks.single;
+      await File(task.filePath!).delete();
+
+      await expectLater(
+        manager.export(task.id),
+        throwsA(isA<FileSystemException>()),
+      );
+
+      expect(manager.tasks.single.status, VideoDownloadStatus.failed);
+      expect(manager.tasks.single.errorMessage, '下载文件已丢失或为空');
+      expect(exportService.sourceFilePaths, isEmpty);
     });
 
     test('默认同时启动三个独立下载任务', () async {
@@ -728,6 +799,17 @@ class _FakeDownloadEngine implements VideoDownloadEngine {
 
   @override
   Future<void> cancel(String taskId) async {}
+}
+
+class _FakeDownloadExportService implements DownloadExportService {
+  DownloadExportOutcome outcome = DownloadExportOutcome.exported;
+  final List<String> sourceFilePaths = <String>[];
+
+  @override
+  Future<DownloadExportOutcome> export(String sourceFilePath) async {
+    sourceFilePaths.add(sourceFilePath);
+    return outcome;
+  }
 }
 
 class _ControlledDownloadEngine implements VideoDownloadEngine {
