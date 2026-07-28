@@ -18,6 +18,7 @@ class LoginViewModel extends ViewModel {
        _state = LoginUiState(
          serverUrl: authRepository.profile.serverUrl,
          username: authRepository.profile.username,
+         password: authRepository.rememberedPassword ?? '',
          rememberLogin: authRepository.profile.rememberLogin,
          authMessage: authRepository.message,
        ) {
@@ -128,6 +129,10 @@ class LoginViewModel extends ViewModel {
 
   void _syncAuthState() {
     final profile = _authRepository.profile;
+    if (login.running) {
+      _setState(_state.copyWith(authMessage: _authRepository.message));
+      return;
+    }
     _setState(
       _state.copyWith(
         serverUrl: profile.serverUrl,

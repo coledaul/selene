@@ -88,6 +88,9 @@ class _FakeAuthRepository extends ChangeNotifier implements AuthRepository {
   String? get message => null;
 
   @override
+  String? get rememberedPassword => null;
+
+  @override
   AuthProfile get profile => const AuthProfile();
 
   @override

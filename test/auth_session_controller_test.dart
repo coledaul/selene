@@ -50,6 +50,51 @@ void main() {
       expect(authenticator.loginCount, 0);
     });
 
+    test('自动登录网络失败时保留已记住密码', () async {
+      final profileStore = _MemoryProfileStore(
+        const AuthProfile(
+          serverUrl: 'https://example.com',
+          username: 'alice',
+          rememberLogin: true,
+        ),
+      );
+      final credentials = _MemoryCredentialStore('secret');
+      final authenticator = _FakeAuthenticator()
+        ..nextResult = const AuthLoginResult.failure(
+          AuthLoginFailure.network,
+          '无法连接服务器',
+        );
+      final controller = _controller(profileStore, credentials, authenticator);
+
+      await controller.initialize();
+
+      expect(controller.status, AuthStatus.unauthenticated);
+      expect(controller.profile.rememberLogin, isTrue);
+      expect(controller.rememberedPassword, 'secret');
+      expect(credentials.password, 'secret');
+    });
+
+    test('自动登录凭据失效时不再恢复密码', () async {
+      final profileStore = _MemoryProfileStore(
+        const AuthProfile(
+          serverUrl: 'https://example.com',
+          username: 'alice',
+          rememberLogin: true,
+        ),
+      );
+      final credentials = _MemoryCredentialStore('wrong-secret');
+      final authenticator = _FakeAuthenticator()
+        ..nextResult = const AuthLoginResult.invalidCredentials();
+      final controller = _controller(profileStore, credentials, authenticator);
+
+      await controller.initialize();
+
+      expect(controller.status, AuthStatus.unauthenticated);
+      expect(controller.profile.rememberLogin, isFalse);
+      expect(controller.rememberedPassword, isNull);
+      expect(credentials.password, isNull);
+    });
+
     test('保存连接资料失败时清理刚写入的密码和会话', () async {
       final profileStore = _MemoryProfileStore(
         const AuthProfile(),
@@ -89,6 +134,7 @@ void main() {
       expect(controller.status, AuthStatus.authenticated);
       expect(controller.profile.serverUrl, 'https://example.com');
       expect(credentials.password, 'secret');
+      expect(controller.rememberedPassword, 'secret');
 
       final notRemembered = await controller.login(
         serverUrl: 'https://example.com',
@@ -100,6 +146,7 @@ void main() {
       expect(notRemembered.isSuccess, isTrue);
       expect(credentials.password, isNull);
       expect(controller.profile.rememberLogin, isFalse);
+      expect(controller.rememberedPassword, isNull);
     });
 
     test('并发 401 只执行一次重认证并共享结果', () async {

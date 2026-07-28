@@ -14,6 +14,9 @@ abstract interface class AuthRepository
   String get role;
   String? get message;
 
+  /// 仅用于登录表单恢复用户明确允许保存的密码，不得记录或二次持久化。
+  String? get rememberedPassword;
+
   Future<void> initialize();
 
   Future<AuthLoginResult> login({
@@ -59,6 +62,9 @@ class DefaultAuthRepository extends ChangeNotifier implements AuthRepository {
   String get role => _role;
   @override
   String? get message => _message;
+  @override
+  String? get rememberedPassword =>
+      _profile.rememberLogin ? _activePassword : null;
   @override
   bool get isAuthenticated => _status == AuthStatus.authenticated;
 
@@ -144,9 +150,9 @@ class DefaultAuthRepository extends ChangeNotifier implements AuthRepository {
       isLocalMode: false,
     );
 
-    _setState(status: AuthStatus.authenticating, message: null);
     final previousProfile = _profile;
     _profile = candidate;
+    _setState(status: AuthStatus.authenticating, message: null);
     final result = await _authenticate(password);
 
     if (!result.isSuccess) {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:selene/data/repositories/auth_repository.dart';
@@ -82,6 +84,102 @@ void main() {
     expect(fixture.controller.profile.rememberLogin, isTrue);
   });
 
+  testWidgets('登录进行中和网络失败后保留本次表单草稿', (tester) async {
+    final fixture = await _Fixture.create(
+      const AuthProfile(
+        serverUrl: 'https://old.example.com',
+        username: 'old-user',
+      ),
+    );
+    fixture.authenticator
+      ..delayLogin = true
+      ..nextResult = const AuthLoginResult.failure(
+        AuthLoginFailure.network,
+        '无法连接服务器',
+      );
+    await tester.pumpWidget(_app(fixture));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('server-url-field')),
+      'https://new.example.com',
+    );
+    await tester.enterText(find.byKey(const Key('username-field')), 'new-user');
+    await tester.enterText(
+      find.byKey(const Key('password-field')),
+      'new-secret',
+    );
+    await tester.tap(find.byKey(const Key('remember-login-checkbox')));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(ElevatedButton, '登录'));
+    await tester.pump();
+
+    _expectServerForm(
+      tester,
+      serverUrl: 'https://new.example.com',
+      username: 'new-user',
+      password: 'new-secret',
+      rememberLogin: true,
+    );
+
+    fixture.authenticator.completePending();
+    await tester.pumpAndSettle();
+
+    _expectServerForm(
+      tester,
+      serverUrl: 'https://new.example.com',
+      username: 'new-user',
+      password: 'new-secret',
+      rememberLogin: true,
+    );
+  });
+
+  testWidgets('启动自动登录遇到网络失败后恢复已保存密码', (tester) async {
+    final fixture = await _Fixture.create(
+      const AuthProfile(
+        serverUrl: 'https://example.com',
+        username: 'alice',
+        rememberLogin: true,
+      ),
+      password: 'saved-secret',
+      initialResult: const AuthLoginResult.failure(
+        AuthLoginFailure.network,
+        '无法连接服务器',
+      ),
+    );
+
+    await tester.pumpWidget(_app(fixture));
+    await tester.pumpAndSettle();
+
+    _expectServerForm(
+      tester,
+      serverUrl: 'https://example.com',
+      username: 'alice',
+      password: 'saved-secret',
+      rememberLogin: true,
+    );
+    expect(fixture.credentials.password, 'saved-secret');
+    expect(
+      tester
+          .widget<EditableText>(
+            find.descendant(
+              of: find.byKey(const Key('password-field')),
+              matching: find.byType(EditableText),
+            ),
+          )
+          .obscureText,
+      isTrue,
+    );
+
+    fixture.authenticator.nextResult = const AuthLoginResult.success();
+    await tester.tap(find.widgetWithText(ElevatedButton, '登录'));
+    await tester.pumpAndSettle();
+
+    expect(fixture.authenticator.loginCount, 2);
+    expect(fixture.controller.status, AuthStatus.authenticated);
+    expect(fixture.credentials.password, 'saved-secret');
+  });
+
   testWidgets('HTTP 登录地址显示明文传输风险', (tester) async {
     final fixture = await _Fixture.create(const AuthProfile());
     await tester.pumpWidget(_app(fixture));
@@ -118,6 +216,44 @@ Widget _app(_Fixture fixture) {
   );
 }
 
+void _expectServerForm(
+  WidgetTester tester, {
+  required String serverUrl,
+  required String username,
+  required String password,
+  required bool rememberLogin,
+}) {
+  expect(
+    tester
+        .widget<TextFormField>(find.byKey(const Key('server-url-field')))
+        .controller!
+        .text,
+    serverUrl,
+  );
+  expect(
+    tester
+        .widget<TextFormField>(find.byKey(const Key('username-field')))
+        .controller!
+        .text,
+    username,
+  );
+  expect(
+    tester
+        .widget<TextFormField>(find.byKey(const Key('password-field')))
+        .controller!
+        .text,
+    password,
+  );
+  expect(
+    tester
+        .widget<CheckboxListTile>(
+          find.byKey(const Key('remember-login-checkbox')),
+        )
+        .value,
+    rememberLogin,
+  );
+}
+
 class _Fixture {
   const _Fixture({
     required this.controller,
@@ -131,9 +267,14 @@ class _Fixture {
   final _MemoryAuthenticator authenticator;
   final _MemorySubscriptionRepository subscriptions;
 
-  static Future<_Fixture> create(AuthProfile profile) async {
-    final credentials = _MemoryCredentialStore();
-    final authenticator = _MemoryAuthenticator();
+  static Future<_Fixture> create(
+    AuthProfile profile, {
+    String? password,
+    AuthLoginResult? initialResult,
+  }) async {
+    final credentials = _MemoryCredentialStore(password);
+    final authenticator = _MemoryAuthenticator()
+      ..nextResult = initialResult ?? const AuthLoginResult.success();
     final controller = DefaultAuthRepository(
       profileStore: _MemoryProfileStore(profile),
       credentialStore: credentials,
@@ -194,6 +335,8 @@ class _MemoryProfileStore implements AuthProfileStore {
 }
 
 class _MemoryCredentialStore implements CredentialStore {
+  _MemoryCredentialStore([this.password]);
+
   String? password;
 
   @override
@@ -209,8 +352,11 @@ class _MemoryCredentialStore implements CredentialStore {
 }
 
 class _MemoryAuthenticator implements AuthApiService {
+  bool delayLogin = false;
+  AuthLoginResult nextResult = const AuthLoginResult.success();
   int loginCount = 0;
   String? lastServerUrl;
+  Completer<AuthLoginResult>? _pending;
 
   @override
   Future<void> clearSession() async {}
@@ -223,9 +369,15 @@ class _MemoryAuthenticator implements AuthApiService {
     required String serverUrl,
     required String username,
     required String password,
-  }) async {
+  }) {
     loginCount++;
     lastServerUrl = serverUrl;
-    return const AuthLoginResult.success();
+    if (!delayLogin) {
+      return Future<AuthLoginResult>.value(nextResult);
+    }
+    _pending = Completer<AuthLoginResult>();
+    return _pending!.future;
   }
+
+  void completePending() => _pending?.complete(nextResult);
 }
