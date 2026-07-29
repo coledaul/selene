@@ -123,15 +123,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          sdkmanager="$(find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools" -type f -name sdkmanager -print | sort -V | tail -n 1)"
+          if [ -z "$sdkmanager" ] || [ ! -x "$sdkmanager" ]; then
+            echo "Android sdkmanager was not found" >&2
+            exit 1
+          fi
+
           set +o pipefail
-          yes | sdkmanager --licenses >/dev/null
+          yes | "$sdkmanager" --licenses >/dev/null
           license_status="${PIPESTATUS[1]}"
           set -o pipefail
           if [ "$license_status" -ne 0 ]; then
             echo "Android SDK license acceptance failed" >&2
             exit "$license_status"
           fi
-          sdkmanager "ndk;29.0.14033849"
+          "$sdkmanager" "ndk;29.0.14033849"
 
       - name: Build Android release
         shell: bash

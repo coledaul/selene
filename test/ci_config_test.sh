@@ -97,8 +97,9 @@ for required in \
   fi
 done
 
-if ! grep -Fq 'sdkmanager --licenses' "$release_workflow" ||
-  ! grep -Fq 'ndk;29.0.14033849' "$release_workflow"; then
+if ! grep -Fq -- '--licenses' "$release_workflow" ||
+  ! grep -Fq 'ndk;29.0.14033849' "$release_workflow" ||
+  ! grep -Fq 'find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools"' "$release_workflow"; then
   echo "Android releases must accept SDK licenses and install the pinned NDK"
   exit 1
 fi
