@@ -23,7 +23,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // 保留原应用 ID，确保社区维护版本可以覆盖升级已有安装。
         applicationId = "org.moontechlab.selene"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -35,10 +35,28 @@ android {
     }
 
     val keystorePropertiesFile = rootProject.file("key.properties")
-    val hasSigningConfig = keystorePropertiesFile.exists()
+    val ciKeystorePath = System.getenv("SELENE_ANDROID_KEYSTORE_PATH")
+    val ciStorePassword = System.getenv("SELENE_ANDROID_STORE_PASSWORD")
+    val ciKeyAlias = System.getenv("SELENE_ANDROID_KEY_ALIAS")
+    val ciKeyPassword = System.getenv("SELENE_ANDROID_KEY_PASSWORD")
+    val hasCiSigningConfig = listOf(
+        ciKeystorePath,
+        ciStorePassword,
+        ciKeyAlias,
+        ciKeyPassword,
+    ).all { !it.isNullOrBlank() }
+    val hasLocalSigningConfig = keystorePropertiesFile.exists()
+    val hasSigningConfig = hasCiSigningConfig || hasLocalSigningConfig
 
     signingConfigs {
-        if (hasSigningConfig) {
+        if (hasCiSigningConfig) {
+            create("release") {
+                storeFile = file(ciKeystorePath!!)
+                storePassword = ciStorePassword
+                keyAlias = ciKeyAlias
+                keyPassword = ciKeyPassword
+            }
+        } else if (hasLocalSigningConfig) {
             create("release") {
                 val properties = Properties()
                 properties.load(FileInputStream(keystorePropertiesFile))
@@ -48,6 +66,17 @@ android {
                 keyAlias = properties.getProperty("keyAlias")
                 keyPassword = properties.getProperty("keyPassword")
             }
+        }
+    }
+
+    gradle.taskGraph.whenReady {
+        val runsReleaseTask = allTasks.any {
+            it.name.contains("release", ignoreCase = true)
+        }
+        if (System.getenv("CI") == "true" && runsReleaseTask && !hasSigningConfig) {
+            throw GradleException(
+                "CI release builds require explicit Selene Android signing configuration"
+            )
         }
     }
 

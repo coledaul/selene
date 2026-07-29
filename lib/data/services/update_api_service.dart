@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../domain/models/app_version.dart';
+import '../../utils/app_links.dart';
 import '../../utils/result.dart';
 
 abstract interface class UpdateApiService {
@@ -19,12 +20,6 @@ final class GitHubUpdateApiService implements UpdateApiService {
        _ownsDio = dio == null,
        _packageInfo = packageInfo ?? PackageInfo.fromPlatform;
 
-  static final Uri _latestReleaseUri = Uri.parse(
-    'https://api.github.com/repos/MoonTechLab/Selene/releases/latest',
-  );
-  static const String _releaseBaseUrl =
-      'https://github.com/MoonTechLab/Selene/releases/tag';
-
   final Dio _dio;
   final bool _ownsDio;
   final Future<PackageInfo> Function() _packageInfo;
@@ -40,10 +35,23 @@ final class GitHubUpdateApiService implements UpdateApiService {
 
   @override
   Future<Result<AppVersionInfo?>> check() async {
+    final PackageInfo packageInfo;
     try {
-      final packageInfo = await _packageInfo();
+      packageInfo = await _packageInfo();
+    } catch (error, stackTrace) {
+      return FailureResult(
+        AppFailure(
+          kind: FailureKind.platform,
+          message: '无法读取应用版本',
+          cause: error,
+          stackTrace: stackTrace,
+        ),
+      );
+    }
+
+    try {
       final response = await _dio.getUri<Map<String, dynamic>>(
-        _latestReleaseUri,
+        AppLinks.latestReleaseApiUri,
       );
       final data = response.data;
       final rawTag = data?['tag_name'];
@@ -53,7 +61,20 @@ final class GitHubUpdateApiService implements UpdateApiService {
         );
       }
 
-      final latest = rawTag.startsWith('v') ? rawTag.substring(1) : rawTag;
+      final tag = rawTag.trim();
+      final latest = tag.startsWith('v') ? tag.substring(1) : tag;
+      final rawReleaseUrl = data?['html_url'];
+      final releaseUri = rawReleaseUrl is String
+          ? Uri.tryParse(rawReleaseUrl)
+          : null;
+      if (latest.isEmpty ||
+          releaseUri == null ||
+          !AppLinks.isReleaseUri(releaseUri, tag: tag)) {
+        return const FailureResult(
+          AppFailure(kind: FailureKind.parsing, message: '版本信息格式无效'),
+        );
+      }
+
       if (!_isNewer(packageInfo.version, latest)) {
         return const Success<AppVersionInfo?>(null);
       }
@@ -61,16 +82,27 @@ final class GitHubUpdateApiService implements UpdateApiService {
         AppVersionInfo(
           currentVersion: packageInfo.version,
           latestVersion: latest,
-          releaseNotes: data?['body'] as String? ?? '',
-          releaseUri: Uri.parse('$_releaseBaseUrl/v$latest'),
+          releaseNotes: data?['body'] is String ? data!['body'] as String : '',
+          releaseUri: releaseUri,
         ),
       );
     } on DioException catch (error, stackTrace) {
+      if (error.response?.statusCode == 404) {
+        return FailureResult(
+          AppFailure(
+            kind: FailureKind.notFound,
+            message: '更新源暂无已发布版本',
+            cause: error,
+            stackTrace: stackTrace,
+          ),
+        );
+      }
       return FailureResult(
         AppFailure(
           kind:
               error.type == DioExceptionType.connectionTimeout ||
-                  error.type == DioExceptionType.receiveTimeout
+                  error.type == DioExceptionType.receiveTimeout ||
+                  error.type == DioExceptionType.sendTimeout
               ? FailureKind.timeout
               : FailureKind.network,
           message: '检查版本更新失败',
@@ -81,8 +113,8 @@ final class GitHubUpdateApiService implements UpdateApiService {
     } catch (error, stackTrace) {
       return FailureResult(
         AppFailure(
-          kind: FailureKind.platform,
-          message: '无法读取应用版本',
+          kind: FailureKind.parsing,
+          message: '版本信息格式无效',
           cause: error,
           stackTrace: stackTrace,
         ),

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Selene 构建脚本
-# 用于构建安卓和 iOS 无签名版本，并将构建产物复制到根目录下
+# 用于构建 Android、iOS 无签名版本和 macOS universal 版本，并整理构建产物
 
 set -e  # 遇到错误时退出
 
@@ -75,8 +75,7 @@ clean_build() {
     # 清理自定义构建目录
     rm -rf ios-build
     rm -rf dist
-    rm -rf build-arm64
-    rm -rf build-x86_64
+    rm -rf build-macos-universal
     
     log_success "构建清理完成"
 }
@@ -90,7 +89,7 @@ get_dependencies() {
 
 # 构建安卓版本
 build_android() {
-    if [ "$BUILD_ANDROID_ARMV7" = true ]; then
+    if [ "$BUILD_ANDROID" = true ] && [ "$BUILD_ANDROID_ARMV7" = true ]; then
         log_info "开始构建安卓 armv8 和 armv7a 版本..."
     else
         log_info "开始构建安卓 armv8 版本..."
@@ -109,82 +108,39 @@ build_android() {
     log_success "安卓构建完成"
 }
 
-# 构建 macOS ARM64 版本
-build_macos_arm64() {
-    log_info "构建 macOS ARM64 版本..."
-    
-    # 检查是否在 macOS 上
-    if [[ "$OSTYPE" != "darwin"* ]]; then
-        log_warning "macOS 构建只能在 macOS 上进行，跳过 macOS ARM64 构建"
-        return
-    fi
-    
-    # 创建独立的构建目录
-    mkdir -p build-arm64/macos
-    
-    # 复制必要的文件到独立目录
-    rsync -a --exclude='build*' --exclude='.dart_tool' . build-arm64/
-    
-    cd build-arm64
-    
-    # 构建 ARM64 版本
-    flutter build macos --release --dart-define=FLUTTER_TARGET_PLATFORM=darwin-arm64
-    
-    # 备份 ARM64 构建产物
-    if [ -d "build/macos/Build/Products/Release/selene.app" ]; then
-        mkdir -p ../build/macos-arm64
-        ditto build/macos/Build/Products/Release/selene.app ../build/macos-arm64/selene.app
-        log_success "macOS ARM64 构建完成"
-    fi
-    
-    cd ..
-}
-
-# 构建 macOS x86_64 版本
-build_macos_x86_64() {
-    log_info "构建 macOS x86_64 版本..."
-    
-    # 检查是否在 macOS 上
-    if [[ "$OSTYPE" != "darwin"* ]]; then
-        log_warning "macOS 构建只能在 macOS 上进行，跳过 macOS x86_64 构建"
-        return
-    fi
-    
-    # 创建独立的构建目录
-    mkdir -p build-x86_64/macos
-    
-    # 复制必要的文件到独立目录
-    rsync -a --exclude='build*' --exclude='.dart_tool' . build-x86_64/
-    
-    cd build-x86_64
-    
-    # 构建 x86_64 版本
-    flutter build macos --release --dart-define=FLUTTER_TARGET_PLATFORM=darwin-x64
-    
-    # 备份 x86_64 构建产物
-    if [ -d "build/macos/Build/Products/Release/selene.app" ]; then
-        mkdir -p ../build/macos-x86_64
-        ditto build/macos/Build/Products/Release/selene.app ../build/macos-x86_64/selene.app
-        log_success "macOS x86_64 构建完成"
-    fi
-    
-    cd ..
-}
-
-# 构建 macOS 版本（顺序模式）
+# 构建并验证 macOS universal 版本
 build_macos() {
-    log_info "开始构建 macOS ARM64 和 x86_64 版本..."
+    log_info "开始构建 macOS universal 版本..."
     
-    # 检查是否在 macOS 上
     if [[ "$OSTYPE" != "darwin"* ]]; then
-        log_warning "macOS 构建只能在 macOS 上进行，跳过 macOS 构建"
-        return
+        log_error "macOS 构建只能在 macOS 上进行"
+        return 1
     fi
     
-    build_macos_arm64
-    build_macos_x86_64
+    flutter build macos --release
+
+    local app_path="build/macos/Build/Products/Release/Selene.app"
+    if [ ! -d "$app_path" ]; then
+        log_error "macOS 应用构建失败"
+        return 1
+    fi
+
+    local executable_name
+    executable_name=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$app_path/Contents/Info.plist")
+    local executable_path="$app_path/Contents/MacOS/$executable_name"
+    local architectures
+    architectures=$(lipo -archs "$executable_path")
+    for architecture in arm64 x86_64; do
+        if [[ " $architectures " != *" $architecture "* ]]; then
+            log_error "macOS 可执行文件缺少 $architecture 架构，实际为: $architectures"
+            return 1
+        fi
+    done
+
+    mkdir -p build-macos-universal
+    ditto "$app_path" build-macos-universal/Selene.app
     
-    log_success "macOS 所有架构构建完成"
+    log_success "macOS universal 构建完成（$architectures）"
 }
 
 # 构建 iOS 无签名版本
@@ -243,74 +199,56 @@ copy_artifacts() {
     if [ -f "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" ]; then
         cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "dist/selene-${APP_VERSION}-armv8.apk"
         log_success "安卓 arm64 APK 已复制到 dist/selene-${APP_VERSION}-armv8.apk"
-    else
-        log_warning "安卓 arm64 APK 文件未找到"
+    elif [ "$BUILD_ANDROID" = true ]; then
+        log_error "安卓 arm64 APK 文件未找到"
+        return 1
     fi
     if [ "$BUILD_ANDROID_ARMV7" = true ]; then
         if [ -f "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk" ]; then
             cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "dist/selene-${APP_VERSION}-armv7a.apk"
             log_success "安卓 armv7a APK 已复制到 dist/selene-${APP_VERSION}-armv7a.apk"
         else
-            log_warning "安卓 armv7a APK 文件未找到"
+            log_error "安卓 armv7a APK 文件未找到"
+            return 1
         fi
     fi
 
     # 复制 iOS 构建产物
-    if [ -f "ios-build/Runner.ipa" ]; then
-        cp ios-build/Runner.ipa "dist/selene-${APP_VERSION}.ipa"
-        log_success "iOS .ipa 文件已复制到 dist/selene-${APP_VERSION}.ipa"
-    else
-        log_warning "iOS .ipa 文件未找到"
+    if [ "$BUILD_IOS" = true ]; then
+        if [ -f "ios-build/Runner.ipa" ]; then
+            cp ios-build/Runner.ipa "dist/selene-${APP_VERSION}.ipa"
+            log_success "iOS .ipa 文件已复制到 dist/selene-${APP_VERSION}.ipa"
+        else
+            log_error "iOS .ipa 文件未找到"
+            return 1
+        fi
     fi
     
-    # 打包 macOS ARM64 应用为 DMG
-    if [ -d "build/macos-arm64/selene.app" ]; then
-        log_info "打包 macOS ARM64 应用为 DMG..."
+    # 打包已验证的 macOS universal 应用
+    if [ "$BUILD_MACOS" = true ] && [ -d "build-macos-universal/Selene.app" ]; then
+        log_info "打包 macOS universal 应用为 DMG..."
         
-        DMG_NAME="selene-${APP_VERSION}-macos-arm64.dmg"
+        DMG_NAME="selene-${APP_VERSION}-macos-universal.dmg"
         DMG_PATH="dist/${DMG_NAME}"
         
-        # 创建临时目录
         TMP_DMG_DIR=$(mktemp -d)
-        cp -R build/macos-arm64/selene.app "$TMP_DMG_DIR/"
+        ditto build-macos-universal/Selene.app "$TMP_DMG_DIR/Selene.app"
         
-        # 创建 DMG
-        hdiutil create -volname "Selene" \
-            -srcfolder "$TMP_DMG_DIR" \
-            -ov -format UDZO \
-            "$DMG_PATH"
+        if ! hdiutil create -volname "Selene" \
+                -srcfolder "$TMP_DMG_DIR" \
+                -ov -format UDZO \
+                "$DMG_PATH"; then
+            rm -rf "$TMP_DMG_DIR"
+            log_error "macOS DMG 创建失败"
+            return 1
+        fi
         
-        # 清理临时目录
         rm -rf "$TMP_DMG_DIR"
         
-        log_success "macOS ARM64 应用已打包到 ${DMG_PATH}"
-    else
-        log_warning "macOS ARM64 应用文件未找到"
-    fi
-    
-    # 打包 macOS x86_64 应用为 DMG
-    if [ -d "build/macos-x86_64/selene.app" ]; then
-        log_info "打包 macOS x86_64 应用为 DMG..."
-        
-        DMG_NAME="selene-${APP_VERSION}-macos-x86_64.dmg"
-        DMG_PATH="dist/${DMG_NAME}"
-        
-        # 创建临时目录
-        TMP_DMG_DIR=$(mktemp -d)
-        cp -R build/macos-x86_64/selene.app "$TMP_DMG_DIR/"
-        
-        # 创建 DMG
-        hdiutil create -volname "Selene" \
-            -srcfolder "$TMP_DMG_DIR" \
-            -ov -format UDZO \
-            "$DMG_PATH"
-        
-        # 清理临时目录
-        rm -rf "$TMP_DMG_DIR"
-        
-        log_success "macOS x86_64 应用已打包到 ${DMG_PATH}"
-    else
-        log_warning "macOS x86_64 应用文件未找到"
+        log_success "macOS universal 应用已打包到 ${DMG_PATH}"
+    elif [ "$BUILD_MACOS" = true ]; then
+        log_error "macOS universal 应用文件未找到"
+        return 1
     fi
     
     log_success "构建产物复制完成"
@@ -344,8 +282,7 @@ main() {
     # 检查参数
     BUILD_ANDROID=true
     BUILD_IOS=true
-    BUILD_MACOS_ARM64=true
-    BUILD_MACOS_X86_64=true
+    BUILD_MACOS=true
     BUILD_ANDROID_ARMV7=true
     ANDROID_TARGET_PLATFORMS="android-arm64,android-arm"
     PARALLEL_BUILD=true
@@ -354,39 +291,25 @@ main() {
         case $1 in
             --android-only)
                 BUILD_IOS=false
-                BUILD_MACOS_ARM64=false
-                BUILD_MACOS_X86_64=false
+                BUILD_MACOS=false
                 shift
                 ;;
             --android-arm64-only)
                 BUILD_IOS=false
-                BUILD_MACOS_ARM64=false
-                BUILD_MACOS_X86_64=false
+                BUILD_MACOS=false
                 BUILD_ANDROID_ARMV7=false
                 ANDROID_TARGET_PLATFORMS="android-arm64"
                 shift
                 ;;
             --ios-only)
                 BUILD_ANDROID=false
-                BUILD_MACOS_ARM64=false
-                BUILD_MACOS_X86_64=false
-                shift
-                ;;
-            --macos-arm64-only)
-                BUILD_ANDROID=false
-                BUILD_IOS=false
-                BUILD_MACOS_X86_64=false
-                shift
-                ;;
-            --macos-x86_64-only)
-                BUILD_ANDROID=false
-                BUILD_IOS=false
-                BUILD_MACOS_ARM64=false
+                BUILD_MACOS=false
                 shift
                 ;;
             --macos-only)
                 BUILD_ANDROID=false
                 BUILD_IOS=false
+                PARALLEL_BUILD=false
                 shift
                 ;;
             --apple-only)
@@ -404,9 +327,7 @@ main() {
                 echo "  --android-only         只构建 Android ARM64 与 ARMv7 版本"
                 echo "  --android-arm64-only   只构建 Android ARM64 版本"
                 echo "  --ios-only             只构建 iOS 版本"
-                echo "  --macos-arm64-only     只构建 macOS ARM64 版本"
-                echo "  --macos-x86_64-only    只构建 macOS x86_64 版本"
-                echo "  --macos-only           构建 macOS 所有架构"
+                echo "  --macos-only           构建并验证 macOS universal 版本"
                 echo "  --apple-only           构建所有 Apple 平台版本（iOS 和 macOS）"
                 echo "  --sequential           顺序构建（默认为并行构建）"
                 echo "  --help                 显示此帮助信息"
@@ -419,6 +340,11 @@ main() {
                 ;;
         esac
     done
+
+    # CocoaPods 与 Apple 平台生成目录存在共享写入，Apple 构建必须顺序执行。
+    if [ "$BUILD_IOS" = true ] || [ "$BUILD_MACOS" = true ]; then
+        PARALLEL_BUILD=false
+    fi
     
     # 执行构建流程
     read_version
@@ -443,13 +369,8 @@ main() {
             pids+=($!)
         fi
         
-        if [ "$BUILD_MACOS_ARM64" = true ]; then
-            build_macos_arm64 &
-            pids+=($!)
-        fi
-        
-        if [ "$BUILD_MACOS_X86_64" = true ]; then
-            build_macos_x86_64 &
+        if [ "$BUILD_MACOS" = true ]; then
+            build_macos &
             pids+=($!)
         fi
         
@@ -479,12 +400,8 @@ main() {
             build_ios
         fi
         
-        if [ "$BUILD_MACOS_ARM64" = true ]; then
-            build_macos_arm64
-        fi
-        
-        if [ "$BUILD_MACOS_X86_64" = true ]; then
-            build_macos_x86_64
+        if [ "$BUILD_MACOS" = true ]; then
+            build_macos
         fi
     fi
     
@@ -494,8 +411,7 @@ main() {
     # 清理临时构建目录
     log_info "清理临时构建目录..."
     rm -rf build
-    rm -rf build-arm64
-    rm -rf build-x86_64
+    rm -rf build-macos-universal
     log_success "临时构建目录已清理"
     
     echo "=================================="

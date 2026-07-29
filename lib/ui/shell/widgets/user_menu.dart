@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:selene/routing/routes.dart';
 import 'package:selene/ui/core/widgets/update_dialog.dart';
 import 'package:selene/ui/settings/view_models/settings_view_model.dart';
+import 'package:selene/utils/app_links.dart';
 import 'package:selene/utils/device_utils.dart';
 import 'package:selene/utils/font_utils.dart';
 import 'package:selene/utils/result.dart';
@@ -978,9 +979,7 @@ class _UserMenuState extends State<UserMenu> {
                           : MouseCursor.defer,
                       child: GestureDetector(
                         onTap: () async {
-                          final url = Uri.parse(
-                            'https://github.com/MoonTechLab/Selene',
-                          );
+                          final url = AppLinks.repositoryUri;
                           if (await canLaunchUrl(url)) {
                             await launchUrl(
                               url,

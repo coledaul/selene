@@ -1,11 +1,16 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:selene/domain/models/bangumi.dart';
+import 'package:selene/utils/app_links.dart';
+
 import 'api_service.dart';
 import 'douban_cache_service.dart';
 
 /// Bangumi 数据服务（函数级缓存，一天过期）
 class BangumiService {
+  static const _userAgent =
+      '${AppLinks.repositorySlug} (+${AppLinks.repositoryUrl})';
   static final DoubanCacheService _cache = DoubanCacheService();
   static bool _initialized = false;
 
@@ -60,11 +65,7 @@ class BangumiService {
     // 未命中缓存，请求接口
     try {
       const apiUrl = 'https://api.bgm.tv/calendar';
-      final headers = {
-        'User-Agent':
-            'senshinya/selene/1.0.0 (Android) (http://github.com/senshinya/selene)',
-        'Accept': 'application/json',
-      };
+      const headers = {'User-Agent': _userAgent, 'Accept': 'application/json'};
 
       final response = await http
           .get(Uri.parse(apiUrl), headers: headers)
@@ -145,11 +146,7 @@ class BangumiService {
 
     try {
       final apiUrl = 'https://api.bgm.tv/v0/subjects/$bangumiId';
-      final headers = {
-        'User-Agent':
-            'senshinya/selene/1.0.0 (Android) (http://github.com/senshinya/selene)',
-        'Accept': 'application/json',
-      };
+      const headers = {'User-Agent': _userAgent, 'Accept': 'application/json'};
 
       final response = await http
           .get(Uri.parse(apiUrl), headers: headers)

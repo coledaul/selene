@@ -63,7 +63,7 @@ HTTP 与 SSE 共用 `MoonTvApiClient`、内存 CookieJar 和统一鉴权。多�
 ## 目录结构
 
 ```text
-Selene-Source/
+selene/
 ├── lib/
 │   ├── app/                    # 应用对象、依赖组合与会话协调
 │   ├── data/
@@ -93,6 +93,6 @@ Selene-Source/
 
 ## 平台边界
 
-平台判断集中在 `DeviceUtils` 和受保护的 `Platform.isXxx` 分支。当前发布脚本覆盖 Android、iOS 和 macOS；Windows 有工程与运行适配，但未纳入脚本。Linux 与 Web 不在当前发布流程中。
+平台判断集中在 `DeviceUtils` 和受保护的 `Platform.isXxx` 分支。当前发布脚本覆盖 Android、无签名 iOS 和经架构校验但未签名/公证的 macOS universal 包；自动 Release 只发布 Android 与 Windows。Linux 与 Web 不在当前发布流程中。
 
 下载仅支持非 DRM 点播资源；不支持直播下载、字节级断点续传或应用进程被系统终止后的后台持续下载。
