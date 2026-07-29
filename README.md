@@ -47,7 +47,13 @@
 
 ## 📦 下载
 
-已签名的 Android APK、Windows x64 便携版和校验文件可从 [GitHub Releases](https://github.com/coledaul/selene/releases) 下载。iOS 与 macOS 可按项目文档从源码构建。
+Android APK（已签名）、Windows x64 便携版、macOS Universal DMG 和校验文件可从 [GitHub Releases](https://github.com/coledaul/selene/releases) 下载。iOS 可按项目文档从源码构建。
+
+macOS App 如果无法打开，可执行：
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Selene.app"
+```
 
 ## ✨ 功能特性
 
@@ -126,6 +132,7 @@ View -> ViewModel -> Repository -> Service -> 外部系统
 - [项目概览与目录结构](./docs/guide/overview.md)
 - [配置说明](./docs/guide/configuration.md)
 - [开发与构建](./docs/guide/development.md)
+- [发布指南](./docs/guide/release.md)
 
 ## ⚠️ 免责声明
 

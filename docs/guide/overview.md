@@ -93,6 +93,6 @@ selene/
 
 ## 平台边界
 
-平台判断集中在 `DeviceUtils` 和受保护的 `Platform.isXxx` 分支。当前发布脚本覆盖 Android、无签名 iOS 和经架构校验但未签名/公证的 macOS universal 包；自动 Release 只发布 Android 与 Windows。Linux 与 Web 不在当前发布流程中。
+平台判断集中在 `DeviceUtils` 和受保护的 `Platform.isXxx` 分支。当前发布脚本覆盖 Android、无签名 iOS 和经架构校验但未签名/公证的 macOS universal 包；自动 Release 发布 Android、Windows 与 macOS。Linux 与 Web 不在当前发布流程中。
 
 下载仅支持非 DRM 点播资源；不支持直播下载、字节级断点续传或应用进程被系统终止后的后台持续下载。

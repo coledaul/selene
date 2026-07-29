@@ -93,92 +93,9 @@ flutter test test/video_download_test.dart
 - 媒体 URL、请求头和查询参数不得写入日志或错误文案。
 - 下载任务和文件是业务数据；缓存清理器不得删除完成文件，`.part` 仅在恢复、取消、失败或删除路径中清理。
 
-## Android 签名
+## 发布
 
-本地 Android 构建读取被 Git 忽略的 `android/key.properties`。存在该文件时使用项目自己的 Release keystore；不存在时会回退到 Debug 签名，即使构建类型仍为 `release`。该回退仅用于本地开发，CI 中执行 Release 任务但缺少显式签名配置会直接失败。
-
-`key.properties` 使用以下字段，真实值只保存在开发者本机：
-
-```properties
-storeFile=/absolute/path/to/selene-release.jks
-storePassword=<store-password>
-keyAlias=<key-alias>
-keyPassword=<key-password>
-```
-
-不要提交 `key.properties`、`.jks`、`.keystore` 或任何口令。维护同一发布分支时必须持续使用同一 keystore；更换签名后，Android 会把它视为不同签名的应用，不能直接覆盖安装旧版本。
-
-GitHub Actions 不读取或生成 `key.properties`，而是使用以下仓库配置：
-
-| 类型 | 名称 | 内容 |
-| --- | --- | --- |
-| Actions Secret | `ANDROID_KEYSTORE_BASE64` | Release keystore 的单行 Base64 内容 |
-| Actions Secret | `ANDROID_STORE_PASSWORD` | keystore 密码 |
-| Actions Secret | `ANDROID_KEY_ALIAS` | Release key alias |
-| Actions Secret | `ANDROID_KEY_PASSWORD` | Release key 密码 |
-| Actions Variable | `ANDROID_SIGNING_CERT_SHA256` | 预期签名证书 SHA-256，可含冒号且不区分大小写 |
-
-Release workflow 会在一次性 runner 中恢复 keystore，构建后对每个 APK 执行 `apksigner verify --print-certs`，并将证书摘要与上述 Variable 比对。任一配置缺失、APK 数量不符或证书不匹配都会终止发布；日志不得输出 Secret 或 keystore 内容。
-
-## 发布构建
-
-`build.sh` 是发布脚本，会执行 `flutter clean`、重新获取依赖、删除旧 `dist/` 和 Apple/macOS 临时目录，并在完成后清理 `build/`。它不应作为日常验证命令；运行前先查看帮助并确认没有需要保留的本地产物。
-
-```bash
-./build.sh --help
-```
-
-| 参数 | 作用 |
-| --- | --- |
-| `--android-arm64-only` | 仅构建 Android ARM64 APK。 |
-| `--android-only` | 构建 Android ARM64 与 ARMv7 APK。 |
-| `--ios-only` | 构建无签名 iOS IPA。 |
-| `--macos-only` | 构建并用 `lipo` 验证 macOS universal DMG。 |
-| `--apple-only` | 顺序构建 iOS 与 macOS。 |
-| `--sequential` | 禁用默认并行构建。 |
-
-常用示例：
-
-```bash
-./build.sh --android-arm64-only
-./build.sh --android-only
-./build.sh --apple-only
-```
-
-无参数时脚本尝试构建全部已支持发布目标；iOS 和 macOS 只能在 macOS 上构建。Apple 汇总构建强制顺序执行，其他目标默认并行，任一子任务失败都会在复制产物前终止。
-
-产物写入 `dist/`：
-
-```text
-selene-<version>-armv8.apk
-selene-<version>-armv7a.apk
-selene-<version>.ipa
-selene-<version>-macos-universal.dmg
-```
-
-Android 使用 R8、Dart 混淆和 split debug info；当前脚本不会把符号目录复制到 `dist/`，正式归档如需反混淆信息应在脚本清理前单独保存。iOS IPA 不签名；macOS 在生成 DMG 前要求主可执行文件同时包含 `arm64` 和 `x86_64`，但当前仍未做 Developer ID 签名或公证。Windows、Linux 和 Web 不在 `build.sh` 范围内。
-
-## 自动化发布
-
-普通 CI 与正式发布完全分离：
-
-- `.github/workflows/ci.yml` 在 `main` push 和 Pull Request 上运行格式、静态分析、Flutter 测试与 Shell 构建契约测试，只具有 `contents: read` 权限，不接触签名 Secret。
-- `.github/workflows/release.yml` 仅由 `vMAJOR.MINOR.PATCH` 标签触发，要求标签版本与 `pubspec.yaml` 一致，且标签提交已经包含在 `main` 中。
-- 首期自动产物为两个已验证签名的 Android APK、Windows x64 portable ZIP 和 `SHA256SUMS.txt`。
-- workflow 先创建 Draft Release，上传并核对全部四个资产后才公开为 Latest；任何构建或校验失败都会阻止不完整版本被应用发现。
-- iOS 无签名 IPA 与尚未完成 Developer ID 签名、公证及架构验证的 macOS DMG 不进入自动 Release。
-
-所有 Action 都固定到完整 commit SHA。更新 Action 版本时应核对上游发布说明与 commit，再同步修改 workflow；不得改回浮动的 `@main`。
-
-发布前先完成本节全部检查、提交版本变更并推送 `main`，再创建与推送标签：
-
-```bash
-version="$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' pubspec.yaml)"
-git tag "v$version"
-git push origin "v$version"
-```
-
-标签只负责触发流水线，无需手工上传安装包，也不需要静态文件服务器。不得在签名 Secrets、证书摘要或 `main` 祖先关系尚未配置/验证时推送正式标签。
+签名配置、本地发布构建、自动化发布和版本标签流程见[发布指南](./release.md)。
 
 ## 交付检查
 
@@ -187,7 +104,7 @@ git push origin "v$version"
 3. 鉴权变更：验证记住/不记住、启动恢复、本地模式、并发 401、单次重试、退出和安全存储失败。
 4. 下载变更：使用合法自有 HLS/MP4 样本验证下载、取消、重试、恢复、离线播放和删除。
 5. 平台工程：运行对应平台的最小构建或真机验证。
-6. 构建脚本：运行三项 Shell 测试；只有确需发布时才执行 `build.sh`。
+6. 发布相关修改：运行三项 Shell 测试；本地打包与标签流程见[发布指南](./release.md)。
 7. 配置、目录、命令或产物变化：同步更新 README 或对应指南。
 
 无法执行的检查必须在交付说明中列出，不得把未运行的命令描述为已通过。

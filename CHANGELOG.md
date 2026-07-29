@@ -2,6 +2,21 @@
 
 本文件记录 Selene 相对上一正式版本的最终重要变化，不记录未发布阶段的中间过程。
 
+## [1.8.3] - 2026-07-29
+
+### 新增
+
+- 建立独立的 GitHub Releases 自动发布流程，统一构建并发布已签名 Android APK、Windows x64 便携版、macOS Universal DMG（兼容 Apple Silicon 与 Intel）和 SHA-256 校验文件。
+
+### 变更
+
+- 更新检测和项目链接切换至当前独立维护仓库，发布构建统一锁定依赖与 GitHub Actions 版本。
+
+### 修复
+
+- 完善 Android 签名证书、SDK/NDK、Windows FFmpegKit 和发布资产校验，阻止错误或不完整版本发布。
+- 修复 `--macos-only` 错误要求 Android ARMv7 产物的问题。
+
 ## [1.8.2] - 2026-07-28
 
 ### 新增

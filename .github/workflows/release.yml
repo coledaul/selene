@@ -61,9 +61,15 @@ jobs:
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+  ci:
+    name: Run release CI gate
+    uses: ./.github/workflows/ci.yml
+
   android:
     name: Build signed Android APKs
-    needs: validate
+    needs:
+      - validate
+      - ci
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -191,7 +197,9 @@ jobs:
 
   windows:
     name: Build Windows portable ZIP
-    needs: validate
+    needs:
+      - validate
+      - ci
     runs-on: windows-latest
     timeout-minutes: 45
     env:
@@ -235,12 +243,53 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  macos:
+    name: Build macOS universal DMG
+    needs:
+      - validate
+      - ci
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      APP_VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Build macOS release
+        shell: bash
+        run: ./build.sh --macos-only
+
+      - name: Verify macOS release asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg="dist/selene-$APP_VERSION-macos-universal.dmg"
+          test -s "$dmg"
+          hdiutil verify "$dmg"
+
+      - name: Upload macOS release asset
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-macos
+          path: dist/selene-*-macos-universal.dmg
+          if-no-files-found: error
+          retention-days: 7
+
   publish:
     name: Publish verified GitHub Release
     needs:
       - validate
       - android
       - windows
+      - macos
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -265,6 +314,7 @@ jobs:
             "selene-$APP_VERSION-armv8.apk"
             "selene-$APP_VERSION-armv7a.apk"
             "selene-$APP_VERSION-windows-x64.zip"
+            "selene-$APP_VERSION-macos-universal.dmg"
           )
           for asset in "${expected[@]}"; do
             test -s "release-files/$asset"
@@ -298,8 +348,8 @@ jobs:
           gh release upload "$tag" release-files/* --clobber
 
           asset_count="$(gh release view "$tag" --json assets --jq '.assets | length')"
-          if [ "$asset_count" -ne 4 ]; then
-            echo "Draft release contains $asset_count assets; expected 4" >&2
+          if [ "$asset_count" -ne 5 ]; then
+            echo "Draft release contains $asset_count assets; expected 5" >&2
             exit 1
           fi
 

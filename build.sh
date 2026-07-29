@@ -208,7 +208,7 @@ copy_artifacts() {
         log_error "安卓 arm64 APK 文件未找到"
         return 1
     fi
-    if [ "$BUILD_ANDROID_ARMV7" = true ]; then
+    if [ "$BUILD_ANDROID" = true ] && [ "$BUILD_ANDROID_ARMV7" = true ]; then
         if [ -f "build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk" ]; then
             cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "dist/selene-${APP_VERSION}-armv7a.apk"
             log_success "安卓 armv7a APK 已复制到 dist/selene-${APP_VERSION}-armv7a.apk"

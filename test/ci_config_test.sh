@@ -63,13 +63,21 @@ if grep -q "FLUTTER_TARGET_PLATFORM=darwin" "$repo_root/build.sh" ||
   exit 1
 fi
 
+if ! awk '/^copy_artifacts\(\)/,/^}/' "$repo_root/build.sh" |
+  grep -Fq 'if [ "$BUILD_ANDROID" = true ] && [ "$BUILD_ANDROID_ARMV7" = true ]; then'; then
+  echo "non-Android builds must not require an Android ARMv7 artifact"
+  exit 1
+fi
+
 for workflow in "$ci_workflow" "$release_workflow"; do
   if [ ! -f "$workflow" ]; then
     echo "missing workflow: ${workflow#"$repo_root/"}"
     exit 1
   fi
 
-  if grep -E '^[[:space:]]*uses:' "$workflow" | grep -Ev '@[0-9a-f]{40}([[:space:]]+#.*)?$' >/dev/null; then
+  if grep -E '^[[:space:]]*uses:' "$workflow" |
+    grep -Ev 'uses:[[:space:]]+\./\.github/workflows/ci\.yml$' |
+    grep -Ev '@[0-9a-f]{40}([[:space:]]+#.*)?$' >/dev/null; then
     echo "all third-party actions must be pinned to a full commit SHA: ${workflow#"$repo_root/"}"
     exit 1
   fi
@@ -102,6 +110,26 @@ if ! grep -q "contents: read" "$ci_workflow" || grep -q "contents: write" "$ci_w
   echo "ordinary CI must use read-only repository permissions"
   exit 1
 fi
+
+if ! grep -Fq 'workflow_call:' "$ci_workflow"; then
+  echo "ordinary CI must be reusable as the release quality gate"
+  exit 1
+fi
+
+release_ci_job="$(awk '/^  ci:/,/^  android:/' "$release_workflow")"
+if ! grep -Fq 'uses: ./.github/workflows/ci.yml' <<<"$release_ci_job"; then
+  echo "release workflow must reuse ordinary CI before building release assets"
+  exit 1
+fi
+
+for platform in android windows macos; do
+  platform_job_header="$(awk "/^  $platform:/,/^    steps:/" "$release_workflow")"
+  if ! grep -Fq -- '- validate' <<<"$platform_job_header" ||
+    ! grep -Fq -- '- ci' <<<"$platform_job_header"; then
+    echo "release $platform build must depend on tag validation and the reusable CI gate"
+    exit 1
+  fi
+done
 
 for required in \
   "tags:" \
@@ -146,6 +174,25 @@ fi
 
 if grep -Eq 'PULL_TOKEN|REPO_URL|@main' "$release_workflow"; then
   echo "release workflow must not clone another repository or use floating main actions"
+  exit 1
+fi
+
+macos_job="$(awk '/^  macos:/,/^  publish:/' "$release_workflow")"
+if ! grep -Fq 'runs-on: macos-15' <<<"$macos_job" ||
+  ! grep -Fq './build.sh --macos-only' <<<"$macos_job" ||
+  ! grep -Fq 'name: release-macos' <<<"$macos_job" ||
+  ! grep -Fq 'path: dist/selene-*-macos-universal.dmg' <<<"$macos_job" ||
+  ! grep -Fq 'if-no-files-found: error' <<<"$macos_job"; then
+  echo "release workflow must build and upload one macOS universal DMG"
+  exit 1
+fi
+
+publish_job="$(awk '/^  publish:/,0' "$release_workflow")"
+if ! grep -Fq -- '- macos' <<<"$publish_job" ||
+  ! grep -Fq '"selene-$APP_VERSION-macos-universal.dmg"' <<<"$publish_job" ||
+  ! grep -Fq 'if [ "$asset_count" -ne 5 ]; then' <<<"$publish_job" ||
+  ! grep -Fq 'expected 5' <<<"$publish_job"; then
+  echo "published releases must contain the macOS DMG and five verified assets"
   exit 1
 fi
 
