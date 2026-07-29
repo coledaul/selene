@@ -174,31 +174,7 @@ jobs:
         shell: bash
         env:
           ANDROID_SIGNING_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
-        run: |
-          set -euo pipefail
-          apksigner="$(find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)"
-          if [ -z "$apksigner" ]; then
-            echo "Android apksigner was not found" >&2
-            exit 1
-          fi
-
-          expected="$(printf '%s' "$ANDROID_SIGNING_CERT_SHA256" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
-          apk_count=0
-          for apk in dist/*.apk; do
-            [ -f "$apk" ] || continue
-            apk_count=$((apk_count + 1))
-            output="$("$apksigner" verify --print-certs "$apk")"
-            actual="$(printf '%s\n' "$output" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
-            if [ -z "$actual" ]; then
-              echo "Could not read the signing certificate from $(basename "$apk")" >&2
-              exit 1
-            fi
-            if [ "$actual" != "$expected" ]; then
-              echo "Unexpected signing certificate for $(basename "$apk"): $actual" >&2
-              exit 1
-            fi
-          done
-          [ "$apk_count" -eq 2 ]
+        run: ./scripts/verify_android_release.sh dist/*.apk
 
       - name: Upload Android release assets
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

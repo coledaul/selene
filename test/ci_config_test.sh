@@ -6,6 +6,7 @@ ci_workflow="$repo_root/.github/workflows/ci.yml"
 release_workflow="$repo_root/.github/workflows/release.yml"
 dependabot_config="$repo_root/.github/dependabot.yml"
 windows_ffmpeg_setup="$repo_root/scripts/prepare_windows_ffmpeg.ps1"
+android_release_verifier="$repo_root/scripts/verify_android_release.sh"
 
 locked_sources="$(sed -n 's/^[[:space:]]*url: "\([^"]*\)"/\1/p' "$repo_root/pubspec.lock" | sort -u)"
 if [ "$(printf '%s\n' "$locked_sources" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 1 ]; then
@@ -88,8 +89,6 @@ for required in \
   "ANDROID_SIGNING_CERT_SHA256" \
   "GH_REPO" \
   "keytool -list -v" \
-  "verify --print-certs" \
-  "Could not read the signing certificate" \
   "SHA256SUMS.txt" \
   "--verify-tag" \
   "--draft"; do
@@ -98,6 +97,14 @@ for required in \
     exit 1
   fi
 done
+
+if [ ! -f "$android_release_verifier" ] ||
+  ! grep -Fq 'scripts/verify_android_release.sh' "$release_workflow" ||
+  ! grep -Fq 'verify --print-certs' "$android_release_verifier" ||
+  ! grep -Fq 'Could not read the signing certificate' "$android_release_verifier"; then
+  echo "Android releases must verify exactly two APK signing certificates"
+  exit 1
+fi
 
 if ! grep -Fq -- '--licenses' "$release_workflow" ||
   ! grep -Fq 'ndk;29.0.14033849' "$release_workflow" ||
