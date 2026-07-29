@@ -87,7 +87,9 @@ for required in \
   "ANDROID_KEYSTORE_BASE64" \
   "ANDROID_SIGNING_CERT_SHA256" \
   "GH_REPO" \
+  "keytool -list -v" \
   "verify --print-certs" \
+  "Could not read the signing certificate" \
   "SHA256SUMS.txt" \
   "--verify-tag" \
   "--draft"; do

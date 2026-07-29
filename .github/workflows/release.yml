@@ -119,6 +119,29 @@ jobs:
           chmod 600 "$SELENE_ANDROID_KEYSTORE_PATH"
           test -s "$SELENE_ANDROID_KEYSTORE_PATH"
 
+      - name: Verify release keystore certificate
+        shell: bash
+        env:
+          SELENE_ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          SELENE_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_SIGNING_CERT_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$ANDROID_SIGNING_CERT_SHA256" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          output="$(keytool -list -v \
+            -keystore "$SELENE_ANDROID_KEYSTORE_PATH" \
+            -storepass "$SELENE_ANDROID_STORE_PASSWORD" \
+            -alias "$SELENE_ANDROID_KEY_ALIAS")"
+          actual="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' | head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          if [ -z "$actual" ]; then
+            echo "Could not read the signing certificate from the restored keystore" >&2
+            exit 1
+          fi
+          if [ "$actual" != "$expected" ]; then
+            echo "Restored keystore certificate does not match the configured certificate: $actual" >&2
+            exit 1
+          fi
+
       - name: Install licensed Android NDK
         shell: bash
         run: |
@@ -166,8 +189,12 @@ jobs:
             apk_count=$((apk_count + 1))
             output="$("$apksigner" verify --print-certs "$apk")"
             actual="$(printf '%s\n' "$output" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
-            if [ -z "$actual" ] || [ "$actual" != "$expected" ]; then
-              echo "Unexpected signing certificate for $(basename "$apk")" >&2
+            if [ -z "$actual" ]; then
+              echo "Could not read the signing certificate from $(basename "$apk")" >&2
+              exit 1
+            fi
+            if [ "$actual" != "$expected" ]; then
+              echo "Unexpected signing certificate for $(basename "$apk"): $actual" >&2
               exit 1
             fi
           done
