@@ -83,7 +83,7 @@ clean_build() {
 # 获取依赖
 get_dependencies() {
     log_info "获取项目依赖..."
-    flutter pub get
+    flutter pub get --enforce-lockfile
     log_success "依赖获取完成"
 }
 

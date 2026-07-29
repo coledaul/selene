@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PUB_HOSTED_URL: https://pub.flutter-io.cn
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -116,6 +119,20 @@ jobs:
           chmod 600 "$SELENE_ANDROID_KEYSTORE_PATH"
           test -s "$SELENE_ANDROID_KEYSTORE_PATH"
 
+      - name: Install licensed Android NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          license_status="${PIPESTATUS[1]}"
+          set -o pipefail
+          if [ "$license_status" -ne 0 ]; then
+            echo "Android SDK license acceptance failed" >&2
+            exit "$license_status"
+          fi
+          sdkmanager "ndk;29.0.14033849"
+
       - name: Build Android release
         shell: bash
         env:
@@ -182,7 +199,14 @@ jobs:
           cache: true
 
       - name: Resolve dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
+
+      - name: Prepare verified FFmpegKit bundle
+        shell: pwsh
+        run: |
+          ./scripts/prepare_windows_ffmpeg.ps1 `
+            -OutputDirectory "$env:RUNNER_TEMP/selene-ffmpeg-kit-8.1.2-full" `
+            -GithubEnvironmentFile "$env:GITHUB_ENV"
 
       - name: Build Windows release
         run: flutter build windows --release

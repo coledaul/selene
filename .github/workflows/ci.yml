@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PUB_HOSTED_URL: https://pub.flutter-io.cn
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -30,7 +33,7 @@ jobs:
           cache: true
 
       - name: Resolve dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Check formatting
         run: dart format --output=none --set-exit-if-changed lib test

@@ -5,6 +5,27 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ci_workflow="$repo_root/.github/workflows/ci.yml"
 release_workflow="$repo_root/.github/workflows/release.yml"
 dependabot_config="$repo_root/.github/dependabot.yml"
+windows_ffmpeg_setup="$repo_root/scripts/prepare_windows_ffmpeg.ps1"
+
+locked_sources="$(sed -n 's/^[[:space:]]*url: "\([^"]*\)"/\1/p' "$repo_root/pubspec.lock" | sort -u)"
+if [ "$(printf '%s\n' "$locked_sources" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 1 ]; then
+  echo "pubspec.lock must use one consistent hosted package source"
+  exit 1
+fi
+
+for dependency_entrypoint in "$repo_root/build.sh" "$ci_workflow" "$release_workflow"; do
+  if ! grep -Fq 'flutter pub get --enforce-lockfile' "$dependency_entrypoint"; then
+    echo "dependency resolution must enforce pubspec.lock: ${dependency_entrypoint#"$repo_root/"}"
+    exit 1
+  fi
+done
+
+for workflow in "$ci_workflow" "$release_workflow"; do
+  if ! grep -Fq "PUB_HOSTED_URL: $locked_sources" "$workflow"; then
+    echo "workflow package source must match pubspec.lock: ${workflow#"$repo_root/"}"
+    exit 1
+  fi
+done
 
 if ! grep -q "enable-swift-package-manager: true" "$repo_root/pubspec.yaml"; then
   echo "pubspec.yaml must enable Swift Package Manager for Flutter 3.44 Apple builds"
@@ -70,6 +91,20 @@ for required in \
     exit 1
   fi
 done
+
+if ! grep -Fq 'sdkmanager --licenses' "$release_workflow" ||
+  ! grep -Fq 'ndk;29.0.14033849' "$release_workflow"; then
+  echo "Android releases must accept SDK licenses and install the pinned NDK"
+  exit 1
+fi
+
+if [ ! -f "$windows_ffmpeg_setup" ] ||
+  ! grep -Fq 'scripts/prepare_windows_ffmpeg.ps1' "$release_workflow" ||
+  ! grep -Fq 'FFMPEGKIT_LOCAL_DIR' "$windows_ffmpeg_setup" ||
+  ! grep -Fq 'Expand-Archive' "$windows_ffmpeg_setup"; then
+  echo "Windows releases must pre-extract FFmpegKit outside Flutter plugin symlinks"
+  exit 1
+fi
 
 if grep -Eq 'PULL_TOKEN|REPO_URL|@main' "$release_workflow"; then
   echo "release workflow must not clone another repository or use floating main actions"
