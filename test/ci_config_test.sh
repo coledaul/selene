@@ -75,6 +75,29 @@ for workflow in "$ci_workflow" "$release_workflow"; do
   fi
 done
 
+for artifact_action in upload-artifact download-artifact; do
+  action_pin_count="$(
+    grep -hE "uses: actions/$artifact_action@[0-9a-f]{40}" "$ci_workflow" "$release_workflow" |
+      sed -E "s/.*actions\/$artifact_action@([0-9a-f]{40}).*/\1/" |
+      sort -u |
+      wc -l |
+      tr -d '[:space:]'
+  )"
+  if [ "$action_pin_count" -ne 1 ]; then
+    echo "CI and Release must use one consistent actions/$artifact_action version"
+    exit 1
+  fi
+done
+
+if ! grep -Fq 'artifact-roundtrip:' "$ci_workflow" ||
+  ! grep -Fq 'actions/upload-artifact@' "$ci_workflow" ||
+  ! grep -Fq 'actions/download-artifact@' "$ci_workflow" ||
+  ! grep -Fq 'if-no-files-found: error' "$ci_workflow" ||
+  ! grep -Fq 'cmp --silent' "$ci_workflow"; then
+  echo "ordinary CI must verify an uploaded artifact can be downloaded unchanged"
+  exit 1
+fi
+
 if ! grep -q "contents: read" "$ci_workflow" || grep -q "contents: write" "$ci_workflow"; then
   echo "ordinary CI must use read-only repository permissions"
   exit 1
@@ -139,7 +162,10 @@ fi
 
 if [ ! -f "$dependabot_config" ] ||
   ! grep -Fq 'package-ecosystem: "github-actions"' "$dependabot_config" ||
-  ! grep -Fq 'interval: "weekly"' "$dependabot_config"; then
-  echo "Dependabot must propose reviewed weekly updates for pinned GitHub Actions"
+  ! grep -Fq 'interval: "weekly"' "$dependabot_config" ||
+  ! grep -Fq 'groups:' "$dependabot_config" ||
+  ! grep -Fq 'github-actions:' "$dependabot_config" ||
+  ! grep -Fq -- '- "*"' "$dependabot_config"; then
+  echo "Dependabot must group reviewed weekly updates for pinned GitHub Actions"
   exit 1
 fi
