@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  PUB_HOSTED_URL: https://pub.flutter-io.cn
+  PUB_HOSTED_URL: https://pub.dev
 
 concurrency:
   group: release-${{ github.ref }}

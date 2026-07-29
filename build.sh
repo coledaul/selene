@@ -83,7 +83,12 @@ clean_build() {
 # 获取依赖
 get_dependencies() {
     log_info "获取项目依赖..."
-    flutter pub get --enforce-lockfile
+    pub_hosted_url="$(sed -n 's/^[[:space:]]*url: "\([^"]*\)"/\1/p' pubspec.lock | sort -u)"
+    if [ -z "$pub_hosted_url" ] || [ "$(printf '%s\n' "$pub_hosted_url" | wc -l | tr -d ' ')" -ne 1 ]; then
+        log_error "pubspec.lock 必须只包含一个托管依赖源"
+        exit 1
+    fi
+    PUB_HOSTED_URL="$pub_hosted_url" flutter pub get --enforce-lockfile
     log_success "依赖获取完成"
 }
 

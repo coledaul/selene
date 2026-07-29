@@ -20,6 +20,11 @@ for dependency_entrypoint in "$repo_root/build.sh" "$ci_workflow" "$release_work
   fi
 done
 
+if ! grep -Fq 'PUB_HOSTED_URL="$pub_hosted_url" flutter pub get --enforce-lockfile' "$repo_root/build.sh"; then
+  echo "build.sh must resolve against the hosted source recorded in pubspec.lock"
+  exit 1
+fi
+
 for workflow in "$ci_workflow" "$release_workflow"; do
   if ! grep -Fq "PUB_HOSTED_URL: $locked_sources" "$workflow"; then
     echo "workflow package source must match pubspec.lock: ${workflow#"$repo_root/"}"

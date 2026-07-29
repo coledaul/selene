@@ -6,6 +6,7 @@ tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
 cp "$repo_root/build.sh" "$tmp_dir/build.sh"
+cp "$repo_root/pubspec.lock" "$tmp_dir/pubspec.lock"
 chmod +x "$tmp_dir/build.sh"
 
 cat > "$tmp_dir/pubspec.yaml" <<'YAML'
