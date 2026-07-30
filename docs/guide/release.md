@@ -9,6 +9,7 @@ Selene 的正式发布已经自动化。以后发布新版本不需要手动构�
 - [build.sh](../../build.sh#L1)：Android、无签名 iOS 和 macOS Universal DMG 的本地发布构建。
 - [prepare_windows_ffmpeg.ps1](../../scripts/prepare_windows_ffmpeg.ps1#L1)：准备并校验 Windows FFmpegKit 依赖。
 - [verify_android_release.sh](../../scripts/verify_android_release.sh#L1)：验证 Android APK 签名证书。
+- [extract_release_notes.sh](../../scripts/extract_release_notes.sh#L1)：从 `CHANGELOG.md` 提取指定正式版本的发布说明。
 - [development.md](./development.md)：开发环境、测试和交付检查。
 - [pubspec.yaml](../../pubspec.yaml#L1)：应用版本。
 - [CHANGELOG.md](../../CHANGELOG.md#L1)：正式版本更新记录。
@@ -74,18 +75,25 @@ iOS IPA 不签名；macOS DMG 要求主可执行文件同时包含 `arm64` 和 `
 
 - `ci.yml` 在 `main` push 和 Pull Request 上运行，也可由 Release 复用；它只具有 `contents: read` 权限，不接触签名 Secret。
 - `release.yml` 仅由 `vMAJOR.MINOR.PATCH` 标签触发，要求标签版本与 `pubspec.yaml` 一致、标签提交已经包含在 `main` 中，并在构建前自动等待同一套 CI 检查通过。
+- GitHub Release 说明取自 `CHANGELOG.md` 中对应的正式版本；版本段落缺失或为空时停止发布，客户端与发布页使用同一份内容。
 - 自动产物为两个已验证签名的 Android APK、Windows x64 便携版、macOS Universal DMG 和 `SHA256SUMS.txt`。
 - workflow 先创建 Draft Release，上传并核对全部五个资产后才公开为 Latest；任何构建或校验失败都会阻止不完整版本发布。
 - iOS 无签名 IPA 不进入自动 Release。
 
 所有第三方 Action 都固定到完整 commit SHA。更新 Action 时应核对上游发布说明与 commit，不得改回浮动的 `@main`。
 
+## 社区贡献
+
+- Pull Request 合并不会发布版本，只有维护者推送正式标签后才会启动 Release。
+- 贡献者在 PR 模板中填写用户可见变化；维护者合并时负责整理到 `CHANGELOG.md` 顶部的待发布版本。
+- 测试、CI、文档和无用户影响的重构不必写入更新日志；外部贡献可在最终条目中标注 PR 与贡献者。
+
 ## 发布新版本
 
 以后发布新版本只需要：
 
 1. 更新 `pubspec.yaml` 中的版本，例如 `1.8.3+2163`。
-2. 在 `CHANGELOG.md` 顶部记录相对上一正式版本的最终重要变化。
+2. 确认 `CHANGELOG.md` 顶部的待发布版本号，并将 `未发布` 改为正式发布日期。
 3. 完成与改动范围匹配的本地检查，正常提交并推送到 `main`。
 4. 在同一提交上创建与 `pubspec.yaml` 一致的标签并推送：
 

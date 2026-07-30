@@ -61,6 +61,14 @@ jobs:
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      - name: Validate release notes
+        shell: bash
+        run: >-
+          bash scripts/extract_release_notes.sh
+          "${{ steps.version.outputs.version }}"
+          CHANGELOG.md
+          >/dev/null
+
   ci:
     name: Run release CI gate
     uses: ./.github/workflows/ci.yml
@@ -299,6 +307,9 @@ jobs:
       GH_REPO: ${{ github.repository }}
       APP_VERSION: ${{ needs.validate.outputs.version }}
     steps:
+      - name: Check out release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Download verified assets
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -326,22 +337,33 @@ jobs:
             sha256sum "${expected[@]}" > SHA256SUMS.txt
           )
 
+      - name: Prepare release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_notes_file="$RUNNER_TEMP/release-notes.md"
+          bash scripts/extract_release_notes.sh "$APP_VERSION" CHANGELOG.md > "$release_notes_file"
+          test -s "$release_notes_file"
+
       - name: Create draft, upload, verify, and publish
         shell: bash
         run: |
           set -euo pipefail
           tag="$GITHUB_REF_NAME"
+          release_notes_file="$RUNNER_TEMP/release-notes.md"
+          test -s "$release_notes_file"
 
           if draft_state="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null)"; then
             if [ "$draft_state" != "true" ]; then
               echo "Release $tag already exists and is not a draft" >&2
               exit 1
             fi
+            gh release edit "$tag" --notes-file "$release_notes_file"
           else
             gh release create "$tag" \
               --verify-tag \
               --draft \
-              --generate-notes \
+              --notes-file "$release_notes_file" \
               --title "Selene $APP_VERSION"
           fi
 
