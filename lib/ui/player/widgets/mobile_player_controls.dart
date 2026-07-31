@@ -7,6 +7,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:volume_controller/volume_controller.dart';
 import 'dlna_device_dialog.dart';
+import 'player_overlay_title.dart';
 import 'package:selene/utils/app_logger.dart';
 
 /// 移动端播放器控制层。
@@ -23,6 +24,7 @@ class MobilePlayerControls extends StatefulWidget {
   final bool isLoadingVideo;
   final Function(dynamic)? onCastStarted;
   final String? videoTitle;
+  final String? overlayTitle;
   final int? currentEpisodeIndex;
   final int? totalEpisodes;
   final String? sourceName;
@@ -47,6 +49,7 @@ class MobilePlayerControls extends StatefulWidget {
     this.isLoadingVideo = false,
     this.onCastStarted,
     this.videoTitle,
+    this.overlayTitle,
     this.currentEpisodeIndex,
     this.totalEpisodes,
     this.sourceName,
@@ -531,6 +534,13 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
         _buildBottomGradient(),
         if (_isFullscreen) _buildCurrentTime(),
         _buildBackButton(),
+        PlayerOverlayTitle(
+          title: widget.overlayTitle,
+          visible: _controlsVisible && !_isLocked,
+          top: _isFullscreen ? 16 : 12,
+          left: _isFullscreen ? 64 : 56,
+          right: _isFullscreen ? 64 : 56,
+        ),
         _buildCastButton(),
         _buildCenterPlayPause(),
         _buildProgressBar(),

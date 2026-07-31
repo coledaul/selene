@@ -93,6 +93,15 @@ flutter test test/video_download_test.dart
 - 媒体 URL、请求头和查询参数不得写入日志或错误文案。
 - 下载任务和文件是业务数据；缓存清理器不得删除完成文件，`.part` 仅在恢复、取消、失败或删除路径中清理。
 
+## Android 应用更新
+
+Android 应用更新遵循 `View -> ViewModel -> UpdateRepository -> Service`，模块职责、安全边界和真机验收要求见[更新模块说明](../../lib/data/repositories/update/README.md)。修改后至少运行：
+
+```bash
+flutter test test/data/update test/ui/update
+flutter test test/architecture
+```
+
 ## 发布
 
 签名配置、本地发布构建、自动化发布和版本标签流程见[发布指南](./release.md)。
@@ -102,7 +111,7 @@ flutter test test/video_download_test.dart
 1. Dart 代码：格式检查、静态分析、相关测试和全量测试。
 2. 架构变更：运行 `flutter test test/architecture`，确认依赖方向与所有权契约。
 3. 鉴权变更：验证记住/不记住、启动恢复、本地模式、并发 401、单次重试、退出和安全存储失败。
-4. 下载变更：使用合法自有 HLS/MP4 样本验证下载、取消、重试、恢复、离线播放和删除。
+4. 下载变更：视频下载使用合法自有 HLS/MP4 样本验证下载、取消、重试、恢复、离线播放和删除；Android 应用更新按模块说明验证。
 5. 平台工程：运行对应平台的最小构建或真机验证。
 6. 发布相关修改：运行三项 Shell 测试；本地打包与标签流程见[发布指南](./release.md)。
 7. 配置、目录、命令或产物变化：同步更新 README 或对应指南。

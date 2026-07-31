@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:selene/routing/routes.dart';
-import 'package:selene/ui/core/widgets/update_dialog.dart';
+import 'package:selene/ui/update/widgets/update_dialog.dart';
 import 'package:selene/ui/settings/view_models/settings_view_model.dart';
 import 'package:selene/utils/app_links.dart';
 import 'package:selene/utils/device_utils.dart';

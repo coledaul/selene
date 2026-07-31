@@ -22,6 +22,7 @@ class VideoPlayerWidget extends StatefulWidget {
   final bool isLastEpisode;
   final Function(dynamic)? onCastStarted;
   final String? videoTitle;
+  final String? overlayTitle;
   final int? currentEpisodeIndex;
   final int? totalEpisodes;
   final String? sourceName;
@@ -44,6 +45,7 @@ class VideoPlayerWidget extends StatefulWidget {
     this.isLastEpisode = false,
     this.onCastStarted,
     this.videoTitle,
+    this.overlayTitle,
     this.currentEpisodeIndex,
     this.totalEpisodes,
     this.sourceName,
@@ -495,6 +497,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                         isLoadingVideo: _isLoadingVideo,
                         onCastStarted: widget.onCastStarted,
                         videoTitle: widget.videoTitle,
+                        overlayTitle: widget.overlayTitle,
                         currentEpisodeIndex: widget.currentEpisodeIndex,
                         totalEpisodes: widget.totalEpisodes,
                         sourceName: widget.sourceName,
@@ -520,6 +523,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                         isLoadingVideo: _isLoadingVideo,
                         onCastStarted: widget.onCastStarted,
                         videoTitle: widget.videoTitle,
+                        overlayTitle: widget.overlayTitle,
                         currentEpisodeIndex: widget.currentEpisodeIndex,
                         totalEpisodes: widget.totalEpisodes,
                         sourceName: widget.sourceName,

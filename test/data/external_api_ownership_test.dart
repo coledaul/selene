@@ -3,11 +3,15 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:selene/data/repositories/subscription_repository.dart';
-import 'package:selene/data/repositories/update_repository.dart';
+import 'package:selene/data/repositories/update/update_repository.dart';
 import 'package:selene/data/services/subscription_api_service.dart';
 import 'package:selene/data/services/subscription_local_service.dart';
-import 'package:selene/data/services/update_api_service.dart';
-import 'package:selene/data/services/update_preferences_service.dart';
+import 'package:selene/data/services/update/update_api_service.dart';
+import 'package:selene/data/services/update/update_download_service.dart';
+import 'package:selene/data/services/update/update_launcher_service.dart';
+import 'package:selene/data/services/update/update_package_file_service.dart';
+import 'package:selene/data/services/update/update_permission_service.dart';
+import 'package:selene/data/services/update/update_preferences_service.dart';
 import 'package:selene/domain/models/app_version.dart';
 import 'package:selene/utils/result.dart';
 
@@ -77,6 +81,10 @@ void main() {
       final repository = DefaultUpdateRepository(
         apiService: apiService,
         preferencesService: _FakeUpdatePreferencesService(),
+        downloadService: const UnsupportedUpdateDownloadService(),
+        packageFileService: const UpdatePackageFileService(),
+        permissionService: const UnsupportedUpdatePermissionService(),
+        launcherService: const ExternalUpdateLauncherService(),
       );
 
       repository

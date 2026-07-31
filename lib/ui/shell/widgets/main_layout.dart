@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:selene/ui/core/themes/app_theme.dart';
 import 'package:selene/ui/core/view_models/theme_view_model.dart';
+import 'package:selene/ui/core/widgets/app_back_button.dart';
 import 'package:selene/ui/core/widgets/windows_title_bar.dart';
 import 'package:selene/ui/settings/view_models/settings_view_model.dart';
 import 'package:selene/ui/shell/view_models/shell_view_model.dart';
@@ -71,9 +72,6 @@ class _MainLayoutState extends State<MainLayout> {
 
   // 用于跟踪用户按钮的 hover 状态
   bool _isUserButtonHovered = false;
-
-  // 用于跟踪返回按钮的 hover 状态
-  bool _isBackButtonHovered = false;
 
   // 用于跟踪搜索框内清除按钮的 hover 状态
   bool _isClearButtonHovered = false;
@@ -630,52 +628,16 @@ class _MainLayoutState extends State<MainLayout> {
             // 左侧返回按钮
             Positioned(
               left: 0,
-              child: MouseRegion(
-                cursor: DeviceUtils.isPC()
-                    ? SystemMouseCursors.click
-                    : MouseCursor.defer,
-                onEnter: DeviceUtils.isPC()
-                    ? (_) {
-                        setState(() {
-                          _isBackButtonHovered = true;
-                        });
-                      }
-                    : null,
-                onExit: DeviceUtils.isPC()
-                    ? (_) {
-                        setState(() {
-                          _isBackButtonHovered = false;
-                        });
-                      }
-                    : null,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: DeviceUtils.isPC() && _isBackButtonHovered
-                          ? (themeService.isDarkMode
-                                ? const Color(0xFF333333)
-                                : const Color(0xFFe0e0e0))
-                          : Colors.transparent,
-                    ),
-                    child: Center(
-                      child: Icon(
-                        LucideIcons.arrowLeft,
-                        color: themeService.isDarkMode
-                            ? const Color(0xFFffffff)
-                            : const Color(0xFF2c3e50),
-                        size: 24,
-                        weight: 1.0,
-                      ),
-                    ),
-                  ),
-                ),
+              child: AppBackButton(
+                onPressed: () => Navigator.of(context).maybePop(),
+                foregroundColor: themeService.isDarkMode
+                    ? const Color(0xFFffffff)
+                    : const Color(0xFF2c3e50),
+                hoverColor: themeService.isDarkMode
+                    ? const Color(0xFF333333)
+                    : const Color(0xFFe0e0e0),
+                iconSize: 24,
+                buttonSize: 32,
               ),
             ),
             // 搜索框在整个屏幕水平居中

@@ -17,6 +17,7 @@ mixin _$AppVersionInfo {
   String get latestVersion;
   String get releaseNotes;
   Uri get releaseUri;
+  AppReleaseAsset? get androidAsset;
 
   /// Create a copy of AppVersionInfo
   /// with the given fields replaced by the non-null parameter values.
@@ -40,7 +41,9 @@ mixin _$AppVersionInfo {
             (identical(other.releaseNotes, releaseNotes) ||
                 other.releaseNotes == releaseNotes) &&
             (identical(other.releaseUri, releaseUri) ||
-                other.releaseUri == releaseUri));
+                other.releaseUri == releaseUri) &&
+            (identical(other.androidAsset, androidAsset) ||
+                other.androidAsset == androidAsset));
   }
 
   @override
@@ -50,11 +53,12 @@ mixin _$AppVersionInfo {
     latestVersion,
     releaseNotes,
     releaseUri,
+    androidAsset,
   );
 
   @override
   String toString() {
-    return 'AppVersionInfo(currentVersion: $currentVersion, latestVersion: $latestVersion, releaseNotes: $releaseNotes, releaseUri: $releaseUri)';
+    return 'AppVersionInfo(currentVersion: $currentVersion, latestVersion: $latestVersion, releaseNotes: $releaseNotes, releaseUri: $releaseUri, androidAsset: $androidAsset)';
   }
 }
 
@@ -70,6 +74,7 @@ abstract mixin class $AppVersionInfoCopyWith<$Res> {
     String latestVersion,
     String releaseNotes,
     Uri releaseUri,
+    AppReleaseAsset? androidAsset,
   });
 }
 
@@ -90,6 +95,7 @@ class _$AppVersionInfoCopyWithImpl<$Res>
     Object? latestVersion = null,
     Object? releaseNotes = null,
     Object? releaseUri = null,
+    Object? androidAsset = freezed,
   }) {
     return _then(
       _self.copyWith(
@@ -109,6 +115,10 @@ class _$AppVersionInfoCopyWithImpl<$Res>
             ? _self.releaseUri
             : releaseUri // ignore: cast_nullable_to_non_nullable
                   as Uri,
+        androidAsset: freezed == androidAsset
+            ? _self.androidAsset
+            : androidAsset // ignore: cast_nullable_to_non_nullable
+                  as AppReleaseAsset?,
       ),
     );
   }
@@ -212,6 +222,7 @@ extension AppVersionInfoPatterns on AppVersionInfo {
       String latestVersion,
       String releaseNotes,
       Uri releaseUri,
+      AppReleaseAsset? androidAsset,
     )?
     $default, {
     required TResult orElse(),
@@ -224,6 +235,7 @@ extension AppVersionInfoPatterns on AppVersionInfo {
           _that.latestVersion,
           _that.releaseNotes,
           _that.releaseUri,
+          _that.androidAsset,
         );
       case _:
         return orElse();
@@ -250,6 +262,7 @@ extension AppVersionInfoPatterns on AppVersionInfo {
       String latestVersion,
       String releaseNotes,
       Uri releaseUri,
+      AppReleaseAsset? androidAsset,
     )
     $default,
   ) {
@@ -261,6 +274,7 @@ extension AppVersionInfoPatterns on AppVersionInfo {
           _that.latestVersion,
           _that.releaseNotes,
           _that.releaseUri,
+          _that.androidAsset,
         );
       case _:
         throw StateError('Unexpected subclass');
@@ -286,6 +300,7 @@ extension AppVersionInfoPatterns on AppVersionInfo {
       String latestVersion,
       String releaseNotes,
       Uri releaseUri,
+      AppReleaseAsset? androidAsset,
     )?
     $default,
   ) {
@@ -297,6 +312,7 @@ extension AppVersionInfoPatterns on AppVersionInfo {
           _that.latestVersion,
           _that.releaseNotes,
           _that.releaseUri,
+          _that.androidAsset,
         );
       case _:
         return null;
@@ -312,6 +328,7 @@ class _AppVersionInfo implements AppVersionInfo {
     required this.latestVersion,
     required this.releaseNotes,
     required this.releaseUri,
+    this.androidAsset,
   });
 
   @override
@@ -322,6 +339,8 @@ class _AppVersionInfo implements AppVersionInfo {
   final String releaseNotes;
   @override
   final Uri releaseUri;
+  @override
+  final AppReleaseAsset? androidAsset;
 
   /// Create a copy of AppVersionInfo
   /// with the given fields replaced by the non-null parameter values.
@@ -343,7 +362,9 @@ class _AppVersionInfo implements AppVersionInfo {
             (identical(other.releaseNotes, releaseNotes) ||
                 other.releaseNotes == releaseNotes) &&
             (identical(other.releaseUri, releaseUri) ||
-                other.releaseUri == releaseUri));
+                other.releaseUri == releaseUri) &&
+            (identical(other.androidAsset, androidAsset) ||
+                other.androidAsset == androidAsset));
   }
 
   @override
@@ -353,11 +374,12 @@ class _AppVersionInfo implements AppVersionInfo {
     latestVersion,
     releaseNotes,
     releaseUri,
+    androidAsset,
   );
 
   @override
   String toString() {
-    return 'AppVersionInfo(currentVersion: $currentVersion, latestVersion: $latestVersion, releaseNotes: $releaseNotes, releaseUri: $releaseUri)';
+    return 'AppVersionInfo(currentVersion: $currentVersion, latestVersion: $latestVersion, releaseNotes: $releaseNotes, releaseUri: $releaseUri, androidAsset: $androidAsset)';
   }
 }
 
@@ -375,6 +397,7 @@ abstract mixin class _$AppVersionInfoCopyWith<$Res>
     String latestVersion,
     String releaseNotes,
     Uri releaseUri,
+    AppReleaseAsset? androidAsset,
   });
 }
 
@@ -395,6 +418,7 @@ class __$AppVersionInfoCopyWithImpl<$Res>
     Object? latestVersion = null,
     Object? releaseNotes = null,
     Object? releaseUri = null,
+    Object? androidAsset = freezed,
   }) {
     return _then(
       _AppVersionInfo(
@@ -414,6 +438,10 @@ class __$AppVersionInfoCopyWithImpl<$Res>
             ? _self.releaseUri
             : releaseUri // ignore: cast_nullable_to_non_nullable
                   as Uri,
+        androidAsset: freezed == androidAsset
+            ? _self.androidAsset
+            : androidAsset // ignore: cast_nullable_to_non_nullable
+                  as AppReleaseAsset?,
       ),
     );
   }

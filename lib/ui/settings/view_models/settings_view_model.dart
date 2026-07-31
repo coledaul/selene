@@ -3,7 +3,7 @@ import '../../../data/repositories/cache_repository.dart';
 import '../../../data/repositories/library_repository.dart';
 import '../../../data/repositories/live_repository.dart';
 import '../../../data/repositories/settings_repository.dart';
-import '../../../data/repositories/update_repository.dart';
+import '../../../data/repositories/update/update_repository.dart';
 import '../../../domain/models/app_settings.dart';
 import '../../../domain/models/app_version.dart';
 import '../../../domain/models/auth_models.dart';

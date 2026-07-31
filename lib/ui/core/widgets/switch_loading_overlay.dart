@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:selene/utils/device_utils.dart';
+
+import 'app_back_button.dart';
 
 /// 切换播放源/集数时的加载蒙版组件
 class SwitchLoadingOverlay extends StatelessWidget {
@@ -30,23 +31,12 @@ class SwitchLoadingOverlay extends StatelessWidget {
               Positioned(
                 top: 4,
                 left: 8.0,
-                child: DeviceUtils.isPC()
-                    ? _HoverBackButton(
-                        onTap: onBackPressed!,
-                        iconColor: Colors.white,
-                      )
-                    : GestureDetector(
-                        onTap: onBackPressed,
-                        behavior: HitTestBehavior.opaque,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          child: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
+                child: AppBackButton(
+                  onPressed: onBackPressed,
+                  foregroundColor: Colors.white,
+                  hoverColor: Colors.white24,
+                  iconSize: 20,
+                ),
               ),
             // 中心加载内容
             Center(
@@ -108,44 +98,6 @@ class SwitchLoadingOverlay extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 带 hover 效果的返回按钮（PC 端专用）
-class _HoverBackButton extends StatefulWidget {
-  final VoidCallback onTap;
-  final Color iconColor;
-
-  const _HoverBackButton({required this.onTap, required this.iconColor});
-
-  @override
-  State<_HoverBackButton> createState() => _HoverBackButtonState();
-}
-
-class _HoverBackButtonState extends State<_HoverBackButton> {
-  bool _isHovering = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: _isHovering
-              ? BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.grey.withValues(alpha: 0.5),
-                )
-              : null,
-          child: Icon(Icons.arrow_back, color: widget.iconColor, size: 20),
         ),
       ),
     );

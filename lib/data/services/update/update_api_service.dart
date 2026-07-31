@@ -1,9 +1,13 @@
+import 'dart:ffi';
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../domain/models/app_version.dart';
-import '../../utils/app_links.dart';
-import '../../utils/result.dart';
+import '../../../domain/models/app_release_asset.dart';
+import '../../../domain/models/app_version.dart';
+import '../../../utils/app_links.dart';
+import '../../../utils/result.dart';
 
 abstract interface class UpdateApiService {
   Future<Result<AppVersionInfo?>> check();
@@ -15,14 +19,20 @@ final class GitHubUpdateApiService implements UpdateApiService {
     Dio? dio,
     Dio Function()? dioFactory,
     Future<PackageInfo> Function()? packageInfo,
+    bool Function()? isAndroid,
+    AndroidArchitecture? Function()? androidArchitecture,
   }) : assert(dio == null || dioFactory == null),
        _dio = dio ?? (dioFactory ?? _createDio)(),
        _ownsDio = dio == null,
-       _packageInfo = packageInfo ?? PackageInfo.fromPlatform;
+       _packageInfo = packageInfo ?? PackageInfo.fromPlatform,
+       _isAndroid = isAndroid ?? _platformIsAndroid,
+       _androidArchitecture = androidArchitecture ?? _currentArchitecture;
 
   final Dio _dio;
   final bool _ownsDio;
   final Future<PackageInfo> Function() _packageInfo;
+  final bool Function() _isAndroid;
+  final AndroidArchitecture? Function() _androidArchitecture;
   bool _disposed = false;
 
   static Dio _createDio() => Dio(
@@ -78,12 +88,21 @@ final class GitHubUpdateApiService implements UpdateApiService {
       if (!_isNewer(packageInfo.version, latest)) {
         return const Success<AppVersionInfo?>(null);
       }
+      final architecture = _isAndroid() ? _androidArchitecture() : null;
       return Success<AppVersionInfo?>(
         AppVersionInfo(
           currentVersion: packageInfo.version,
           latestVersion: latest,
           releaseNotes: data?['body'] is String ? data!['body'] as String : '',
           releaseUri: releaseUri,
+          androidAsset: architecture != null
+              ? _parseAndroidAsset(
+                  data?['assets'],
+                  tag: tag,
+                  version: latest,
+                  architecture: architecture,
+                )
+              : null,
         ),
       );
     } on DioException catch (error, stackTrace) {
@@ -122,6 +141,59 @@ final class GitHubUpdateApiService implements UpdateApiService {
     }
   }
 
+  AppReleaseAsset? _parseAndroidAsset(
+    Object? rawAssets, {
+    required String tag,
+    required String version,
+    required AndroidArchitecture architecture,
+  }) {
+    if (rawAssets is! List<Object?>) {
+      return null;
+    }
+    final suffix = switch (architecture) {
+      AndroidArchitecture.arm64 => 'armv8',
+      AndroidArchitecture.arm32 => 'armv7a',
+    };
+    final expectedName = 'selene-$version-$suffix.apk';
+    final matches = rawAssets
+        .whereType<Map<String, Object?>>()
+        .where((asset) => asset['name'] == expectedName)
+        .toList(growable: false);
+    if (matches.length != 1) {
+      return null;
+    }
+
+    final asset = matches.single;
+    final rawSize = asset['size'];
+    final rawDigest = asset['digest'];
+    final rawUrl = asset['browser_download_url'];
+    final uri = rawUrl is String ? Uri.tryParse(rawUrl) : null;
+    if (asset['state'] != 'uploaded' ||
+        asset['content_type'] != 'application/vnd.android.package-archive' ||
+        rawSize is! int ||
+        rawSize <= 0 ||
+        rawDigest is! String ||
+        uri == null ||
+        !AppLinks.isReleaseAssetUri(uri, tag: tag) ||
+        uri.pathSegments.last != expectedName) {
+      return null;
+    }
+    final digest = RegExp(
+      r'^sha256:([0-9a-fA-F]{64})$',
+    ).firstMatch(rawDigest.trim());
+    if (digest == null) {
+      return null;
+    }
+
+    return AppReleaseAsset(
+      fileName: expectedName,
+      downloadUri: uri,
+      size: rawSize,
+      sha256: digest.group(1)!.toLowerCase(),
+      architecture: architecture,
+    );
+  }
+
   bool _isNewer(String current, String latest) {
     final currentParts = _parseVersion(current);
     final latestParts = _parseVersion(latest);
@@ -150,5 +222,14 @@ final class GitHubUpdateApiService implements UpdateApiService {
     if (_ownsDio) {
       _dio.close(force: true);
     }
+  }
+
+  static bool _platformIsAndroid() => Platform.isAndroid;
+
+  static AndroidArchitecture? _currentArchitecture() {
+    final abi = Abi.current();
+    if (abi == Abi.androidArm) return AndroidArchitecture.arm32;
+    if (abi == Abi.androidArm64) return AndroidArchitecture.arm64;
+    return null;
   }
 }

@@ -9,6 +9,7 @@ import '../ui/core/themes/app_theme.dart';
 import '../ui/core/view_models/theme_view_model.dart';
 import '../ui/core/view_models/video_metadata_view_model.dart';
 import '../ui/core/widgets/video_metadata_scope.dart';
+import '../ui/update/view_models/update_view_model.dart';
 import 'app_dependencies.dart';
 
 class SeleneApp extends StatefulWidget {
@@ -38,6 +39,10 @@ class _SeleneAppState extends State<SeleneApp> {
         ChangeNotifierProvider(
           create: (_) =>
               ThemeViewModel(repository: dependencies.themeRepository),
+        ),
+        ChangeNotifierProvider(
+          create: (_) =>
+              UpdateViewModel(repository: dependencies.updateRepository),
         ),
         Provider<AppDependencies>.value(value: dependencies),
       ],

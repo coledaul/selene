@@ -14,7 +14,7 @@ import 'package:selene/data/repositories/search_repository.dart';
 import 'package:selene/data/repositories/sse_search_repository.dart';
 import 'package:selene/data/repositories/settings_repository.dart';
 import 'package:selene/data/repositories/theme_repository.dart';
-import 'package:selene/data/repositories/update_repository.dart';
+import 'package:selene/data/repositories/update/update_repository.dart';
 import 'package:selene/domain/models/anime_catalog.dart';
 import 'package:selene/domain/models/app_settings.dart';
 import 'package:selene/domain/models/app_theme_mode.dart';
@@ -460,7 +460,8 @@ final class _FakeLibraryRepository implements LibraryRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-final class _FakeUpdateRepository implements UpdateRepository {
+final class _FakeUpdateRepository extends ChangeNotifier
+    implements UpdateRepository {
   @override
   Future<Result<AppVersionInfo?>> check({
     bool respectPromptPolicy = true,
@@ -471,7 +472,7 @@ final class _FakeUpdateRepository implements UpdateRepository {
       const Success<void>(null);
 
   @override
-  void dispose() {}
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 final class _FakeAuthRepository extends ChangeNotifier

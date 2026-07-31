@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'session_cache_coordinator.dart';
 import '../data/services/dio_auth_api_service.dart';
@@ -14,7 +15,7 @@ import '../data/repositories/metadata_repository.dart';
 import '../data/repositories/settings_repository.dart';
 import '../data/repositories/subscription_repository.dart';
 import '../data/repositories/theme_repository.dart';
-import '../data/repositories/update_repository.dart';
+import '../data/repositories/update/update_repository.dart';
 import '../data/services/auth_profile_service.dart';
 import '../data/services/credential_service.dart';
 import '../data/services/download_export_service.dart';
@@ -23,8 +24,13 @@ import '../data/services/search_stream_service.dart';
 import '../data/services/subscription_api_service.dart';
 import '../data/services/subscription_local_service.dart';
 import '../data/services/window_appearance_service.dart';
-import '../data/services/update_api_service.dart';
-import '../data/services/update_preferences_service.dart';
+import '../data/services/update/background_update_download_service.dart';
+import '../data/services/update/update_api_service.dart';
+import '../data/services/update/update_download_service.dart';
+import '../data/services/update/update_launcher_service.dart';
+import '../data/services/update/update_package_file_service.dart';
+import '../data/services/update/update_permission_service.dart';
+import '../data/services/update/update_preferences_service.dart';
 import '../data/services/api_service.dart';
 import '../data/services/douban_cache_service.dart';
 import '../data/services/local_search_cache_service.dart';
@@ -100,9 +106,19 @@ class AppDependencies {
     final themeRepository = DefaultThemeRepository(
       windowService: MacOsWindowAppearanceService(),
     );
+    final updateDownloadService = Platform.isAndroid
+        ? BackgroundUpdateDownloadService()
+        : const UnsupportedUpdateDownloadService();
+    final updatePermissionService = Platform.isAndroid
+        ? const AndroidUpdatePermissionService()
+        : const UnsupportedUpdatePermissionService();
     final updateRepository = DefaultUpdateRepository(
       apiService: GitHubUpdateApiService(),
       preferencesService: SharedPreferencesUpdateService(),
+      downloadService: updateDownloadService,
+      packageFileService: const UpdatePackageFileService(),
+      permissionService: updatePermissionService,
+      launcherService: const ExternalUpdateLauncherService(),
     );
     final settingsRepository = DefaultSettingsRepository(
       service: SharedPreferencesSettingsService(),
@@ -176,6 +192,14 @@ class AppDependencies {
   void start() {
     _sessionCacheCoordinator.start();
     unawaited(authRepository.initialize());
+    unawaited(
+      updateRepository.initialize().catchError((
+        Object error,
+        StackTrace stack,
+      ) {
+        AppLogger.debug('更新任务初始化失败', error: error, stackTrace: stack);
+      }),
+    );
     unawaited(
       downloadRepository.initialize().catchError((
         Object error,

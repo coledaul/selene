@@ -7,9 +7,64 @@ import 'package:selene/domain/models/download_export_outcome.dart';
 import 'package:selene/domain/models/search_result.dart';
 import 'package:selene/domain/models/video_download_task.dart';
 import 'package:selene/ui/downloads/view_models/download_view_model.dart';
+import 'package:selene/ui/downloads/widgets/downloaded_video_player_screen.dart';
 import 'package:selene/ui/downloads/widgets/download_manager_screen.dart';
+import 'package:selene/ui/core/widgets/app_page_bar.dart';
 
 void main() {
+  testWidgets('下载管理使用公共页面标题和设置入口', (tester) async {
+    final repository = _FakeDownloadRepository();
+
+    await _pumpScreen(tester, repository);
+
+    expect(find.byType(AppPageBar), findsOneWidget);
+    expect(find.text('下载管理'), findsOneWidget);
+    expect(find.byTooltip('下载设置'), findsOneWidget);
+  });
+
+  testWidgets('本地文件缺失页面保留统一标题和明确错误', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DownloadedVideoPlayerScreen(task: _completedTask(filePath: null)),
+      ),
+    );
+
+    expect(find.byType(AppPageBar), findsOneWidget);
+    expect(find.text('测试视频 · 第 1 集'), findsOneWidget);
+    expect(find.text('本地文件不存在'), findsOneWidget);
+  });
+
+  testWidgets('本地文件正常时由播放器独占标题和返回入口', (tester) async {
+    String? capturedTitle;
+    VoidCallback? capturedBack;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DownloadedVideoPlayerScreen(
+          task: _completedTask(),
+          playerBuilder:
+              ({
+                required task,
+                required filePath,
+                required overlayTitle,
+                required onBackPressed,
+              }) {
+                capturedTitle = overlayTitle;
+                capturedBack = onBackPressed;
+                return const ColoredBox(
+                  key: Key('fake-player'),
+                  color: Colors.black,
+                );
+              },
+        ),
+      ),
+    );
+
+    expect(find.byType(AppPageBar), findsNothing);
+    expect(find.byKey(const Key('fake-player')), findsOneWidget);
+    expect(capturedTitle, '测试视频 · 第 1 集');
+    expect(capturedBack, isNotNull);
+  });
+
   testWidgets('完成任务显示导出入口并在成功后提示', (tester) async {
     final repository = _FakeDownloadRepository();
 
@@ -159,7 +214,9 @@ final class _FakeDownloadRepository extends ChangeNotifier
   }) async => null;
 }
 
-VideoDownloadTask _completedTask() {
+VideoDownloadTask _completedTask({
+  String? filePath = '/private/测试视频-第 1 集.mkv',
+}) {
   final now = DateTime(2026, 7, 28);
   return VideoDownloadTask(
     id: 'task-1',
@@ -181,7 +238,7 @@ VideoDownloadTask _completedTask() {
     status: VideoDownloadStatus.completed,
     progress: 1,
     downloadedBytes: 4,
-    filePath: '/private/测试视频-第 1 集.mkv',
+    filePath: filePath,
     createdAt: now,
     updatedAt: now,
     completedAt: now,

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'dlna_device_dialog.dart';
+import 'player_overlay_title.dart';
 
 // 桌面端带 hover 效果的按钮组件
 class HoverButton extends StatefulWidget {
@@ -60,6 +61,7 @@ class PCPlayerControls extends StatefulWidget {
   final bool isLoadingVideo;
   final Function(dynamic)? onCastStarted;
   final String? videoTitle;
+  final String? overlayTitle;
   final int? currentEpisodeIndex;
   final int? totalEpisodes;
   final String? sourceName;
@@ -83,6 +85,7 @@ class PCPlayerControls extends StatefulWidget {
     this.isLoadingVideo = false,
     this.onCastStarted,
     this.videoTitle,
+    this.overlayTitle,
     this.currentEpisodeIndex,
     this.totalEpisodes,
     this.sourceName,
@@ -681,6 +684,13 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
                   ),
                 ),
               ),
+            ),
+            PlayerOverlayTitle(
+              title: widget.overlayTitle,
+              visible: _controlsVisible,
+              top: effectiveFullscreen ? 16 : 12,
+              left: effectiveFullscreen ? 72 : 64,
+              right: effectiveFullscreen ? 72 : 64,
             ),
             // 顶部投屏按钮
             Positioned(

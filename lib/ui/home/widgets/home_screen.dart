@@ -26,7 +26,7 @@ import 'package:selene/ui/shell/view_models/shell_view_model.dart';
 import 'package:selene/ui/shell/widgets/main_layout.dart';
 import 'package:selene/ui/core/widgets/custom_refresh_indicator.dart';
 import 'package:selene/ui/core/widgets/top_tab_switcher.dart';
-import 'package:selene/ui/core/widgets/update_dialog.dart';
+import 'package:selene/ui/update/widgets/update_dialog.dart';
 import 'package:selene/ui/core/widgets/video_menu_bottom_sheet.dart';
 import 'package:selene/utils/font_utils.dart';
 import 'package:selene/utils/result.dart';

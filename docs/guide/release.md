@@ -77,6 +77,7 @@ iOS IPA 不签名；macOS DMG 要求主可执行文件同时包含 `arm64` 和 `
 - `release.yml` 仅由 `vMAJOR.MINOR.PATCH` 标签触发，要求标签版本与 `pubspec.yaml` 一致、标签提交已经包含在 `main` 中，并在构建前自动等待同一套 CI 检查通过。
 - GitHub Release 说明取自 `CHANGELOG.md` 中对应的正式版本；版本段落缺失或为空时停止发布，客户端与发布页使用同一份内容。
 - 自动产物为两个已验证签名的 Android APK、Windows x64 便携版、macOS Universal DMG 和 `SHA256SUMS.txt`。
+- Android 应用内更新依赖两个 APK 的稳定命名，以及 GitHub 返回的完成状态、大小、原始地址和 `sha256:` digest；不得随意改名或改为外部下载地址。
 - workflow 先创建 Draft Release，上传并核对全部五个资产后才公开为 Latest；任何构建或校验失败都会阻止不完整版本发布。
 - iOS 无签名 IPA 不进入自动 Release。
 

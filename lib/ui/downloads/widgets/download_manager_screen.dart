@@ -1,13 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:selene/domain/models/download_export_outcome.dart';
 import 'package:selene/domain/models/video_download_task.dart';
+import 'package:selene/ui/core/widgets/app_page_bar.dart';
 import 'package:selene/ui/downloads/view_models/download_view_model.dart';
-import 'package:selene/ui/player/widgets/video_player_surface.dart';
-import 'package:selene/ui/player/widgets/video_player_widget.dart';
-import 'package:selene/utils/device_utils.dart';
 import 'package:selene/utils/result.dart';
+import 'downloaded_video_player_screen.dart';
 import 'download_settings_dialog.dart';
 
 class DownloadManagerScreen extends StatefulWidget {
@@ -37,8 +37,10 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('下载管理'),
+      appBar: AppPageBar(
+        title: '下载管理',
+        titleIcon: LucideIcons.download,
+        titleIconColor: const Color(0xFF27AE60),
         actions: [
           IconButton(
             tooltip: '下载设置',
@@ -399,43 +401,5 @@ class _DownloadTaskCard extends StatelessWidget {
     final mib = kib / 1024;
     if (mib < 1024) return '${mib.toStringAsFixed(1)} MB';
     return '${(mib / 1024).toStringAsFixed(2)} GB';
-  }
-}
-
-class DownloadedVideoPlayerScreen extends StatelessWidget {
-  const DownloadedVideoPlayerScreen({super.key, required this.task});
-
-  final VideoDownloadTask task;
-
-  @override
-  Widget build(BuildContext context) {
-    final filePath = task.filePath;
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: Text(
-          '${task.title} · ${task.episodeTitle}',
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-      body: filePath == null
-          ? const Center(
-              child: Text('本地文件不存在', style: TextStyle(color: Colors.white)),
-            )
-          : VideoPlayerWidget(
-              surface: DeviceUtils.isPC()
-                  ? VideoPlayerSurface.desktop
-                  : VideoPlayerSurface.mobile,
-              url: filePath,
-              videoTitle: task.title,
-              currentEpisodeIndex: task.episodeIndex,
-              totalEpisodes: task.totalEpisodes,
-              sourceName: task.sourceName,
-              isLastEpisode: task.episodeIndex >= task.totalEpisodes - 1,
-              onBackPressed: () => Navigator.of(context).maybePop(),
-            ),
-    );
   }
 }

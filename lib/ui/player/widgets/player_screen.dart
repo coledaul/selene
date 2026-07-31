@@ -8,6 +8,7 @@ import 'package:selene/domain/models/player_models.dart';
 import 'package:selene/domain/models/search_result.dart';
 import 'package:selene/ui/downloads/widgets/download_selection_sheet.dart';
 import 'package:selene/routing/routes.dart';
+import 'package:selene/ui/core/widgets/app_back_button.dart';
 import 'package:selene/ui/core/widgets/switch_loading_overlay.dart';
 import 'package:selene/ui/core/widgets/windows_title_bar.dart';
 import 'package:selene/ui/core/widgets/video_card.dart';
@@ -2766,11 +2767,12 @@ class _PlayerScreenState extends State<PlayerScreen>
             Positioned(
               top: topPadding + 4,
               left: 16,
-              child: _HoverBackButton(
-                onTap: _onBackPressed,
-                iconColor: isDarkMode
+              child: AppBackButton(
+                onPressed: _onBackPressed,
+                foregroundColor: isDarkMode
                     ? const Color(0xFFffffff)
                     : const Color(0xFF2c3e50),
+                iconSize: 24,
               ),
             ),
           // 中心加载内容
@@ -2857,44 +2859,6 @@ class _PlayerScreenState extends State<PlayerScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// 带 hover 效果的返回按钮（PC 端专用）
-class _HoverBackButton extends StatefulWidget {
-  final VoidCallback onTap;
-  final Color iconColor;
-
-  const _HoverBackButton({required this.onTap, required this.iconColor});
-
-  @override
-  State<_HoverBackButton> createState() => _HoverBackButtonState();
-}
-
-class _HoverBackButtonState extends State<_HoverBackButton> {
-  bool _isHovering = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: _isHovering
-              ? BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.grey.withValues(alpha: 0.5),
-                )
-              : null,
-          child: Icon(Icons.arrow_back, color: widget.iconColor, size: 24),
-        ),
       ),
     );
   }

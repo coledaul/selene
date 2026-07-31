@@ -3,7 +3,7 @@ import 'dart:async';
 import '../../../data/repositories/library_repository.dart';
 import '../../../data/repositories/anime_repository.dart';
 import '../../../data/repositories/catalog_repository.dart';
-import '../../../data/repositories/update_repository.dart';
+import '../../../data/repositories/update/update_repository.dart';
 import '../../../domain/models/app_version.dart';
 import '../../../domain/models/bangumi.dart';
 import '../../../domain/models/douban_movie.dart';

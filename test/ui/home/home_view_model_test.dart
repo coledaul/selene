@@ -7,7 +7,7 @@ import 'package:selene/data/repositories/theme_repository.dart';
 import 'package:selene/data/repositories/library_repository.dart';
 import 'package:selene/data/repositories/anime_repository.dart';
 import 'package:selene/data/repositories/catalog_repository.dart';
-import 'package:selene/data/repositories/update_repository.dart';
+import 'package:selene/data/repositories/update/update_repository.dart';
 import 'package:selene/domain/models/app_theme_mode.dart';
 import 'package:selene/domain/models/app_version.dart';
 import 'package:selene/domain/models/anime_catalog.dart';
@@ -521,7 +521,8 @@ final class _FakeLibraryRepository implements LibraryRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-final class _FakeUpdateRepository implements UpdateRepository {
+final class _FakeUpdateRepository extends ChangeNotifier
+    implements UpdateRepository {
   _FakeUpdateRepository({this.available});
 
   final AppVersionInfo? available;
@@ -536,5 +537,5 @@ final class _FakeUpdateRepository implements UpdateRepository {
       const Success<void>(null);
 
   @override
-  void dispose() {}
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
