@@ -58,6 +58,8 @@ HTTP 与 SSE 共用 `MoonTvApiClient`、内存 CookieJar 和统一鉴权。多�
 
 `PlayerViewModel` 编排远端详情、播放源优选、收藏、续播、元数据和离线文件；`PlayerRepository` 负责远端播放数据与 URL 解析，用户资料由 `LibraryRepository` 管理，离线文件由 `DownloadRepository` 管理。`media_kit`、DLNA、动画、方向和页面 Controller 属于 View 生命周期。
 
+`VideoPlayerWidget` 创建并独占释放页面级 `VideoPlaybackSession`。会话统一持有 `Player`、`VideoController`、媒体类型、播放状态和当前源的可寻址缓存范围；换源时先关闭旧媒体，退出时先取消原生属性观察和流订阅，再释放播放器。临时播放缓存不进入 Repository，也不跨页面或应用启动复用。
+
 `DefaultDownloadRepository` 管理持久任务、去重、并发、取消、重试、删除和启动恢复。FFmpeg Service 探测 HLS/普通视频并以流复制方式重封装为 MKV，文件 Service 使用 `.part` 临时文件和原子完成路径。
 
 ## 目录结构

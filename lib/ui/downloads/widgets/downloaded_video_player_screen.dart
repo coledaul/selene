@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../domain/models/video_download_task.dart';
 import '../../../utils/device_utils.dart';
 import '../../core/widgets/app_page_bar.dart';
+import '../../player/video_playback_session.dart';
 import '../../player/widgets/video_player_surface.dart';
 import '../../player/widgets/video_player_widget.dart';
 
@@ -73,6 +74,7 @@ final class DownloadedVideoPlayerScreen extends StatelessWidget {
     totalEpisodes: task.totalEpisodes,
     sourceName: task.sourceName,
     isLastEpisode: task.episodeIndex >= task.totalEpisodes - 1,
+    mediaKind: PlaybackMediaKind.localFile,
     onBackPressed: onBackPressed,
   );
 }

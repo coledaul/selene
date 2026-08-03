@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
@@ -121,7 +122,6 @@ class _PlayerScreenState extends State<PlayerScreen>
   DateTime? _lastSaveTime;
   int? _lastSavePosition; // 上次保存的播放位置（秒）
   static const Duration _saveProgressInterval = Duration(seconds: 10);
-  Duration? _resumeStartAt;
 
   // 网页全屏状态
   bool _isWebFullscreen = false;
@@ -129,6 +129,7 @@ class _PlayerScreenState extends State<PlayerScreen>
   // 播放器的 GlobalKey，用于保持播放器状态
   final GlobalKey _playerKey = GlobalKey();
   int _loadGeneration = 0;
+  int _playbackSourceGeneration = 0;
 
   bool _isActiveLoad(int generation) =>
       mounted && generation == _loadGeneration;
@@ -251,8 +252,9 @@ class _PlayerScreenState extends State<PlayerScreen>
     _lastSavePosition = null;
     // 将 playTime 转换为 Duration 并传递给 updateVideoUrl
     final startAt = playTime > 0 ? Duration(seconds: playTime) : null;
-    _resumeStartAt = startAt;
-    updateVideoUrl(currentDetail!.episodes[targetIndex], startAt: null);
+    unawaited(
+      updateVideoUrl(currentDetail!.episodes[targetIndex], startAt: startAt),
+    );
     _scrollToCurrentEpisode();
   }
 
@@ -503,6 +505,7 @@ class _PlayerScreenState extends State<PlayerScreen>
         _errorMessage = message;
         _showError = true;
         _isLoading = false;
+        _showSwitchLoadingOverlay = false;
       });
     }
   }
@@ -545,6 +548,7 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   /// 动态更新视频数据源
   Future<void> updateVideoUrl(String newUrl, {Duration? startAt}) async {
+    final sourceGeneration = ++_playbackSourceGeneration;
     try {
       final resolved = await _viewModel.resolvePlaybackUrl(
         mediaUrl: newUrl,
@@ -552,7 +556,11 @@ class _PlayerScreenState extends State<PlayerScreen>
         contentId: currentID,
         episodeIndex: currentEpisodeIndex,
       );
-      if (resolved.isFailure) throw resolved.failureOrNull!;
+      if (!mounted || sourceGeneration != _playbackSourceGeneration) return;
+      if (resolved.isFailure) {
+        showError(resolved.failureOrNull?.message ?? '播放地址解析失败，请重试');
+        return;
+      }
       final finalUrl = resolved.valueOrNull!;
 
       if (_isCasting) {
@@ -574,13 +582,26 @@ class _PlayerScreenState extends State<PlayerScreen>
         );
       } else {
         // 本地播放：根据设备类型调用对应播放器的 updateDataSource
-        await _videoPlayerController?.updateDataSource(
+        final controller = _videoPlayerController;
+        if (controller == null) {
+          showError('播放器尚未准备完成，请重试');
+          return;
+        }
+        final failure = await controller.updateDataSource(
           finalUrl,
           startAt: startAt,
         );
+        if (!mounted || sourceGeneration != _playbackSourceGeneration) return;
+        if (failure != null) {
+          showError(failure.message);
+        }
       }
-    } catch (e) {
-      // 静默处理错误
+    } on AppFailure catch (failure) {
+      if (!mounted || sourceGeneration != _playbackSourceGeneration) return;
+      showError(failure.message);
+    } catch (_) {
+      if (!mounted || sourceGeneration != _playbackSourceGeneration) return;
+      showError('切换视频失败，请重试');
     }
   }
 
@@ -642,17 +663,6 @@ class _PlayerScreenState extends State<PlayerScreen>
 
     // 添加视频播放状态监听器来触发保存检查
     _addVideoProgressListener();
-
-    // 延时三秒 seek 到 _resumeStartAt
-    if (_resumeStartAt != null) {
-      final tmpStartAt = _resumeStartAt;
-      _resumeStartAt = null;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && tmpStartAt != null) {
-          seekToProgress(tmpStartAt);
-        }
-      });
-    }
   }
 
   /// 添加视频播放进度监听器
@@ -703,25 +713,8 @@ class _PlayerScreenState extends State<PlayerScreen>
   /// 处理视频播放完成
   void _onVideoCompleted() {
     if (currentDetail == null) return;
-
-    // 检查是否为最后一集
-    if (currentEpisodeIndex >= currentDetail!.episodes.length - 1) {
-      _showToast('播放完成');
-      return;
-    }
-
-    // 显示切换加载蒙版
-    setState(() {
-      _showSwitchLoadingOverlay = true;
-      _switchLoadingMessage = '自动播放下一集...';
-    });
-
-    // 集数切换前保存进度
-    _saveProgress(force: true, scene: '自动播放下一集');
-
-    // 自动播放下一集
-    final nextIndex = currentEpisodeIndex + 1;
-    startPlay(nextIndex, 0);
+    _saveProgress(force: true, scene: '播放完成');
+    _showToast('播放完成');
   }
 
   /// 显示Toast消息
@@ -1023,7 +1016,6 @@ class _PlayerScreenState extends State<PlayerScreen>
       _isCasting = true;
       _dlnaDevice = device;
       _castStartPosition = currentPos;
-      _videoPlayerController?.dispose();
       _videoPlayerController = null;
     });
   }
@@ -2476,8 +2468,6 @@ class _PlayerScreenState extends State<PlayerScreen>
     _restoreOrientation();
     // 恢复原始的系统UI样式
     SystemChrome.setSystemUIOverlayStyle(_originalStyle);
-    // 销毁播放器
-    _videoPlayerController?.dispose();
     // 释放滚动控制器
     _episodesScrollController.dispose();
     _sourcesScrollController.dispose();

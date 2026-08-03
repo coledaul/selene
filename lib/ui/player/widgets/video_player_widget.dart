@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:pip/pip.dart';
+import '../../../utils/result.dart';
+import '../video_playback_session.dart';
 import 'mobile_player_controls.dart';
 import 'pc_player_controls.dart';
+import 'playback_status_overlay.dart';
 import 'video_player_surface.dart';
 
 /// 绑定页面生命周期的 media_kit 播放器视图。
@@ -30,6 +33,8 @@ class VideoPlayerWidget extends StatefulWidget {
   final VoidCallback? onExitFullScreen;
   final bool live;
   final Function(bool isPipMode)? onPipModeChanged;
+  final PlaybackMediaKind? mediaKind;
+  final VideoPlaybackSession Function()? sessionFactory;
 
   const VideoPlayerWidget({
     super.key,
@@ -53,6 +58,8 @@ class VideoPlayerWidget extends StatefulWidget {
     this.onExitFullScreen,
     this.live = false,
     this.onPipModeChanged,
+    this.mediaKind,
+    this.sessionFactory,
   });
 
   @override
@@ -60,295 +67,169 @@ class VideoPlayerWidget extends StatefulWidget {
 }
 
 class VideoPlayerWidgetController {
-  VideoPlayerWidgetController._(this._state);
-  final _VideoPlayerWidgetState _state;
+  VideoPlayerWidgetController._({
+    required VideoPlaybackSession session,
+    required PlaybackMediaKind Function() mediaKind,
+    required VoidCallback exitWebFullscreen,
+    required bool Function() isPipMode,
+  }) : _session = session,
+       _mediaKind = mediaKind,
+       _exitWebFullscreen = exitWebFullscreen,
+       _isPipMode = isPipMode;
 
-  Future<void> updateDataSource(
+  final VideoPlaybackSession _session;
+  final PlaybackMediaKind Function() _mediaKind;
+  final VoidCallback _exitWebFullscreen;
+  final bool Function() _isPipMode;
+
+  Future<AppFailure?> updateDataSource(
     String url, {
     Duration? startAt,
     Map<String, String>? headers,
   }) async {
-    await _state._updateDataSource(url, startAt: startAt, headers: headers);
+    await _session.open(
+      url,
+      kind: _mediaKind(),
+      startAt: startAt,
+      headers: headers,
+    );
+    return _session.state.failure;
   }
 
   Future<void> seekTo(Duration position) async {
-    await _state._player?.seek(position);
+    await _session.seek(position);
   }
 
-  Duration? get currentPosition => _state._player?.state.position;
+  Duration? get currentPosition => _session.state.position;
 
-  Duration? get duration => _state._player?.state.duration;
+  Duration? get duration => _session.state.duration;
 
-  bool get isPlaying => _state._player?.state.playing ?? false;
+  bool get isPlaying => _session.state.playing;
 
   Future<void> pause() async {
-    await _state._player?.pause();
+    await _session.pause();
   }
 
   Future<void> play() async {
-    await _state._player?.play();
+    await _session.play();
   }
 
   void addProgressListener(VoidCallback listener) {
-    _state._addProgressListener(listener);
+    _session.addProgressListener(listener);
   }
 
   void removeProgressListener(VoidCallback listener) {
-    _state._removeProgressListener(listener);
+    _session.removeProgressListener(listener);
   }
 
   Future<void> setSpeed(double speed) async {
-    await _state._setPlaybackSpeed(speed);
+    await _session.setRate(speed);
   }
 
-  double get playbackSpeed => _state._playbackSpeed.value;
+  double get playbackSpeed => _session.playbackRate;
 
   Future<void> setVolume(double volume) async {
-    await _state._player?.setVolume(volume);
+    await _session.setVolume(volume);
   }
 
-  double? get volume => _state._player?.state.volume;
+  double? get volume => _session.volume;
 
   void exitWebFullscreen() {
-    _state._exitWebFullscreen();
+    _exitWebFullscreen();
   }
 
-  Future<void> dispose() async {
-    await _state._externalDispose();
-  }
-
-  bool get isPipMode => _state._isPipMode;
+  bool get isPipMode => _isPipMode();
 }
 
 class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     with WidgetsBindingObserver {
-  Player? _player;
-  VideoController? _videoController;
-  bool _isInitialized = false;
-  bool _hasCompleted = false;
-  bool _isLoadingVideo = false;
-  String? _currentUrl;
-  Map<String, String>? _currentHeaders;
-  final List<VoidCallback> _progressListeners = [];
-  StreamSubscription<Duration>? _positionSubscription;
-  StreamSubscription<bool>? _playingSubscription;
-  StreamSubscription<bool>? _completedSubscription;
-  StreamSubscription<Duration>? _durationSubscription;
-  final ValueNotifier<double> _playbackSpeed = ValueNotifier<double>(1.0);
-  bool _playerDisposed = false;
+  late final VideoPlaybackSession _session;
+  late VideoPlaybackState _lastPlaybackState;
   VoidCallback? _exitWebFullscreenCallback;
   final Pip _pip = Pip();
   bool _isPipMode = false;
+
+  PlaybackMediaKind get _mediaKind =>
+      widget.mediaKind ??
+      (widget.live ? PlaybackMediaKind.live : PlaybackMediaKind.networkVod);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _currentUrl = widget.url;
-    _currentHeaders = widget.headers;
-    _initializePlayer();
+    _session = widget.sessionFactory?.call() ?? VideoPlaybackSession();
+    _lastPlaybackState = _session.state;
+    _session.addListener(_handleSessionChanged);
     _setupPip();
     _registerPipObserver();
-    widget.onControllerCreated?.call(VideoPlayerWidgetController._(this));
+    widget.onControllerCreated?.call(
+      VideoPlayerWidgetController._(
+        session: _session,
+        mediaKind: () => _mediaKind,
+        exitWebFullscreen: _exitWebFullscreen,
+        isPipMode: () => _isPipMode,
+      ),
+    );
+    final url = widget.url;
+    if (url != null) {
+      unawaited(
+        _session.open(
+          url,
+          kind: _mediaKind,
+          headers: widget.headers ?? const <String, String>{},
+        ),
+      );
+    }
   }
 
   @override
   void didUpdateWidget(covariant VideoPlayerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.headers != oldWidget.headers && widget.headers != null) {
-      _currentHeaders = widget.headers;
-    }
-    if (widget.url != oldWidget.url && widget.url != null) {
-      unawaited(_updateDataSource(widget.url!));
-    }
-  }
-
-  Future<void> _initializePlayer() async {
-    if (_playerDisposed) {
-      return;
-    }
-    _player = Player();
-    _videoController = VideoController(_player!);
-    _setupPlayerListeners();
-    if (_currentUrl != null) {
-      await _openCurrentMedia();
-    }
-    if (!mounted || _playerDisposed) return;
-    setState(() {
-      _isInitialized = true;
-    });
-  }
-
-  Future<void> _openCurrentMedia({Duration? startAt}) async {
-    if (_playerDisposed || _player == null || _currentUrl == null) {
-      return;
-    }
-    setState(() {
-      _isLoadingVideo = true;
-    });
-    try {
-      await _player!.open(
-        Media(
-          _currentUrl!,
-          start: startAt,
-          httpHeaders: _currentHeaders ?? const <String, String>{},
-        ),
-        play: true,
-      );
-      if (!mounted || _playerDisposed || _player == null) return;
-      await _player!.setRate(_playbackSpeed.value);
-      if (!mounted || _playerDisposed) return;
-      setState(() {
-        _hasCompleted = false;
-        // _isLoadingVideo = false;
-      });
-      // widget.onReady?.call();
-    } catch (error) {
-      debugPrint('VideoPlayerWidget: failed to open media $error');
-      if (mounted) {
-        setState(() {
-          _isLoadingVideo = false;
-        });
-      }
-    }
-  }
-
-  void _setupPlayerListeners() {
-    if (_player == null) {
-      return;
-    }
-    _positionSubscription?.cancel();
-    _playingSubscription?.cancel();
-    _completedSubscription?.cancel();
-    _durationSubscription?.cancel();
-
-    _positionSubscription = _player!.stream.position.listen((_) {
-      for (final listener in List<VoidCallback>.from(_progressListeners)) {
-        try {
-          listener();
-        } catch (error) {
-          debugPrint('VideoPlayerWidget: progress listener error $error');
-        }
-      }
-    });
-
-    _playingSubscription = _player!.stream.playing.listen((playing) {
-      if (!mounted) return;
-      if (!playing) {
-        setState(() {
-          _hasCompleted = false;
-        });
-        _pip.setup(
-          const PipOptions(
-            autoEnterEnabled: false,
-            aspectRatioX: 16,
-            aspectRatioY: 9,
-            preferredContentWidth: 480,
-            preferredContentHeight: 270,
-            controlStyle: 2,
-          ),
-        );
-      } else {
-        _pip.setup(
-          const PipOptions(
-            autoEnterEnabled: true,
-            aspectRatioX: 16,
-            aspectRatioY: 9,
-            preferredContentWidth: 480,
-            preferredContentHeight: 270,
-            controlStyle: 2,
-          ),
-        );
-      }
-    });
-
-    if (!widget.live) {
-      _completedSubscription = _player!.stream.completed.listen((completed) {
-        if (!mounted) return;
-        if (completed && !_hasCompleted) {
-          _hasCompleted = true;
-          widget.onVideoCompleted?.call();
-        }
-      });
-    }
-
-    _durationSubscription = _player!.stream.duration.listen((duration) {
-      if (!mounted) return;
-      if (duration != Duration.zero) {
-        if (_isLoadingVideo) {
-          setState(() {
-            _isLoadingVideo = false;
-          });
-        }
-        widget.onReady?.call();
-      }
-    });
-  }
-
-  Future<void> _updateDataSource(
-    String url, {
-    Duration? startAt,
-    Map<String, String>? headers,
-  }) async {
-    if (_playerDisposed) {
-      return;
-    }
-    _currentUrl = url;
-    if (headers != null) {
-      _currentHeaders = headers;
-    }
-
-    if (_player == null) {
-      await _initializePlayer();
-      return;
-    }
-
-    setState(() {
-      _isLoadingVideo = true;
-    });
-
-    try {
-      final currentSpeed = _player!.state.rate;
-      await _player!.open(
-        Media(
+    final sourceChanged =
+        widget.url != oldWidget.url ||
+        !mapEquals(widget.headers, oldWidget.headers) ||
+        widget.live != oldWidget.live ||
+        widget.mediaKind != oldWidget.mediaKind;
+    final url = widget.url;
+    if (sourceChanged && url != null) {
+      unawaited(
+        _session.open(
           url,
-          start: startAt,
-          httpHeaders: _currentHeaders ?? const <String, String>{},
+          kind: _mediaKind,
+          headers: widget.headers ?? const <String, String>{},
         ),
-        play: true,
       );
-      _playbackSpeed.value = currentSpeed;
-      await _player!.setRate(currentSpeed);
-      if (mounted) {
-        setState(() {
-          _hasCompleted = false;
-          // _isLoadingVideo = false;
-        });
-      }
-      // widget.onReady?.call();
-    } catch (error) {
-      debugPrint('VideoPlayerWidget: error while changing source $error');
-      if (mounted) {
-        setState(() {
-          _isLoadingVideo = false;
-        });
-      }
     }
   }
 
-  void _addProgressListener(VoidCallback listener) {
-    if (!_progressListeners.contains(listener)) {
-      _progressListeners.add(listener);
+  void _handleSessionChanged() {
+    if (!mounted) return;
+    final next = _session.state;
+    final becameReady = !_lastPlaybackState.ready && next.ready;
+    final becameCompleted =
+        !_lastPlaybackState.completed && next.completed && !widget.live;
+    final playingChanged = _lastPlaybackState.playing != next.playing;
+    _lastPlaybackState = next;
+    if (playingChanged) {
+      _configurePipForPlayback(next.playing);
     }
+    setState(() {});
+    if (becameReady) widget.onReady?.call();
+    if (becameCompleted) widget.onVideoCompleted?.call();
   }
 
-  void _removeProgressListener(VoidCallback listener) {
-    _progressListeners.remove(listener);
-  }
-
-  Future<void> _setPlaybackSpeed(double speed) async {
-    _playbackSpeed.value = speed;
-    await _player?.setRate(speed);
+  void _configurePipForPlayback(bool playing) {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    _pip.setup(
+      PipOptions(
+        autoEnterEnabled: playing,
+        aspectRatioX: 16,
+        aspectRatioY: 9,
+        preferredContentWidth: 480,
+        preferredContentHeight: 270,
+        controlStyle: 2,
+      ),
+    );
   }
 
   void _exitWebFullscreen() {
@@ -417,7 +298,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
         debugPrint('Device does not support PiP!');
         return;
       }
-      await _player?.play();
+      await _session.play();
       await _pip.start();
     } catch (e) {
       debugPrint('Failed to enter PiP mode: $e');
@@ -425,34 +306,9 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     }
   }
 
-  Future<void> _externalDispose() async {
-    if (!mounted || _playerDisposed) {
-      return;
-    }
-    await _disposePlayer();
-  }
-
-  Future<void> _disposePlayer() async {
-    if (_playerDisposed) {
-      return;
-    }
-    _playerDisposed = true;
-    _positionSubscription?.cancel();
-    _playingSubscription?.cancel();
-    _completedSubscription?.cancel();
-    _durationSubscription?.cancel();
-    _progressListeners.clear();
-    await _player?.dispose();
-    _player = null;
-    _videoController = null;
-  }
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (_player == null) {
-      return;
-    }
     switch (state) {
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
@@ -468,75 +324,106 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _session.removeListener(_handleSessionChanged);
     if (Platform.isAndroid || Platform.isIOS) {
       _pip.unregisterStateChangedObserver();
       _pip.dispose();
     }
-    _disposePlayer();
-    _playbackSpeed.dispose();
+    unawaited(_session.disposeSession());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final playbackState = _session.state;
     return Container(
       color: Colors.black,
-      child: _isInitialized && _videoController != null
-          ? Video(
-              controller: _videoController!,
-              controls: (state) {
-                return widget.surface == VideoPlayerSurface.desktop
-                    ? PCPlayerControls(
-                        state: state,
-                        player: _player!,
-                        onBackPressed: widget.onBackPressed,
-                        onNextEpisode: widget.onNextEpisode,
-                        onPause: widget.onPause,
-                        videoUrl: _currentUrl ?? '',
-                        isLastEpisode: widget.isLastEpisode,
-                        isLoadingVideo: _isLoadingVideo,
-                        onCastStarted: widget.onCastStarted,
-                        videoTitle: widget.videoTitle,
-                        overlayTitle: widget.overlayTitle,
-                        currentEpisodeIndex: widget.currentEpisodeIndex,
-                        totalEpisodes: widget.totalEpisodes,
-                        sourceName: widget.sourceName,
-                        onWebFullscreenChanged: widget.onWebFullscreenChanged,
-                        onExitWebFullscreenCallbackReady: (callback) {
-                          _exitWebFullscreenCallback = callback;
-                        },
-                        onExitFullScreen: widget.onExitFullScreen,
-                        live: widget.live,
-                        playbackSpeedListenable: _playbackSpeed,
-                        onSetSpeed: _setPlaybackSpeed,
-                      )
-                    : MobilePlayerControls(
-                        player: _player!,
-                        state: state,
-                        onControlsVisibilityChanged: (_) {},
-                        onBackPressed: widget.onBackPressed,
-                        onFullscreenChange: (_) {},
-                        onNextEpisode: widget.onNextEpisode,
-                        onPause: widget.onPause,
-                        videoUrl: _currentUrl ?? '',
-                        isLastEpisode: widget.isLastEpisode,
-                        isLoadingVideo: _isLoadingVideo,
-                        onCastStarted: widget.onCastStarted,
-                        videoTitle: widget.videoTitle,
-                        overlayTitle: widget.overlayTitle,
-                        currentEpisodeIndex: widget.currentEpisodeIndex,
-                        totalEpisodes: widget.totalEpisodes,
-                        sourceName: widget.sourceName,
-                        onExitFullScreen: widget.onExitFullScreen,
-                        live: widget.live,
-                        playbackSpeedListenable: _playbackSpeed,
-                        onSetSpeed: _setPlaybackSpeed,
-                        onEnterPipMode: _enterPipMode,
-                        isPipMode: _isPipMode,
-                      );
-              },
-            )
-          : const Center(child: CircularProgressIndicator(color: Colors.white)),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Video(
+            controller: _session.videoController,
+            controls: (state) {
+              return widget.surface == VideoPlayerSurface.desktop
+                  ? PCPlayerControls(
+                      state: state,
+                      onBackPressed: widget.onBackPressed,
+                      onNextEpisode: widget.onNextEpisode,
+                      onPause: widget.onPause,
+                      videoUrl: _session.currentUrl ?? '',
+                      isLastEpisode: widget.isLastEpisode,
+                      isLoadingVideo: playbackState.opening,
+                      onCastStarted: widget.onCastStarted,
+                      videoTitle: widget.videoTitle,
+                      overlayTitle: widget.overlayTitle,
+                      currentEpisodeIndex: widget.currentEpisodeIndex,
+                      totalEpisodes: widget.totalEpisodes,
+                      sourceName: widget.sourceName,
+                      onWebFullscreenChanged: widget.onWebFullscreenChanged,
+                      onExitWebFullscreenCallbackReady: (callback) {
+                        _exitWebFullscreenCallback = callback;
+                      },
+                      onExitFullScreen: widget.onExitFullScreen,
+                      live: widget.live,
+                      onPlayRequested: _session.play,
+                      onPauseRequested: _session.pause,
+                      onSetSpeed: _session.setRate,
+                      onSetVolume: _session.setVolume,
+                      playbackState: playbackState,
+                      onSeekRequested: _session.seek,
+                    )
+                  : MobilePlayerControls(
+                      state: state,
+                      onControlsVisibilityChanged: (_) {},
+                      onBackPressed: widget.onBackPressed,
+                      onFullscreenChange: (_) {},
+                      onNextEpisode: widget.onNextEpisode,
+                      onPause: widget.onPause,
+                      videoUrl: _session.currentUrl ?? '',
+                      isLastEpisode: widget.isLastEpisode,
+                      isLoadingVideo: playbackState.opening,
+                      onCastStarted: widget.onCastStarted,
+                      videoTitle: widget.videoTitle,
+                      overlayTitle: widget.overlayTitle,
+                      currentEpisodeIndex: widget.currentEpisodeIndex,
+                      totalEpisodes: widget.totalEpisodes,
+                      sourceName: widget.sourceName,
+                      onExitFullScreen: widget.onExitFullScreen,
+                      live: widget.live,
+                      onPlayRequested: _session.play,
+                      onPauseRequested: _session.pause,
+                      onSetSpeed: _session.setRate,
+                      onEnterPipMode: _enterPipMode,
+                      isPipMode: _isPipMode,
+                      playbackState: playbackState,
+                      onSeekRequested: _session.seek,
+                    );
+            },
+          ),
+          if (playbackState.buffering && !playbackState.opening)
+            const IgnorePointer(
+              child: Center(
+                child: SizedBox.square(
+                  dimension: 32,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                ),
+              ),
+            ),
+          PlaybackStatusOverlay(
+            state: playbackState,
+            live: widget.live,
+            isLastEpisode: widget.isLastEpisode,
+            onRetry: _session.retryCurrent,
+            onDismiss: _session.clearProblem,
+            onReplay: _session.replay,
+            onNextEpisode: widget.onNextEpisode,
+            onBackPressed: widget.onBackPressed,
+          ),
+        ],
+      ),
     );
   }
 }

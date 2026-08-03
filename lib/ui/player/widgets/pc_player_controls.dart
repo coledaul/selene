@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import '../video_playback_session.dart';
+import 'buffered_video_progress_bar.dart';
 import 'dlna_device_dialog.dart';
 import 'player_overlay_title.dart';
 
@@ -52,7 +53,6 @@ class _HoverButtonState extends State<HoverButton> {
 
 class PCPlayerControls extends StatefulWidget {
   final VideoState state;
-  final Player player;
   final VoidCallback? onBackPressed;
   final VoidCallback? onNextEpisode;
   final VoidCallback? onPause;
@@ -70,13 +70,16 @@ class PCPlayerControls extends StatefulWidget {
   final Function(VoidCallback)? onExitWebFullscreenCallbackReady;
   final VoidCallback? onExitFullScreen;
   final bool live;
-  final ValueNotifier<double> playbackSpeedListenable;
+  final Future<void> Function() onPlayRequested;
+  final Future<void> Function() onPauseRequested;
   final Future<void> Function(double speed) onSetSpeed;
+  final Future<void> Function(double volume) onSetVolume;
+  final VideoPlaybackState playbackState;
+  final Future<void> Function(Duration position) onSeekRequested;
 
   const PCPlayerControls({
     super.key,
     required this.state,
-    required this.player,
     this.onBackPressed,
     this.onNextEpisode,
     this.onPause,
@@ -94,8 +97,12 @@ class PCPlayerControls extends StatefulWidget {
     this.onExitWebFullscreenCallbackReady,
     this.onExitFullScreen,
     this.live = false,
-    required this.playbackSpeedListenable,
+    required this.onPlayRequested,
+    required this.onPauseRequested,
     required this.onSetSpeed,
+    required this.onSetVolume,
+    required this.playbackState,
+    required this.onSeekRequested,
   });
 
   @override
@@ -110,8 +117,6 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
   bool _isSeekingViaSwipe = false;
   double _swipeStartX = 0;
   Duration _swipeStartPosition = Duration.zero;
-  StreamSubscription? _playingSubscription;
-  StreamSubscription? _positionSubscription;
   bool _isFullscreen = false;
   bool _isWebFullscreen = false;
   bool _showSpeedMenu = false;
@@ -129,7 +134,6 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
   @override
   void initState() {
     super.initState();
-    _setupPlayerListeners();
     // 注册退出网页全屏的回调
     widget.onExitWebFullscreenCallbackReady?.call(exitWebFullscreen);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -137,32 +141,6 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
         _forceStartHideTimer();
         // 请求焦点以接收键盘事件
         _focusNode.requestFocus();
-      }
-    });
-  }
-
-  void _setupPlayerListeners() {
-    _playingSubscription = widget.player.stream.playing.listen((playing) {
-      if (!mounted) return;
-
-      if (playing) {
-        if (_controlsVisible) {
-          _startHideTimer();
-        }
-      } else {
-        _hideTimer?.cancel();
-        if (!_controlsVisible) {
-          setState(() {
-            _controlsVisible = true;
-          });
-        }
-      }
-    });
-
-    // 监听播放位置变化，实时更新进度指示器
-    _positionSubscription = widget.player.stream.position.listen((_) {
-      if (mounted && _controlsVisible && !_isSeekingViaSwipe) {
-        setState(() {});
       }
     });
   }
@@ -176,6 +154,14 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
   @override
   void didUpdateWidget(PCPlayerControls oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.playbackState.playing != widget.playbackState.playing) {
+      if (widget.playbackState.playing) {
+        if (_controlsVisible) _startHideTimer();
+      } else {
+        _hideTimer?.cancel();
+        if (!_controlsVisible) setState(() => _controlsVisible = true);
+      }
+    }
     // 当 widget 更新时，尝试同步全屏状态
     // 使用 try-catch 避免在不安全的时机访问 InheritedWidget
     try {
@@ -198,8 +184,6 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
   void dispose() {
     _hideTimer?.cancel();
     _volumeMenuHideTimer?.cancel();
-    _playingSubscription?.cancel();
-    _positionSubscription?.cancel();
     _focusNode.dispose();
     super.dispose();
   }
@@ -215,7 +199,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
         _isHoveringVolumeMenu) {
       return;
     }
-    if (widget.player.state.playing) {
+    if (widget.playbackState.playing) {
       _hideTimer = Timer(const Duration(seconds: 3), () {
         if (mounted) {
           setState(() {
@@ -274,11 +258,11 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
       return;
     }
     // 单击空白区域切换播放/暂停
-    if (widget.player.state.playing) {
-      widget.player.pause();
+    if (widget.playbackState.playing) {
+      unawaited(widget.onPauseRequested());
       widget.onPause?.call();
     } else {
-      widget.player.play();
+      unawaited(widget.onPlayRequested());
     }
     setState(() {});
   }
@@ -315,7 +299,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
     setState(() {
       _isSeekingViaSwipe = true;
       _swipeStartX = details.globalPosition.dx;
-      _swipeStartPosition = widget.player.state.position;
+      _swipeStartPosition = widget.playbackState.position;
       _controlsVisible = true;
     });
 
@@ -330,7 +314,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
     final screenWidth = _screenSize!.width;
     final swipeDistance = details.globalPosition.dx - _swipeStartX;
     final swipeRatio = swipeDistance / (screenWidth * 0.5);
-    final duration = widget.player.state.duration;
+    final duration = widget.playbackState.duration;
 
     final targetPosition =
         _swipeStartPosition +
@@ -353,7 +337,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
     if (!mounted || !_isSeekingViaSwipe || widget.live) return;
 
     if (_dragPosition != null) {
-      widget.player.seek(_dragPosition!);
+      unawaited(widget.onSeekRequested(_dragPosition!));
     }
 
     setState(() {
@@ -403,9 +387,9 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
   }
 
   Future<void> _showDLNADialog() async {
-    if (widget.player.state.playing) {
+    if (widget.playbackState.playing) {
       if (!widget.live) {
-        widget.player.pause();
+        await widget.onPauseRequested();
       }
       widget.onPause?.call();
     }
@@ -422,7 +406,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
 
   Future<void> _showDLNADialogInternal() async {
     // 获取当前播放位置
-    final resumePos = widget.player.state.position;
+    final resumePos = widget.playbackState.position;
 
     if (mounted) {
       await showDialog(
@@ -454,11 +438,11 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
       // 空格键播放/暂停
       else if (event.logicalKey == LogicalKeyboardKey.space) {
         _onUserInteraction();
-        if (widget.player.state.playing) {
-          widget.player.pause();
+        if (widget.playbackState.playing) {
+          unawaited(widget.onPauseRequested());
           widget.onPause?.call();
         } else {
-          widget.player.play();
+          unawaited(widget.onPlayRequested());
         }
         setState(() {});
         return KeyEventResult.handled;
@@ -474,23 +458,23 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
       }
       // 左方向键快退 10 秒
       else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-        final currentPosition = widget.player.state.position;
+        final currentPosition = widget.playbackState.position;
         final newPosition = currentPosition - const Duration(seconds: 10);
         final clampedPosition = Duration(
           milliseconds: newPosition.inMilliseconds.clamp(
             0,
-            widget.player.state.duration.inMilliseconds,
+            widget.playbackState.duration.inMilliseconds,
           ),
         );
-        widget.player.seek(clampedPosition);
+        unawaited(widget.onSeekRequested(clampedPosition));
         // 显示控制栏
         _onUserInteraction();
         return KeyEventResult.handled;
       }
       // 右方向键快进 10 秒
       else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-        final currentPosition = widget.player.state.position;
-        final duration = widget.player.state.duration;
+        final currentPosition = widget.playbackState.position;
+        final duration = widget.playbackState.duration;
         final newPosition = currentPosition + const Duration(seconds: 10);
         final clampedPosition = Duration(
           milliseconds: newPosition.inMilliseconds.clamp(
@@ -498,16 +482,16 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
             duration.inMilliseconds,
           ),
         );
-        widget.player.seek(clampedPosition);
+        unawaited(widget.onSeekRequested(clampedPosition));
         // 显示控制栏
         _onUserInteraction();
         return KeyEventResult.handled;
       }
       // 上方向键增加音量 10%
       else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-        final currentVolume = widget.player.state.volume;
+        final currentVolume = widget.playbackState.volume;
         final newVolume = (currentVolume + 10).clamp(0.0, 100.0);
-        widget.player.setVolume(newVolume);
+        unawaited(widget.onSetVolume(newVolume));
         // 显示控制栏和音量条
         _onUserInteraction();
         _showVolumeMenuTemporarily();
@@ -515,9 +499,9 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
       }
       // 下方向键减少音量 10%
       else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-        final currentVolume = widget.player.state.volume;
+        final currentVolume = widget.playbackState.volume;
         final newVolume = (currentVolume - 10).clamp(0.0, 100.0);
-        widget.player.setVolume(newVolume);
+        unawaited(widget.onSetVolume(newVolume));
         // 显示控制栏和音量条
         _onUserInteraction();
         _showVolumeMenuTemporarily();
@@ -719,22 +703,22 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
             Positioned.fill(
               child: Center(
                 child: AnimatedOpacity(
-                  opacity: (!widget.player.state.playing || _controlsVisible)
+                  opacity: (!widget.playbackState.playing || _controlsVisible)
                       ? 1.0
                       : 0.0,
                   duration: const Duration(milliseconds: 200),
                   child: IgnorePointer(
-                    ignoring: widget.player.state.playing && !_controlsVisible,
+                    ignoring: widget.playbackState.playing && !_controlsVisible,
                     child: _CenterPlayButton(
-                      isPlaying: widget.player.state.playing,
+                      isPlaying: widget.playbackState.playing,
                       isFullscreen: effectiveFullscreen,
                       onTap: () {
                         _onUserInteraction();
-                        if (widget.player.state.playing) {
-                          widget.player.pause();
+                        if (widget.playbackState.playing) {
+                          unawaited(widget.onPauseRequested());
                           widget.onPause?.call();
                         } else {
-                          widget.player.play();
+                          unawaited(widget.onPlayRequested());
                         }
                       },
                     ),
@@ -755,11 +739,14 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
                   child: Container(
                     height: 24,
                     margin: const EdgeInsets.symmetric(horizontal: 16),
-                    child: CustomVideoProgressBar(
-                      player: widget.player,
-                      onDragStart: _onSeekStart,
-                      onDragEnd: _onSeekEnd,
-                      onDragUpdate: () {
+                    child: BufferedVideoProgressBar(
+                      position: _dragPosition ?? widget.playbackState.position,
+                      duration: widget.playbackState.duration,
+                      cachedRanges: widget.playbackState.cachedRanges,
+                      onSeekRequested: widget.onSeekRequested,
+                      onInteractionStart: _onSeekStart,
+                      onInteractionEnd: _onSeekEnd,
+                      onInteractionUpdate: () {
                         if (!_controlsVisible) {
                           setState(() {
                             _controlsVisible = true;
@@ -767,14 +754,14 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
                         }
                         _hideTimer?.cancel();
                       },
-                      onPositionUpdate: (duration) {
+                      onPreviewChanged: (duration) {
                         setState(() {
                           _dragPosition = duration;
                         });
                       },
-                      dragPosition: _dragPosition,
                       isSeekingViaSwipe: _isSeekingViaSwipe,
                       live: widget.live,
+                      style: BufferedVideoProgressStyle.desktop,
                     ),
                   ),
                 ),
@@ -805,15 +792,15 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
                           HoverButton(
                             onTap: () {
                               _onUserInteraction();
-                              if (widget.player.state.playing) {
-                                widget.player.pause();
+                              if (widget.playbackState.playing) {
+                                unawaited(widget.onPauseRequested());
                                 widget.onPause?.call();
                               } else {
-                                widget.player.play();
+                                unawaited(widget.onPlayRequested());
                               }
                             },
                             child: Icon(
-                              widget.player.state.playing
+                              widget.playbackState.playing
                                   ? Icons.pause
                                   : Icons.play_arrow,
                               color: Colors.white,
@@ -871,14 +858,16 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
                                 onTap: () {
                                   _onUserInteraction();
                                   final currentVolume =
-                                      widget.player.state.volume;
+                                      widget.playbackState.volume;
                                   if (currentVolume > 0) {
                                     // 静音
                                     _volumeBeforeMute = currentVolume;
-                                    widget.player.setVolume(0);
+                                    unawaited(widget.onSetVolume(0));
                                   } else {
                                     // 恢复音量
-                                    widget.player.setVolume(_volumeBeforeMute);
+                                    unawaited(
+                                      widget.onSetVolume(_volumeBeforeMute),
+                                    );
                                   }
                                   setState(() {});
                                 },
@@ -893,7 +882,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
                                         )
                                       : null,
                                   child: Icon(
-                                    _getVolumeIcon(widget.player.state.volume),
+                                    _getVolumeIcon(widget.playbackState.volume),
                                     color: Colors.white,
                                     size: effectiveFullscreen ? 22 : 20,
                                   ),
@@ -1011,7 +1000,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
 
   Widget _buildSpeedMenu() {
     final speeds = [0.5, 0.75, 1.0, 1.5, 2.0];
-    final currentSpeed = widget.player.state.rate;
+    final currentSpeed = widget.playbackState.rate;
 
     // 获取速度按钮的位置
     final RenderBox? renderBox =
@@ -1097,7 +1086,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
   }
 
   Widget _buildVolumeMenu() {
-    final currentVolume = widget.player.state.volume;
+    final currentVolume = widget.playbackState.volume;
 
     // 获取音量按钮的位置
     final RenderBox? renderBox =
@@ -1188,7 +1177,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
                               final volume =
                                   ((1 - (localY / constraints.maxHeight)) * 100)
                                       .clamp(0.0, 100.0);
-                              widget.player.setVolume(volume);
+                              unawaited(widget.onSetVolume(volume));
                               setState(() {});
                             },
                             onVerticalDragUpdate: (details) {
@@ -1196,7 +1185,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
                               final volume =
                                   ((1 - (localY / constraints.maxHeight)) * 100)
                                       .clamp(0.0, 100.0);
-                              widget.player.setVolume(volume);
+                              unawaited(widget.onSetVolume(volume));
                               setState(() {});
                             },
                             onTapDown: (details) {
@@ -1204,7 +1193,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
                               final volume =
                                   ((1 - (localY / constraints.maxHeight)) * 100)
                                       .clamp(0.0, 100.0);
-                              widget.player.setVolume(volume);
+                              unawaited(widget.onSetVolume(volume));
                               setState(() {});
                             },
                             child: Stack(
@@ -1253,8 +1242,8 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
   }
 
   Widget _buildPositionIndicator() {
-    final position = _dragPosition ?? widget.player.state.position;
-    final duration = widget.player.state.duration;
+    final position = _dragPosition ?? widget.playbackState.position;
+    final duration = widget.playbackState.duration;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -1326,250 +1315,6 @@ class _SpeedMenuItemState extends State<_SpeedMenuItem> {
         ),
       ),
     );
-  }
-}
-
-class CustomVideoProgressBar extends StatefulWidget {
-  final Player player;
-  final VoidCallback? onDragStart;
-  final VoidCallback? onDragEnd;
-  final VoidCallback? onDragUpdate;
-  final Function(Duration)? onPositionUpdate;
-  final Duration? dragPosition;
-  final bool isSeekingViaSwipe;
-  final bool live;
-
-  const CustomVideoProgressBar({
-    super.key,
-    required this.player,
-    this.onDragStart,
-    this.onDragEnd,
-    this.onDragUpdate,
-    this.onPositionUpdate,
-    this.dragPosition,
-    this.isSeekingViaSwipe = false,
-    this.live = false,
-  });
-
-  @override
-  State<CustomVideoProgressBar> createState() => _CustomVideoProgressBarState();
-}
-
-class _CustomVideoProgressBarState extends State<CustomVideoProgressBar> {
-  bool _isDragging = false;
-  double _dragValue = 0.0;
-  bool _isHoveringThumb = false;
-  bool _isSeeking = false; // 新增：标记是否正在 seek
-  StreamSubscription? _positionSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _positionSubscription = widget.player.stream.position.listen((_) {
-      if (mounted && !_isDragging && !_isSeeking) {
-        setState(() {});
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _positionSubscription?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final duration = widget.player.state.duration;
-    final position = widget.dragPosition ?? widget.player.state.position;
-
-    double value = 0.0;
-    if (duration.inMilliseconds > 0) {
-      // live 模式下进度固定在最后
-      if (widget.live) {
-        value = 1.0;
-      } else {
-        value = position.inMilliseconds / duration.inMilliseconds;
-      }
-    }
-
-    if (_isDragging && !widget.live) {
-      value = _dragValue;
-    }
-
-    return MouseRegion(
-      cursor: widget.live ? MouseCursor.defer : SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragStart: widget.live
-            ? null
-            : (details) {
-                _isDragging = true;
-                widget.onDragStart?.call();
-                _updateDragPosition(details.localPosition.dx, context);
-              },
-        onHorizontalDragUpdate: widget.live
-            ? null
-            : (details) {
-                if (_isDragging) {
-                  widget.onDragUpdate?.call();
-                  _updateDragPosition(details.localPosition.dx, context);
-                }
-              },
-        onHorizontalDragEnd: widget.live
-            ? null
-            : (details) async {
-                if (_isDragging) {
-                  final seekPosition = Duration(
-                    milliseconds: (_dragValue * duration.inMilliseconds)
-                        .round(),
-                  );
-
-                  setState(() {
-                    _isDragging = false;
-                    _isSeeking = true; // 标记开始 seek
-                  });
-
-                  await widget.player.seek(seekPosition);
-
-                  // seek 完成后，延迟一小段时间再允许位置更新，确保播放器状态已同步
-                  await Future.delayed(const Duration(milliseconds: 100));
-
-                  if (!mounted) return;
-                  setState(() {
-                    _isSeeking = false; // 标记 seek 完成
-                  });
-
-                  widget.onDragEnd?.call();
-                }
-              },
-        onTapDown: widget.live
-            ? null
-            : (details) async {
-                widget.onDragStart?.call();
-                _updateDragPosition(details.localPosition.dx, context);
-                final seekPosition = Duration(
-                  milliseconds: (_dragValue * duration.inMilliseconds).round(),
-                );
-
-                setState(() {
-                  _isSeeking = true; // 标记开始 seek
-                });
-
-                await widget.player.seek(seekPosition);
-
-                // seek 完成后，延迟一小段时间再允许位置更新，确保播放器状态已同步
-                await Future.delayed(const Duration(milliseconds: 100));
-
-                if (!mounted) return;
-                setState(() {
-                  _isSeeking = false; // 标记 seek 完成
-                });
-
-                widget.onDragEnd?.call();
-              },
-        child: Container(
-          height: 24,
-          color: Colors.transparent,
-          child: Center(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final progressWidth = constraints.maxWidth;
-                final progressValue = value.clamp(0.0, 1.0);
-                final thumbPosition = (progressValue * progressWidth).clamp(
-                  8.0,
-                  progressWidth - 8.0,
-                );
-
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    // 进度条背景
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      top: 9,
-                      child: Container(
-                        height: 6,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(3),
-                          color: Colors.white.withValues(alpha: 0.3),
-                        ),
-                      ),
-                    ),
-                    // 已播放进度
-                    Positioned(
-                      left: 0,
-                      top: 9,
-                      child: Container(
-                        width: progressValue * progressWidth,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(3),
-                          color: Colors.red,
-                        ),
-                      ),
-                    ),
-                    // 可拖拽的圆形把手
-                    Positioned(
-                      left: thumbPosition - 8,
-                      top: 4,
-                      child: MouseRegion(
-                        onEnter: (_) => setState(() => _isHoveringThumb = true),
-                        onExit: (_) => setState(() => _isHoveringThumb = false),
-                        child: AnimatedScale(
-                          scale:
-                              (_isHoveringThumb ||
-                                  _isDragging ||
-                                  widget.isSeekingViaSwipe)
-                              ? 1.25
-                              : 1.0,
-                          duration: const Duration(milliseconds: 150),
-                          child: Container(
-                            width: 16,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.red,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.3),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _updateDragPosition(double dx, BuildContext context) {
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null) return;
-
-    final width = box.size.width;
-    final value = (dx / width).clamp(0.0, 1.0);
-
-    setState(() {
-      _dragValue = value;
-    });
-
-    final duration = widget.player.state.duration;
-    final position = Duration(
-      milliseconds: (value * duration.inMilliseconds).round(),
-    );
-
-    widget.onPositionUpdate?.call(position);
   }
 }
 

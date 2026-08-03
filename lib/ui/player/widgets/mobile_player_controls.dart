@@ -2,17 +2,17 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:volume_controller/volume_controller.dart';
+import '../video_playback_session.dart';
+import 'buffered_video_progress_bar.dart';
 import 'dlna_device_dialog.dart';
 import 'player_overlay_title.dart';
 import 'package:selene/utils/app_logger.dart';
 
 /// 移动端播放器控制层。
 class MobilePlayerControls extends StatefulWidget {
-  final Player player;
   final VideoState state;
   final Function(bool) onControlsVisibilityChanged;
   final VoidCallback? onBackPressed;
@@ -30,14 +30,16 @@ class MobilePlayerControls extends StatefulWidget {
   final String? sourceName;
   final VoidCallback? onExitFullScreen;
   final bool live;
-  final ValueNotifier<double> playbackSpeedListenable;
+  final Future<void> Function() onPlayRequested;
+  final Future<void> Function() onPauseRequested;
   final Future<void> Function(double speed) onSetSpeed;
   final Future<void> Function() onEnterPipMode;
   final bool isPipMode;
+  final VideoPlaybackState playbackState;
+  final Future<void> Function(Duration position) onSeekRequested;
 
   const MobilePlayerControls({
     super.key,
-    required this.player,
     required this.state,
     required this.onControlsVisibilityChanged,
     this.onBackPressed,
@@ -55,10 +57,13 @@ class MobilePlayerControls extends StatefulWidget {
     this.sourceName,
     this.onExitFullScreen,
     this.live = false,
-    required this.playbackSpeedListenable,
+    required this.onPlayRequested,
+    required this.onPauseRequested,
     required this.onSetSpeed,
     required this.onEnterPipMode,
     required this.isPipMode,
+    required this.playbackState,
+    required this.onSeekRequested,
   });
 
   @override
@@ -66,7 +71,6 @@ class MobilePlayerControls extends StatefulWidget {
 }
 
 class _MobilePlayerControlsState extends State<MobilePlayerControls> {
-  final List<StreamSubscription> _subscriptions = [];
   Timer? _hideTimer;
   bool _controlsVisible = true;
   bool _isLongPressing = false;
@@ -90,7 +94,6 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
   void initState() {
     super.initState();
     _initSystemControls();
-    _listenPlayerStreams();
     _updateCurrentTime();
     _startTimeUpdateTimer();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -103,6 +106,17 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
   @override
   void didUpdateWidget(covariant MobilePlayerControls oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.playbackState.playing != widget.playbackState.playing) {
+      if (widget.playbackState.playing) {
+        if (_controlsVisible) _startHideTimer();
+      } else {
+        _hideTimer?.cancel();
+        if (!_controlsVisible) {
+          setState(() => _controlsVisible = true);
+          widget.onControlsVisibilityChanged(true);
+        }
+      }
+    }
     // 当 PIP 模式停止时，显示控制栏
     if (oldWidget.isPipMode && !widget.isPipMode) {
       setState(() => _controlsVisible = true);
@@ -130,45 +144,8 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
         .catchError((_) {});
   }
 
-  void _listenPlayerStreams() {
-    _subscriptions.add(
-      widget.player.stream.playing.listen((playing) {
-        if (!mounted) return;
-        if (playing && _controlsVisible) {
-          _startHideTimer();
-        }
-        if (!playing) {
-          _hideTimer?.cancel();
-          if (!_controlsVisible) {
-            setState(() => _controlsVisible = true);
-            widget.onControlsVisibilityChanged(true);
-          }
-        }
-      }),
-    );
-
-    _subscriptions.add(
-      widget.player.stream.position.listen((_) {
-        if (!mounted) return;
-        if (_controlsVisible && !_isSeekingViaSwipe) {
-          setState(() {});
-        }
-      }),
-    );
-
-    _subscriptions.add(
-      widget.player.stream.completed.listen((_) {
-        if (!mounted) return;
-        setState(() {});
-      }),
-    );
-  }
-
   @override
   void dispose() {
-    for (final subscription in _subscriptions) {
-      subscription.cancel();
-    }
     _hideTimer?.cancel();
     _volumeHideTimer?.cancel();
     _brightnessHideTimer?.cancel();
@@ -178,9 +155,9 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
   }
 
   bool get _isFullscreen => widget.state.isFullscreen();
-  bool get _isPlaying => widget.player.state.playing;
-  Duration get _position => widget.player.state.position;
-  Duration get _duration => widget.player.state.duration;
+  bool get _isPlaying => widget.playbackState.playing;
+  Duration get _position => widget.playbackState.position;
+  Duration get _duration => widget.playbackState.duration;
 
   void _startHideTimer() {
     _hideTimer?.cancel();
@@ -235,7 +212,7 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
     if (_isLocked || widget.live || !_isPlaying) return;
     setState(() {
       _isLongPressing = true;
-      _originalPlaybackSpeed = widget.playbackSpeedListenable.value;
+      _originalPlaybackSpeed = widget.playbackState.rate;
     });
     widget.onSetSpeed(2.0);
   }
@@ -288,7 +265,7 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
   void _onSwipeEnd(DragEndDetails details) {
     if (_isLocked || !_isSeekingViaSwipe || widget.live) return;
     if (_dragPosition != null) {
-      widget.player.seek(_dragPosition!);
+      unawaited(widget.onSeekRequested(_dragPosition!));
     }
     setState(() {
       _isSeekingViaSwipe = false;
@@ -387,11 +364,11 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
   Future<void> _togglePlayPause() async {
     _onUserInteraction();
     if (_isPlaying) {
-      await widget.player.pause();
+      await widget.onPauseRequested();
       if (!mounted) return;
       widget.onPause?.call();
     } else {
-      await widget.player.play();
+      await widget.onPlayRequested();
     }
   }
 
@@ -417,7 +394,7 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
 
   Future<void> _showDLNADialog() async {
     if (_isPlaying) {
-      await widget.player.pause();
+      await widget.onPauseRequested();
       if (!mounted) return;
       widget.onPause?.call();
     }
@@ -427,7 +404,7 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
       if (!mounted) return;
     }
     if (!mounted) return;
-    final resumePos = widget.player.state.position;
+    final resumePos = widget.playbackState.position;
     await showDialog(
       context: context,
       builder: (context) => DLNADeviceDialog(
@@ -444,7 +421,7 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
 
   Future<void> _showSpeedDialog() async {
     final speeds = [0.5, 0.75, 1.0, 1.5, 2.0];
-    final currentSpeed = widget.playbackSpeedListenable.value;
+    final currentSpeed = widget.playbackState.rate;
     final screenHeight = MediaQuery.of(context).size.height;
     final result = await showModalBottomSheet<double>(
       context: context,
@@ -762,9 +739,6 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
           child: GestureDetector(
             onTap: () async {
               _onUserInteraction();
-              if (!widget.live) {
-                widget.player.pause();
-              }
               await _showDLNADialog();
             },
             behavior: HitTestBehavior.opaque,
@@ -819,28 +793,31 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
           child: Container(
             height: 24,
             margin: const EdgeInsets.symmetric(horizontal: 16),
-            child: _MobileVideoProgressBar(
-              player: widget.player,
+            child: BufferedVideoProgressBar(
+              position: _dragPosition ?? widget.playbackState.position,
+              duration: widget.playbackState.duration,
+              cachedRanges: widget.playbackState.cachedRanges,
+              onSeekRequested: widget.onSeekRequested,
               live: widget.live,
-              onDragStart: () {
+              onInteractionStart: () {
                 setState(() => _controlsVisible = true);
                 _hideTimer?.cancel();
               },
-              onDragEnd: () {
+              onInteractionEnd: () {
                 setState(() => _dragPosition = null);
                 _startHideTimer();
               },
-              onDragUpdate: () {
+              onInteractionUpdate: () {
                 if (!_controlsVisible) {
                   setState(() => _controlsVisible = true);
                 }
                 _hideTimer?.cancel();
               },
-              onPositionUpdate: (duration) {
+              onPreviewChanged: (duration) {
                 setState(() => _dragPosition = duration);
               },
-              dragPosition: _dragPosition,
               isSeekingViaSwipe: _isSeekingViaSwipe,
+              style: BufferedVideoProgressStyle.mobile,
             ),
           ),
         ),
@@ -1165,227 +1142,5 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
         ),
       ),
     );
-  }
-}
-
-class _MobileVideoProgressBar extends StatefulWidget {
-  final Player player;
-  final VoidCallback? onDragStart;
-  final VoidCallback? onDragEnd;
-  final VoidCallback? onDragUpdate;
-  final Function(Duration)? onPositionUpdate;
-  final Duration? dragPosition;
-  final bool isSeekingViaSwipe;
-  final bool live;
-
-  const _MobileVideoProgressBar({
-    required this.player,
-    this.onDragStart,
-    this.onDragEnd,
-    this.onDragUpdate,
-    this.onPositionUpdate,
-    this.dragPosition,
-    this.isSeekingViaSwipe = false,
-    this.live = false,
-  });
-
-  @override
-  State<_MobileVideoProgressBar> createState() =>
-      _MobileVideoProgressBarState();
-}
-
-class _MobileVideoProgressBarState extends State<_MobileVideoProgressBar> {
-  bool _isDragging = false;
-  double _dragValue = 0.0;
-  bool _isSeeking = false; // 新增：标记是否正在 seek
-  StreamSubscription<Duration>? _positionSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _positionSubscription = widget.player.stream.position.listen((_) {
-      if (mounted && !_isDragging && !_isSeeking) {
-        setState(() {});
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _positionSubscription?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final duration = widget.player.state.duration;
-    final position = widget.dragPosition ?? widget.player.state.position;
-
-    double value = 0.0;
-    if (duration.inMilliseconds > 0) {
-      if (widget.live) {
-        value = 1.0;
-      } else {
-        value = position.inMilliseconds / duration.inMilliseconds;
-      }
-    }
-
-    if (_isDragging && !widget.live) {
-      value = _dragValue;
-    }
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onHorizontalDragStart: widget.live
-          ? null
-          : (details) {
-              _isDragging = true;
-              widget.onDragStart?.call();
-              _updateDrag(details.localPosition.dx, context);
-            },
-      onHorizontalDragUpdate: widget.live
-          ? null
-          : (details) {
-              if (_isDragging) {
-                widget.onDragUpdate?.call();
-                _updateDrag(details.localPosition.dx, context);
-              }
-            },
-      onHorizontalDragEnd: widget.live
-          ? null
-          : (details) async {
-              if (_isDragging) {
-                final seekPosition = Duration(
-                  milliseconds: (_dragValue * duration.inMilliseconds).round(),
-                );
-
-                setState(() {
-                  _isDragging = false;
-                  _isSeeking = true; // 标记开始 seek
-                });
-
-                await widget.player.seek(seekPosition);
-
-                // seek 完成后，延迟一小段时间再允许位置更新，确保播放器状态已同步
-                await Future.delayed(const Duration(milliseconds: 100));
-
-                if (!mounted) return;
-                setState(() {
-                  _isSeeking = false; // 标记 seek 完成
-                });
-
-                widget.onDragEnd?.call();
-              }
-            },
-      onTapDown: widget.live
-          ? null
-          : (details) async {
-              widget.onDragStart?.call();
-              _updateDrag(details.localPosition.dx, context);
-              final seekPosition = Duration(
-                milliseconds: (_dragValue * duration.inMilliseconds).round(),
-              );
-
-              setState(() {
-                _isSeeking = true; // 标记开始 seek
-              });
-
-              await widget.player.seek(seekPosition);
-
-              // seek 完成后，延迟一小段时间再允许位置更新，确保播放器状态已同步
-              await Future.delayed(const Duration(milliseconds: 100));
-
-              if (!mounted) return;
-              setState(() {
-                _isSeeking = false; // 标记 seek 完成
-              });
-
-              widget.onDragEnd?.call();
-            },
-      child: Container(
-        height: 24,
-        color: Colors.transparent,
-        child: Center(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final progressWidth = constraints.maxWidth;
-              final progressValue = value.clamp(0.0, 1.0);
-              final thumbPosition = (progressValue * progressWidth).clamp(
-                8.0,
-                progressWidth - 8.0,
-              );
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 9,
-                    child: Container(
-                      height: 6,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(3),
-                        color: Colors.white.withValues(alpha: 0.3),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 0,
-                    top: 9,
-                    child: Container(
-                      width: progressValue * progressWidth,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(3),
-                        color: Colors.red,
-                      ),
-                    ),
-                  ),
-                  if (!widget.live)
-                    Positioned(
-                      left: thumbPosition - 8,
-                      top: 4,
-                      child: AnimatedScale(
-                        scale: widget.isSeekingViaSwipe ? 1.25 : 1.0,
-                        duration: const Duration(milliseconds: 150),
-                        child: Container(
-                          width: 16,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.red,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _updateDrag(double dx, BuildContext context) {
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    final width = box.size.width;
-    final value = (dx / width).clamp(0.0, 1.0);
-    setState(() => _dragValue = value);
-    if (!widget.live) {
-      final duration = widget.player.state.duration;
-      final position = Duration(
-        milliseconds: (value * duration.inMilliseconds).round(),
-      );
-      widget.onPositionUpdate?.call(position);
-    }
   }
 }
