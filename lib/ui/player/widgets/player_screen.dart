@@ -549,21 +549,27 @@ class _PlayerScreenState extends State<PlayerScreen>
   /// 动态更新视频数据源
   Future<void> updateVideoUrl(String newUrl, {Duration? startAt}) async {
     final sourceGeneration = ++_playbackSourceGeneration;
+    final targetIsCasting = _isCasting;
     try {
-      final resolved = await _viewModel.resolvePlaybackUrl(
+      final resolved = await _viewModel.resolvePlaybackMedia(
         mediaUrl: newUrl,
         source: currentSource,
         contentId: currentID,
         episodeIndex: currentEpisodeIndex,
+        allowCompletedDownload: !targetIsCasting,
       );
-      if (!mounted || sourceGeneration != _playbackSourceGeneration) return;
+      if (!mounted ||
+          sourceGeneration != _playbackSourceGeneration ||
+          targetIsCasting != _isCasting) {
+        return;
+      }
       if (resolved.isFailure) {
         showError(resolved.failureOrNull?.message ?? '播放地址解析失败，请重试');
         return;
       }
-      final finalUrl = resolved.valueOrNull!;
+      final playbackMedia = resolved.valueOrNull!;
 
-      if (_isCasting) {
+      if (targetIsCasting) {
         // 构建标题：{title} - {第 x 集} - {sourceName}
         // 如果总集数为 1，则不显示集数
         final sourceName = currentDetail?.sourceName ?? currentSource;
@@ -576,7 +582,7 @@ class _PlayerScreenState extends State<PlayerScreen>
         }
         // 投屏状态：调用 DLNA 播放器的 updateVideoUrl
         _dlnaPlayerController?.updateVideoUrl(
-          finalUrl,
+          playbackMedia.url,
           formattedTitle,
           startAt: startAt,
         );
@@ -588,7 +594,7 @@ class _PlayerScreenState extends State<PlayerScreen>
           return;
         }
         final failure = await controller.updateDataSource(
-          finalUrl,
+          playbackMedia,
           startAt: startAt,
         );
         if (!mounted || sourceGeneration != _playbackSourceGeneration) return;
@@ -603,6 +609,32 @@ class _PlayerScreenState extends State<PlayerScreen>
       if (!mounted || sourceGeneration != _playbackSourceGeneration) return;
       showError('切换视频失败，请重试');
     }
+  }
+
+  Future<String?> _resolveRemoteCastUrl() async {
+    final detail = currentDetail;
+    final episodeIndex = currentEpisodeIndex;
+    if (detail == null ||
+        episodeIndex < 0 ||
+        episodeIndex >= detail.episodes.length) {
+      showError('当前剧集没有可用的投屏地址');
+      return null;
+    }
+
+    final sourceGeneration = _playbackSourceGeneration;
+    final resolved = await _viewModel.resolvePlaybackMedia(
+      mediaUrl: detail.episodes[episodeIndex],
+      source: currentSource,
+      contentId: currentID,
+      episodeIndex: episodeIndex,
+      allowCompletedDownload: false,
+    );
+    if (!mounted || sourceGeneration != _playbackSourceGeneration) return null;
+    if (resolved.isFailure) {
+      showError(resolved.failureOrNull?.message ?? '投屏地址解析失败，请重试');
+      return null;
+    }
+    return resolved.valueOrNull!.url;
   }
 
   Future<void> _showDownloadSelector() async {
@@ -964,6 +996,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                 currentDetail != null &&
                 currentEpisodeIndex >= currentDetail!.episodes.length - 1,
             onCastStarted: _onCastStarted,
+            onCastUrlRequested: _resolveRemoteCastUrl,
             videoTitle: videoTitle,
             currentEpisodeIndex: currentEpisodeIndex,
             totalEpisodes: totalEpisodes,
@@ -1013,6 +1046,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     final currentPos = _videoPlayerController?.currentPosition;
 
     setState(() {
+      _playbackSourceGeneration++;
       _isCasting = true;
       _dlnaDevice = device;
       _castStartPosition = currentPos;
@@ -1069,6 +1103,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     final resumeEpisodeIndex = currentEpisodeIndex;
 
     setState(() {
+      _playbackSourceGeneration++;
       _isCasting = false;
       _dlnaDevice = null;
       _castStartPosition = null;

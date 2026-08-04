@@ -56,7 +56,8 @@ class PCPlayerControls extends StatefulWidget {
   final VoidCallback? onBackPressed;
   final VoidCallback? onNextEpisode;
   final VoidCallback? onPause;
-  final String videoUrl;
+  final bool canCast;
+  final Future<String?> Function() onCastUrlRequested;
   final bool isLastEpisode;
   final bool isLoadingVideo;
   final Function(dynamic)? onCastStarted;
@@ -65,7 +66,6 @@ class PCPlayerControls extends StatefulWidget {
   final int? currentEpisodeIndex;
   final int? totalEpisodes;
   final String? sourceName;
-  final Function(bool isFullscreen)? onDLNAButtonPressed;
   final Function(bool isWebFullscreen)? onWebFullscreenChanged;
   final Function(VoidCallback)? onExitWebFullscreenCallbackReady;
   final VoidCallback? onExitFullScreen;
@@ -83,7 +83,8 @@ class PCPlayerControls extends StatefulWidget {
     this.onBackPressed,
     this.onNextEpisode,
     this.onPause,
-    required this.videoUrl,
+    required this.canCast,
+    required this.onCastUrlRequested,
     this.isLastEpisode = false,
     this.isLoadingVideo = false,
     this.onCastStarted,
@@ -92,7 +93,6 @@ class PCPlayerControls extends StatefulWidget {
     this.currentEpisodeIndex,
     this.totalEpisodes,
     this.sourceName,
-    this.onDLNAButtonPressed,
     this.onWebFullscreenChanged,
     this.onExitWebFullscreenCallbackReady,
     this.onExitFullScreen,
@@ -387,6 +387,8 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
   }
 
   Future<void> _showDLNADialog() async {
+    final castUrl = await widget.onCastUrlRequested();
+    if (!mounted || castUrl == null || castUrl.isEmpty) return;
     if (widget.playbackState.playing) {
       if (!widget.live) {
         await widget.onPauseRequested();
@@ -396,15 +398,17 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
 
     // 如果在全屏状态，通知父组件并退出全屏
     if (_isFullscreen) {
-      widget.onDLNAButtonPressed?.call(true);
       _toggleFullscreen();
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      if (!mounted) return;
+      await _showDLNADialogInternal(castUrl);
     } else {
       // 非全屏状态，直接显示对话框
-      await _showDLNADialogInternal();
+      await _showDLNADialogInternal(castUrl);
     }
   }
 
-  Future<void> _showDLNADialogInternal() async {
+  Future<void> _showDLNADialogInternal(String castUrl) async {
     // 获取当前播放位置
     final resumePos = widget.playbackState.position;
 
@@ -412,7 +416,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
       await showDialog(
         context: context,
         builder: (context) => DLNADeviceDialog(
-          currentUrl: widget.videoUrl,
+          currentUrl: castUrl,
           resumePosition: resumePos,
           videoTitle: widget.videoTitle,
           currentEpisodeIndex: widget.currentEpisodeIndex,
@@ -677,28 +681,29 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
               right: effectiveFullscreen ? 72 : 64,
             ),
             // 顶部投屏按钮
-            Positioned(
-              top: effectiveFullscreen ? 8 : 4,
-              right: effectiveFullscreen ? 16.0 : 8.0,
-              child: AnimatedOpacity(
-                opacity: _controlsVisible ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 200),
-                child: IgnorePointer(
-                  ignoring: !_controlsVisible,
-                  child: HoverButton(
-                    onTap: () async {
-                      _onUserInteraction();
-                      await _showDLNADialog();
-                    },
-                    child: Icon(
-                      Icons.cast,
-                      color: Colors.white,
-                      size: effectiveFullscreen ? 24 : 20,
+            if (widget.canCast)
+              Positioned(
+                top: effectiveFullscreen ? 8 : 4,
+                right: effectiveFullscreen ? 16.0 : 8.0,
+                child: AnimatedOpacity(
+                  opacity: _controlsVisible ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: IgnorePointer(
+                    ignoring: !_controlsVisible,
+                    child: HoverButton(
+                      onTap: () async {
+                        _onUserInteraction();
+                        await _showDLNADialog();
+                      },
+                      child: Icon(
+                        Icons.cast,
+                        color: Colors.white,
+                        size: effectiveFullscreen ? 24 : 20,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
             // 中央播放/暂停按钮 - 暂停时始终显示
             Positioned.fill(
               child: Center(

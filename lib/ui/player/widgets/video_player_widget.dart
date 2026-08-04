@@ -24,6 +24,7 @@ class VideoPlayerWidget extends StatefulWidget {
   final VoidCallback? onPause;
   final bool isLastEpisode;
   final Function(dynamic)? onCastStarted;
+  final Future<String?> Function()? onCastUrlRequested;
   final String? videoTitle;
   final String? overlayTitle;
   final int? currentEpisodeIndex;
@@ -49,6 +50,7 @@ class VideoPlayerWidget extends StatefulWidget {
     this.onPause,
     this.isLastEpisode = false,
     this.onCastStarted,
+    this.onCastUrlRequested,
     this.videoTitle,
     this.overlayTitle,
     this.currentEpisodeIndex,
@@ -69,27 +71,24 @@ class VideoPlayerWidget extends StatefulWidget {
 class VideoPlayerWidgetController {
   VideoPlayerWidgetController._({
     required VideoPlaybackSession session,
-    required PlaybackMediaKind Function() mediaKind,
     required VoidCallback exitWebFullscreen,
     required bool Function() isPipMode,
   }) : _session = session,
-       _mediaKind = mediaKind,
        _exitWebFullscreen = exitWebFullscreen,
        _isPipMode = isPipMode;
 
   final VideoPlaybackSession _session;
-  final PlaybackMediaKind Function() _mediaKind;
   final VoidCallback _exitWebFullscreen;
   final bool Function() _isPipMode;
 
   Future<AppFailure?> updateDataSource(
-    String url, {
+    PlaybackMediaSource media, {
     Duration? startAt,
     Map<String, String>? headers,
   }) async {
     await _session.open(
-      url,
-      kind: _mediaKind(),
+      media.url,
+      kind: media.kind,
       startAt: startAt,
       headers: headers,
     );
@@ -165,7 +164,6 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     widget.onControllerCreated?.call(
       VideoPlayerWidgetController._(
         session: _session,
-        mediaKind: () => _mediaKind,
         exitWebFullscreen: _exitWebFullscreen,
         isPipMode: () => _isPipMode,
       ),
@@ -350,7 +348,12 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                       onBackPressed: widget.onBackPressed,
                       onNextEpisode: widget.onNextEpisode,
                       onPause: widget.onPause,
-                      videoUrl: _session.currentUrl ?? '',
+                      canCast:
+                          widget.onCastUrlRequested != null ||
+                          playbackState.mediaKind !=
+                              PlaybackMediaKind.localFile,
+                      onCastUrlRequested:
+                          widget.onCastUrlRequested ?? _currentMediaUrl,
                       isLastEpisode: widget.isLastEpisode,
                       isLoadingVideo: playbackState.opening,
                       onCastStarted: widget.onCastStarted,
@@ -379,7 +382,12 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                       onFullscreenChange: (_) {},
                       onNextEpisode: widget.onNextEpisode,
                       onPause: widget.onPause,
-                      videoUrl: _session.currentUrl ?? '',
+                      canCast:
+                          widget.onCastUrlRequested != null ||
+                          playbackState.mediaKind !=
+                              PlaybackMediaKind.localFile,
+                      onCastUrlRequested:
+                          widget.onCastUrlRequested ?? _currentMediaUrl,
                       isLastEpisode: widget.isLastEpisode,
                       isLoadingVideo: playbackState.opening,
                       onCastStarted: widget.onCastStarted,
@@ -426,4 +434,6 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
       ),
     );
   }
+
+  Future<String?> _currentMediaUrl() async => _session.currentUrl;
 }

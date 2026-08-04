@@ -19,7 +19,8 @@ class MobilePlayerControls extends StatefulWidget {
   final Function(bool) onFullscreenChange;
   final VoidCallback? onNextEpisode;
   final VoidCallback? onPause;
-  final String videoUrl;
+  final bool canCast;
+  final Future<String?> Function() onCastUrlRequested;
   final bool isLastEpisode;
   final bool isLoadingVideo;
   final Function(dynamic)? onCastStarted;
@@ -46,7 +47,8 @@ class MobilePlayerControls extends StatefulWidget {
     required this.onFullscreenChange,
     this.onNextEpisode,
     this.onPause,
-    required this.videoUrl,
+    required this.canCast,
+    required this.onCastUrlRequested,
     this.isLastEpisode = false,
     this.isLoadingVideo = false,
     this.onCastStarted,
@@ -393,6 +395,8 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
   }
 
   Future<void> _showDLNADialog() async {
+    final castUrl = await widget.onCastUrlRequested();
+    if (!mounted || castUrl == null || castUrl.isEmpty) return;
     if (_isPlaying) {
       await widget.onPauseRequested();
       if (!mounted) return;
@@ -408,7 +412,7 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
     await showDialog(
       context: context,
       builder: (context) => DLNADeviceDialog(
-        currentUrl: widget.videoUrl,
+        currentUrl: castUrl,
         resumePosition: resumePos,
         videoTitle: widget.videoTitle,
         currentEpisodeIndex: widget.currentEpisodeIndex,
@@ -728,6 +732,7 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
   }
 
   Widget _buildCastButton() {
+    if (!widget.canCast) return const SizedBox.shrink();
     return Positioned(
       top: _isFullscreen ? 8 : 4,
       right: _isFullscreen ? 16.0 : 8.0,

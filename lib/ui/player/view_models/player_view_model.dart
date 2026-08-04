@@ -12,6 +12,7 @@ import '../../../domain/models/search_result.dart';
 import '../../../utils/result.dart';
 import '../../core/view_models/view_model.dart';
 import '../../downloads/view_models/download_view_model.dart';
+import '../playback_models.dart';
 import 'player_ui_state.dart';
 
 /// 播放页面的唯一业务状态机。
@@ -325,30 +326,47 @@ final class PlayerViewModel extends ViewModel {
   Future<Result<void>> deletePlayRecord(String source, String id) =>
       _libraryRepository.deletePlayRecord(source, id);
 
-  Future<Result<String>> resolvePlaybackUrl({
+  Future<Result<PlaybackMediaSource>> resolvePlaybackMedia({
     required String mediaUrl,
     required String source,
     required String contentId,
     required int episodeIndex,
+    bool allowCompletedDownload = true,
   }) async {
-    try {
-      final localPath = await _downloadRepository.completedPathFor(
-        source: source,
-        contentId: contentId,
-        episodeIndex: episodeIndex,
-      );
-      if (localPath != null) return Success<String>(localPath);
-    } catch (error, stackTrace) {
-      return FailureResult<String>(
-        AppFailure(
-          kind: FailureKind.storage,
-          message: '读取离线视频失败',
-          cause: error,
-          stackTrace: stackTrace,
-        ),
-      );
+    if (allowCompletedDownload) {
+      try {
+        final localPath = await _downloadRepository.completedPathFor(
+          source: source,
+          contentId: contentId,
+          episodeIndex: episodeIndex,
+        );
+        if (localPath != null) {
+          return Success<PlaybackMediaSource>(
+            PlaybackMediaSource(
+              url: localPath,
+              kind: PlaybackMediaKind.localFile,
+            ),
+          );
+        }
+      } catch (error, stackTrace) {
+        return FailureResult<PlaybackMediaSource>(
+          AppFailure(
+            kind: FailureKind.storage,
+            message: '读取离线视频失败',
+            cause: error,
+            stackTrace: stackTrace,
+          ),
+        );
+      }
     }
-    return _repository.resolveRemotePlaybackUrl(mediaUrl);
+    final remoteResult = await _repository.resolveRemotePlaybackUrl(mediaUrl);
+    return switch (remoteResult) {
+      Success<String>(:final value) => Success<PlaybackMediaSource>(
+        PlaybackMediaSource(url: value, kind: PlaybackMediaKind.networkVod),
+      ),
+      FailureResult<String>(:final failure) =>
+        FailureResult<PlaybackMediaSource>(failure),
+    };
   }
 
   void _setLoading(double progress, String message, String emoji) => _setState(

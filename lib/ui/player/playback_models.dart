@@ -4,6 +4,14 @@ import '../../utils/result.dart';
 
 enum PlaybackMediaKind { networkVod, live, localFile }
 
+/// 一次播放器打开请求解析后的地址与缓存策略类型。
+final class PlaybackMediaSource {
+  const PlaybackMediaSource({required this.url, required this.kind});
+
+  final String url;
+  final PlaybackMediaKind kind;
+}
+
 final class PlaybackBufferedRange {
   const PlaybackBufferedRange({required this.start, required this.end});
 
@@ -36,7 +44,7 @@ final class PlaybackCachePolicy {
           properties: <String, String>{
             'cache': 'yes',
             'cache-on-disk': 'yes',
-            'cache-secs': '60',
+            'cache-secs': '180',
             'demuxer-max-bytes': '32MiB',
             'demuxer-max-back-bytes': '128MiB',
             'demuxer-seekable-cache': 'yes',

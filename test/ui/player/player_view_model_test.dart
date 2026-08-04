@@ -12,17 +12,20 @@ import 'package:selene/domain/models/douban_movie.dart';
 import 'package:selene/domain/models/player_models.dart';
 import 'package:selene/domain/models/search_result.dart';
 import 'package:selene/domain/models/video_download_task.dart';
+import 'package:selene/ui/player/playback_models.dart';
 import 'package:selene/ui/player/view_models/player_view_model.dart';
 import 'package:selene/utils/result.dart';
 
 void main() {
   late _FakeDownloadRepository downloadRepository;
+  late _FakePlayerRepository playerRepository;
   late PlayerViewModel viewModel;
 
   setUp(() {
     downloadRepository = _FakeDownloadRepository();
+    playerRepository = _FakePlayerRepository();
     viewModel = PlayerViewModel(
-      repository: _FakePlayerRepository(),
+      repository: playerRepository,
       downloadRepository: downloadRepository,
       searchRepository: _FakeSearchRepository(),
       settingsRepository: _FakeSettingsRepository(),
@@ -111,6 +114,92 @@ void main() {
       ),
       throwsUnsupportedError,
     );
+  });
+
+  test('普通播放命中完成下载时显式返回本地媒体类型', () async {
+    downloadRepository.completedPath = '/documents/downloads/episode.mkv';
+
+    final result = await viewModel.resolvePlaybackMedia(
+      mediaUrl: 'https://example.com/episode.m3u8',
+      source: 'source-a',
+      contentId: 'video-1',
+      episodeIndex: 0,
+    );
+
+    expect(result, isA<Success<PlaybackMediaSource>>());
+    expect(result.valueOrNull?.url, '/documents/downloads/episode.mkv');
+    expect(result.valueOrNull?.kind, PlaybackMediaKind.localFile);
+    expect(playerRepository.remotePlaybackResolutions, 0);
+  });
+
+  test('没有完成下载时返回远程网络点播媒体类型', () async {
+    playerRepository.resolvedPlaybackUrl =
+        'https://cdn.example.com/resolved.m3u8';
+
+    final result = await viewModel.resolvePlaybackMedia(
+      mediaUrl: 'https://example.com/episode.m3u8',
+      source: 'source-a',
+      contentId: 'video-1',
+      episodeIndex: 0,
+    );
+
+    expect(result, isA<Success<PlaybackMediaSource>>());
+    expect(result.valueOrNull?.url, playerRepository.resolvedPlaybackUrl);
+    expect(result.valueOrNull?.kind, PlaybackMediaKind.networkVod);
+    expect(playerRepository.remotePlaybackResolutions, 1);
+  });
+
+  test('DLNA 等远端播放目标跳过本机完成下载并解析远程地址', () async {
+    downloadRepository.completedPath = '/documents/downloads/episode.mkv';
+    playerRepository.resolvedPlaybackUrl =
+        'https://cdn.example.com/resolved.m3u8';
+
+    final result = await viewModel.resolvePlaybackMedia(
+      mediaUrl: 'https://example.com/episode.m3u8',
+      source: 'source-a',
+      contentId: 'video-1',
+      episodeIndex: 0,
+      allowCompletedDownload: false,
+    );
+
+    expect(result, isA<Success<PlaybackMediaSource>>());
+    expect(result.valueOrNull?.url, playerRepository.resolvedPlaybackUrl);
+    expect(result.valueOrNull?.kind, PlaybackMediaKind.networkVod);
+    expect(downloadRepository.completedPathLookups, 0);
+    expect(playerRepository.remotePlaybackResolutions, 1);
+  });
+
+  test('读取完成下载失败时保留存储错误且不回退远程地址', () async {
+    downloadRepository.completedPathError = StateError('read failed');
+
+    final result = await viewModel.resolvePlaybackMedia(
+      mediaUrl: 'https://example.com/episode.m3u8',
+      source: 'source-a',
+      contentId: 'video-1',
+      episodeIndex: 0,
+    );
+
+    expect(result, isA<FailureResult<PlaybackMediaSource>>());
+    expect(result.failureOrNull?.kind, FailureKind.storage);
+    expect(result.failureOrNull?.message, '读取离线视频失败');
+    expect(playerRepository.remotePlaybackResolutions, 0);
+  });
+
+  test('远程播放地址解析失败时保留原始失败类型和消息', () async {
+    playerRepository.resolvePlaybackFailure = const AppFailure(
+      kind: FailureKind.network,
+      message: 'remote failed',
+    );
+
+    final result = await viewModel.resolvePlaybackMedia(
+      mediaUrl: 'https://example.com/episode.m3u8',
+      source: 'source-a',
+      contentId: 'video-1',
+      episodeIndex: 0,
+    );
+
+    expect(result, isA<FailureResult<PlaybackMediaSource>>());
+    expect(result.failureOrNull, same(playerRepository.resolvePlaybackFailure));
   });
 
   test('首次加载由 ViewModel 完成来源选择、收藏和断点恢复', () async {
@@ -207,6 +296,9 @@ DoubanMovieDetails _details({required String summary}) => DoubanMovieDetails(
 
 final class _FakePlayerRepository implements PlayerRepository {
   int remoteSearches = 0;
+  int remotePlaybackResolutions = 0;
+  String resolvedPlaybackUrl = 'https://example.com/resolved.m3u8';
+  AppFailure? resolvePlaybackFailure;
 
   @override
   Future<Result<List<SearchResult>>> searchRemoteSources(
@@ -228,6 +320,14 @@ final class _FakePlayerRepository implements PlayerRepository {
   ) async => Success<PreferredPlayerSource>(
     PreferredPlayerSource(source: sources.first, speeds: const {}),
   );
+
+  @override
+  Future<Result<String>> resolveRemotePlaybackUrl(String mediaUrl) async {
+    remotePlaybackResolutions++;
+    final failure = resolvePlaybackFailure;
+    if (failure != null) return FailureResult<String>(failure);
+    return Success<String>(resolvedPlaybackUrl);
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -300,6 +400,10 @@ final class _FakeSessionState implements SessionState {
 
 final class _FakeDownloadRepository extends ChangeNotifier
     implements DownloadRepository {
+  String? completedPath;
+  Object? completedPathError;
+  int completedPathLookups = 0;
+
   @override
   List<VideoDownloadTask> tasks = <VideoDownloadTask>[];
 
@@ -311,6 +415,18 @@ final class _FakeDownloadRepository extends ChangeNotifier
 
   @override
   int get maxConcurrentDownloads => 3;
+
+  @override
+  Future<String?> completedPathFor({
+    required String source,
+    required String contentId,
+    required int episodeIndex,
+  }) async {
+    completedPathLookups++;
+    final error = completedPathError;
+    if (error != null) throw error;
+    return completedPath;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

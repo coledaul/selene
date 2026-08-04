@@ -19,7 +19,7 @@ void main() {
 
       expect(vod.properties, containsPair('cache', 'yes'));
       expect(vod.properties, containsPair('cache-on-disk', 'yes'));
-      expect(vod.properties, containsPair('cache-secs', '60'));
+      expect(vod.properties, containsPair('cache-secs', '180'));
       expect(vod.properties, containsPair('demuxer-max-bytes', '32MiB'));
       expect(vod.properties, containsPair('demuxer-max-back-bytes', '128MiB'));
       expect(
