@@ -1,0 +1,252 @@
+name: Build Release Assets
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Full commit SHA to build
+        required: true
+        type: string
+      version:
+        description: Version read from the source commit pubspec.yaml
+        required: true
+        type: string
+      retention_days:
+        description: Artifact retention period
+        required: true
+        type: number
+      android_signing_cert_sha256:
+        description: Expected Android signing certificate SHA-256
+        required: true
+        type: string
+    secrets:
+      ANDROID_KEYSTORE_BASE64:
+        required: true
+      ANDROID_STORE_PASSWORD:
+        required: true
+      ANDROID_KEY_ALIAS:
+        required: true
+      ANDROID_KEY_PASSWORD:
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  PUB_HOSTED_URL: https://pub.dev
+
+jobs:
+  android:
+    name: Build signed Android APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SELENE_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/app/release.jks
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+
+      - name: Set up Java
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Require Android signing inputs
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          SELENE_ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          SELENE_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SELENE_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_SIGNING_CERT_SHA256: ${{ inputs.android_signing_cert_sha256 }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in \
+            ANDROID_KEYSTORE_BASE64 \
+            SELENE_ANDROID_STORE_PASSWORD \
+            SELENE_ANDROID_KEY_ALIAS \
+            SELENE_ANDROID_KEY_PASSWORD \
+            ANDROID_SIGNING_CERT_SHA256; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required Android release setting: $name" >&2
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ]
+
+      - name: Restore release keystore
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$SELENE_ANDROID_KEYSTORE_PATH"
+          chmod 600 "$SELENE_ANDROID_KEYSTORE_PATH"
+          test -s "$SELENE_ANDROID_KEYSTORE_PATH"
+
+      - name: Verify release keystore certificate
+        shell: bash
+        env:
+          SELENE_ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          SELENE_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_SIGNING_CERT_SHA256: ${{ inputs.android_signing_cert_sha256 }}
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$ANDROID_SIGNING_CERT_SHA256" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          output="$(keytool -list -v \
+            -keystore "$SELENE_ANDROID_KEYSTORE_PATH" \
+            -storepass "$SELENE_ANDROID_STORE_PASSWORD" \
+            -alias "$SELENE_ANDROID_KEY_ALIAS")"
+          actual="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' | head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          if [ -z "$actual" ]; then
+            echo "Could not read the signing certificate from the restored keystore" >&2
+            exit 1
+          fi
+          if [ "$actual" != "$expected" ]; then
+            echo "Restored keystore certificate does not match the configured certificate: $actual" >&2
+            exit 1
+          fi
+
+      - name: Install licensed Android NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager="$(find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools" -type f -name sdkmanager -print | sort -V | tail -n 1)"
+          if [ -z "$sdkmanager" ] || [ ! -x "$sdkmanager" ]; then
+            echo "Android sdkmanager was not found" >&2
+            exit 1
+          fi
+
+          set +o pipefail
+          yes | "$sdkmanager" --licenses >/dev/null
+          license_status="${PIPESTATUS[1]}"
+          set -o pipefail
+          if [ "$license_status" -ne 0 ]; then
+            echo "Android SDK license acceptance failed" >&2
+            exit "$license_status"
+          fi
+          "$sdkmanager" "ndk;29.0.14033849"
+
+      - name: Build Android release
+        shell: bash
+        env:
+          SELENE_ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          SELENE_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SELENE_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./build.sh --android-only
+
+      - name: Verify APK signatures and certificate
+        shell: bash
+        env:
+          ANDROID_SIGNING_CERT_SHA256: ${{ inputs.android_signing_cert_sha256 }}
+        run: ./scripts/verify_android_release.sh dist/*.apk
+
+      - name: Upload Android release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-android
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention_days }}
+
+      - name: Remove restored keystore
+        if: always()
+        shell: bash
+        run: rm -f "$SELENE_ANDROID_KEYSTORE_PATH"
+
+  windows:
+    name: Build Windows portable ZIP
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      APP_VERSION: ${{ inputs.version }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Prepare verified FFmpegKit bundle
+        shell: pwsh
+        run: |
+          ./scripts/prepare_windows_ffmpeg.ps1 `
+            -OutputDirectory "$env:RUNNER_TEMP/selene-ffmpeg-kit-8.1.2-full" `
+            -GithubEnvironmentFile "$env:GITHUB_ENV"
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Create portable archive
+        shell: pwsh
+        run: |
+          $archive = "selene-$env:APP_VERSION-windows-x64.zip"
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath $archive
+          if (-not (Test-Path $archive)) { throw "Windows archive was not created" }
+
+      - name: Upload Windows release asset
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-windows
+          path: selene-*-windows-x64.zip
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention_days }}
+
+  macos:
+    name: Build macOS universal DMG
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      APP_VERSION: ${{ inputs.version }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Build macOS release
+        shell: bash
+        run: ./build.sh --macos-only
+
+      - name: Verify macOS release asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg="dist/selene-$APP_VERSION-macos-universal.dmg"
+          test -s "$dmg"
+          hdiutil verify "$dmg"
+
+      - name: Upload macOS release asset
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-macos
+          path: dist/selene-*-macos-universal.dmg
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention_days }}

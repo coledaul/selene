@@ -32,6 +32,7 @@ if [ "$heading_count" -ne 1 ]; then
   exit 1
 fi
 
+set +e
 awk -v heading="$heading" '
   function is_target(line) {
     return line == heading || index(line, heading " - ") == 1
@@ -65,7 +66,15 @@ awk -v heading="$heading" '
       print lines[line_index]
     }
   }
-' "$changelog" || {
+' "$changelog"
+status="$?"
+set -e
+
+if [ "$status" -eq 2 ]; then
   echo "Changelog section for $version is empty" >&2
-  exit 1
-}
+  exit 2
+fi
+if [ "$status" -ne 0 ]; then
+  echo "Could not extract changelog section for $version" >&2
+  exit "$status"
+fi

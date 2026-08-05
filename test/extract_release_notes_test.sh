@@ -77,8 +77,12 @@ cat >"$fixture" <<'EOF'
 - 旧版本内容。
 EOF
 
-if bash "$extractor" "2.0.0" "$fixture" >/dev/null 2>&1; then
-  echo "empty release notes must fail"
+set +e
+bash "$extractor" "2.0.0" "$fixture" >/dev/null 2>&1
+empty_status="$?"
+set -e
+if [ "$empty_status" -ne 2 ]; then
+  echo "empty release notes must return status 2; got $empty_status"
   exit 1
 fi
 

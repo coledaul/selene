@@ -4,6 +4,8 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ci_workflow="$repo_root/.github/workflows/ci.yml"
 release_workflow="$repo_root/.github/workflows/release.yml"
+release_assets_workflow="$repo_root/.github/workflows/release-assets.yml"
+rolling_workflow="$repo_root/.github/workflows/rolling.yml"
 dependabot_config="$repo_root/.github/dependabot.yml"
 windows_ffmpeg_setup="$repo_root/scripts/prepare_windows_ffmpeg.ps1"
 android_release_verifier="$repo_root/scripts/verify_android_release.sh"
@@ -14,7 +16,7 @@ if [ "$(printf '%s\n' "$locked_sources" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 
   exit 1
 fi
 
-for dependency_entrypoint in "$repo_root/build.sh" "$ci_workflow" "$release_workflow"; do
+for dependency_entrypoint in "$repo_root/build.sh" "$ci_workflow" "$release_assets_workflow"; do
   if ! grep -Fq 'flutter pub get --enforce-lockfile' "$dependency_entrypoint"; then
     echo "dependency resolution must enforce pubspec.lock: ${dependency_entrypoint#"$repo_root/"}"
     exit 1
@@ -26,7 +28,7 @@ if ! grep -Fq 'PUB_HOSTED_URL="$pub_hosted_url" flutter pub get --enforce-lockfi
   exit 1
 fi
 
-for workflow in "$ci_workflow" "$release_workflow"; do
+for workflow in "$ci_workflow" "$release_assets_workflow" "$rolling_workflow"; do
   if ! grep -Fq "PUB_HOSTED_URL: $locked_sources" "$workflow"; then
     echo "workflow package source must match pubspec.lock: ${workflow#"$repo_root/"}"
     exit 1
@@ -69,14 +71,14 @@ if ! awk '/^copy_artifacts\(\)/,/^}/' "$repo_root/build.sh" |
   exit 1
 fi
 
-for workflow in "$ci_workflow" "$release_workflow"; do
+for workflow in "$ci_workflow" "$release_workflow" "$release_assets_workflow" "$rolling_workflow"; do
   if [ ! -f "$workflow" ]; then
     echo "missing workflow: ${workflow#"$repo_root/"}"
     exit 1
   fi
 
   if grep -E '^[[:space:]]*uses:' "$workflow" |
-    grep -Ev 'uses:[[:space:]]+\./\.github/workflows/ci\.yml$' |
+    grep -Ev 'uses:[[:space:]]+\./\.github/workflows/(ci|release-assets)\.yml$' |
     grep -Ev '@[0-9a-f]{40}([[:space:]]+#.*)?$' >/dev/null; then
     echo "all third-party actions must be pinned to a full commit SHA: ${workflow#"$repo_root/"}"
     exit 1
@@ -85,7 +87,8 @@ done
 
 for artifact_action in upload-artifact download-artifact; do
   action_pin_count="$(
-    grep -hE "uses: actions/$artifact_action@[0-9a-f]{40}" "$ci_workflow" "$release_workflow" |
+    grep -hE "uses: actions/$artifact_action@[0-9a-f]{40}" \
+      "$ci_workflow" "$release_workflow" "$release_assets_workflow" "$rolling_workflow" |
       sed -E "s/.*actions\/$artifact_action@([0-9a-f]{40}).*/\1/" |
       sort -u |
       wc -l |
@@ -116,30 +119,27 @@ if ! grep -Fq 'workflow_call:' "$ci_workflow"; then
   exit 1
 fi
 
-release_ci_job="$(awk '/^  ci:/,/^  android:/' "$release_workflow")"
+release_ci_job="$(awk '/^  ci:/,/^  build:/' "$release_workflow")"
 if ! grep -Fq 'uses: ./.github/workflows/ci.yml' <<<"$release_ci_job"; then
   echo "release workflow must reuse ordinary CI before building release assets"
   exit 1
 fi
 
-for platform in android windows macos; do
-  platform_job_header="$(awk "/^  $platform:/,/^    steps:/" "$release_workflow")"
-  if ! grep -Fq -- '- validate' <<<"$platform_job_header" ||
-    ! grep -Fq -- '- ci' <<<"$platform_job_header"; then
-    echo "release $platform build must depend on tag validation and the reusable CI gate"
-    exit 1
-  fi
-done
+release_build_job="$(awk '/^  build:/,/^  publish:/' "$release_workflow")"
+if ! grep -Fq -- '- validate' <<<"$release_build_job" ||
+  ! grep -Fq -- '- ci' <<<"$release_build_job" ||
+  ! grep -Fq 'uses: ./.github/workflows/release-assets.yml' <<<"$release_build_job" ||
+  ! grep -Fq 'retention_days: 7' <<<"$release_build_job"; then
+  echo "formal releases must call the shared build after tag validation and CI"
+  exit 1
+fi
 
 for required in \
   "tags:" \
   "'v*'" \
   "contents: read" \
   "contents: write" \
-  "ANDROID_KEYSTORE_BASE64" \
-  "ANDROID_SIGNING_CERT_SHA256" \
   "GH_REPO" \
-  "keytool -list -v" \
   "SHA256SUMS.txt" \
   "--verify-tag" \
   "--draft"; do
@@ -150,34 +150,34 @@ for required in \
 done
 
 if [ ! -f "$android_release_verifier" ] ||
-  ! grep -Fq 'scripts/verify_android_release.sh' "$release_workflow" ||
+  ! grep -Fq 'scripts/verify_android_release.sh' "$release_assets_workflow" ||
   ! grep -Fq 'verify --print-certs' "$android_release_verifier" ||
   ! grep -Fq 'Could not read the signing certificate' "$android_release_verifier"; then
   echo "Android releases must verify exactly two APK signing certificates"
   exit 1
 fi
 
-if ! grep -Fq -- '--licenses' "$release_workflow" ||
-  ! grep -Fq 'ndk;29.0.14033849' "$release_workflow" ||
-  ! grep -Fq 'find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools"' "$release_workflow"; then
+if ! grep -Fq -- '--licenses' "$release_assets_workflow" ||
+  ! grep -Fq 'ndk;29.0.14033849' "$release_assets_workflow" ||
+  ! grep -Fq 'find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools"' "$release_assets_workflow"; then
   echo "Android releases must accept SDK licenses and install the pinned NDK"
   exit 1
 fi
 
 if [ ! -f "$windows_ffmpeg_setup" ] ||
-  ! grep -Fq 'scripts/prepare_windows_ffmpeg.ps1' "$release_workflow" ||
+  ! grep -Fq 'scripts/prepare_windows_ffmpeg.ps1' "$release_assets_workflow" ||
   ! grep -Fq 'FFMPEGKIT_LOCAL_DIR' "$windows_ffmpeg_setup" ||
   ! grep -Fq 'Expand-Archive' "$windows_ffmpeg_setup"; then
   echo "Windows releases must pre-extract FFmpegKit outside Flutter plugin symlinks"
   exit 1
 fi
 
-if grep -Eq 'PULL_TOKEN|REPO_URL|@main' "$release_workflow"; then
+if grep -Eq 'PULL_TOKEN|REPO_URL|@main' "$release_workflow" "$release_assets_workflow" "$rolling_workflow"; then
   echo "release workflow must not clone another repository or use floating main actions"
   exit 1
 fi
 
-macos_job="$(awk '/^  macos:/,/^  publish:/' "$release_workflow")"
+macos_job="$(awk '/^  macos:/,0' "$release_assets_workflow")"
 if ! grep -Fq 'runs-on: macos-15' <<<"$macos_job" ||
   ! grep -Fq './build.sh --macos-only' <<<"$macos_job" ||
   ! grep -Fq 'name: release-macos' <<<"$macos_job" ||
@@ -188,7 +188,7 @@ if ! grep -Fq 'runs-on: macos-15' <<<"$macos_job" ||
 fi
 
 publish_job="$(awk '/^  publish:/,0' "$release_workflow")"
-if ! grep -Fq -- '- macos' <<<"$publish_job" ||
+if ! grep -Fq -- '- build' <<<"$publish_job" ||
   ! grep -Fq '"selene-$APP_VERSION-macos-universal.dmg"' <<<"$publish_job" ||
   ! grep -Fq 'if [ "$asset_count" -ne 5 ]; then' <<<"$publish_job" ||
   ! grep -Fq 'expected 5' <<<"$publish_job"; then
@@ -196,7 +196,7 @@ if ! grep -Fq -- '- macos' <<<"$publish_job" ||
   exit 1
 fi
 
-if awk '/^  android:/,/^    steps:/' "$release_workflow" | grep -q 'secrets\.'; then
+if awk '/^  android:/,/^    steps:/' "$release_assets_workflow" | grep -q 'secrets\.'; then
   echo "Android signing secrets must be scoped to the exact shell steps that consume them"
   exit 1
 fi
