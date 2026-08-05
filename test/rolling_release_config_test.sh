@@ -37,6 +37,9 @@ for required in \
   'retention_days: 1' \
   'source_sha: ${{ needs.prepare.outputs.source_sha }}' \
   'version: ${{ needs.prepare.outputs.build_version }}' \
+  'app_version: ${{ steps.source.outputs.app_version }}' \
+  'APP_VERSION: ${{ needs.prepare.outputs.app_version }}' \
+  'echo "app_version=$app_version" >> "$GITHUB_OUTPUT"' \
   'ROLLING_VERSION: ${{ needs.prepare.outputs.rolling_version }}' \
   'bash scripts/extract_pending_version.sh CHANGELOG.md' \
   'bash scripts/extract_release_notes.sh "$rolling_version" CHANGELOG.md' \
@@ -147,6 +150,30 @@ for required in \
 done
 
 rolling_publish_job="$(awk '/^  publish:/,0' "$rolling_workflow")"
+rolling_notes_step="$(awk \
+  '/^      - name: Prepare Rolling notes$/,/^      - name: Create draft, upload, verify, and publish Rolling$/' \
+  "$rolling_workflow")"
+for required in \
+  'pending_notes_file="$RUNNER_TEMP/rolling-changelog.md"' \
+  'bash scripts/extract_release_notes.sh "$ROLLING_VERSION" CHANGELOG.md > "$pending_notes_file"' \
+  'cat "$pending_notes_file"' \
+  '## 更新内容' \
+  '## 构建信息' \
+  '预览版本' \
+  '应用版本' \
+  '提交：' \
+  '构建时间'; do
+  if ! grep -Fq -- "$required" <<<"$rolling_notes_step"; then
+    echo "Rolling notes must include pending CHANGELOG content and concise build metadata: $required"
+    exit 1
+  fi
+done
+
+if grep -Fq '最新提交：' <<<"$rolling_notes_step"; then
+  echo "Rolling notes must not duplicate the commit title"
+  exit 1
+fi
+
 for required in \
   'always()' \
   '!cancelled()' \
