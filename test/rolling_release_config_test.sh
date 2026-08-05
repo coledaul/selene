@@ -147,6 +147,18 @@ for required in \
 done
 
 rolling_publish_job="$(awk '/^  publish:/,0' "$rolling_workflow")"
+for required in \
+  'always()' \
+  '!cancelled()' \
+  "needs.prepare.result == 'success'" \
+  "needs.prepare.outputs.should_publish == 'true'" \
+  "needs.build.result == 'success'"; do
+  if ! grep -Fq -- "$required" <<<"$rolling_publish_job"; then
+    echo "Rolling publish must override skipped dependency propagation safely: $required"
+    exit 1
+  fi
+done
+
 for mutation_job in "$rolling_publish_job" "$cleanup_job"; do
   if ! grep -Fq 'group: rolling-release-mutation' <<<"$mutation_job" ||
     ! grep -Fq 'cancel-in-progress: false' <<<"$mutation_job"; then

@@ -154,6 +154,12 @@ jobs:
     needs:
       - prepare
       - build
+    if: >-
+      always() &&
+      !cancelled() &&
+      needs.prepare.result == 'success' &&
+      needs.prepare.outputs.should_publish == 'true' &&
+      needs.build.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
