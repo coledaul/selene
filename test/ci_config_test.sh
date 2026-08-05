@@ -164,6 +164,16 @@ if ! grep -Fq -- '--licenses' "$release_assets_workflow" ||
   exit 1
 fi
 
+android_job="$(awk '/^  android:/,/^  windows:/' "$release_assets_workflow")"
+if ! grep -Fq 'cache: gradle' <<<"$android_job" ||
+  ! grep -Fq 'for retry_delay in 0 30 90; do' <<<"$android_job" ||
+  ! grep -Fq 'build_status="${PIPESTATUS[0]}"' <<<"$android_job" ||
+  ! grep -Fq 'Received status code (429|5[0-9]{2})' <<<"$android_job" ||
+  ! grep -Fq 'if ! grep -Eqi "$transient_pattern" "$log_file"; then' <<<"$android_job"; then
+  echo "Android releases must cache Gradle dependencies and retry only transient download failures"
+  exit 1
+fi
+
 if [ ! -f "$windows_ffmpeg_setup" ] ||
   ! grep -Fq 'scripts/prepare_windows_ffmpeg.ps1' "$release_assets_workflow" ||
   ! grep -Fq 'FFMPEGKIT_LOCAL_DIR' "$windows_ffmpeg_setup" ||
