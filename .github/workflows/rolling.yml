@@ -315,7 +315,6 @@ jobs:
             --verify-tag \
             --draft \
             --prerelease \
-            --latest=false \
             --notes-file "$release_notes_file" \
             --title "Selene $ROLLING_VERSION Rolling"
 
@@ -347,7 +346,7 @@ jobs:
             exit 1
           fi
 
-          gh release edit rolling --draft=false --prerelease --latest=false
+          gh release edit rolling --draft=false --prerelease
 
           draft_state="$(gh release view rolling --json isDraft --jq .isDraft)"
           prerelease_state="$(gh release view rolling --json isPrerelease --jq .isPrerelease)"

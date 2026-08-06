@@ -56,7 +56,6 @@ for required in \
   'SHA256SUMS.txt' \
   '--draft' \
   '--prerelease' \
-  '--latest=false' \
   '--title "Selene $ROLLING_VERSION Rolling"' \
   'if [ "$asset_count" -ne 5 ]; then'; do
   if ! grep -Fq -- "$required" "$rolling_workflow"; then
@@ -64,6 +63,11 @@ for required in \
     exit 1
   fi
 done
+
+if grep -Fq -- '--latest=false' "$rolling_workflow"; then
+  echo "Rolling prereleases must use GitHub automatic ordering instead of being explicitly excluded from latest ordering"
+  exit 1
+fi
 
 if [ ! -f "$pending_version_extractor" ]; then
   echo "Rolling workflow must use a tested pending changelog version extractor"
