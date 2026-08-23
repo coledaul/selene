@@ -7,6 +7,7 @@ import 'package:selene/ui/core/widgets/filter_pill_hover.dart';
 import 'package:selene/ui/live/view_models/live_player_view_model.dart';
 import 'package:selene/ui/live/view_models/live_ui_state.dart';
 import 'package:selene/ui/live/view_models/live_view_model.dart';
+import 'package:selene/ui/player/view_models/dlna_cast_view_model.dart';
 import 'package:selene/utils/device_utils.dart';
 import 'package:selene/utils/font_utils.dart';
 import 'package:provider/provider.dart';
@@ -17,12 +18,14 @@ class LiveScreen extends StatefulWidget {
     super.key,
     required this.viewModel,
     required this.playerViewModelFactory,
+    required this.dlnaCastViewModelFactory,
   });
 
   /// 由首页作用域持有生命周期，本页面只订阅状态。
   final LiveViewModel viewModel;
   final LivePlayerViewModel Function(LiveChannel channel, LiveSource source)
   playerViewModelFactory;
+  final DlnaCastViewModel Function() dlnaCastViewModelFactory;
 
   @override
   State<LiveScreen> createState() => _LiveScreenState();
@@ -517,6 +520,7 @@ class _LiveScreenState extends State<LiveScreen>
             builder: (context) => LivePlayerScreen(
               viewModelFactory: () =>
                   widget.playerViewModelFactory(channel, _currentSource!),
+              dlnaCastViewModelFactory: widget.dlnaCastViewModelFactory,
             ),
           ),
         ).then((_) {

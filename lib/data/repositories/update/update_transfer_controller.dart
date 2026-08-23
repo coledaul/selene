@@ -167,7 +167,7 @@ final class UpdateTransferController extends ChangeNotifier {
       if (await _downloadService.enqueue(request)) {
         return const Success<void>(null);
       }
-      return _tryNextCandidate('无法创建更新下载任务');
+      return await _tryNextCandidate('无法创建更新下载任务');
     } catch (error, stackTrace) {
       final fallback = await _tryNextCandidate('无法创建更新下载任务');
       return fallback.isSuccess

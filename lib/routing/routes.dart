@@ -19,6 +19,7 @@ import '../ui/downloads/view_models/download_view_model.dart';
 import '../ui/downloads/widgets/download_manager_screen.dart';
 import '../ui/player/widgets/player_screen.dart';
 import '../ui/player/view_models/player_view_model.dart';
+import '../ui/player/view_models/dlna_cast_view_model.dart';
 
 part 'routes.g.dart';
 
@@ -64,6 +65,9 @@ class HomeRoute extends GoRouteData with $HomeRoute {
         repository: dependencies.liveRepository,
         channel: channel,
         source: source,
+      ),
+      dlnaCastViewModelFactory: () => DlnaCastViewModel(
+        repository: dependencies.createDlnaDeviceRepository(),
       ),
       catalogViewModelFactory: (definition) => CatalogViewModel(
         repository: dependencies.catalogRepository,
@@ -158,6 +162,9 @@ class PlayerRoute extends GoRouteData with $PlayerRoute {
         settingsRepository: dependencies.settingsRepository,
         libraryRepository: dependencies.libraryRepository,
         sessionState: dependencies.authRepository,
+      ),
+      dlnaCastViewModelFactory: () => DlnaCastViewModel(
+        repository: dependencies.createDlnaDeviceRepository(),
       ),
       title: title,
       source: source,

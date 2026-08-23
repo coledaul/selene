@@ -7,7 +7,6 @@ import 'package:screen_brightness/screen_brightness.dart';
 import 'package:volume_controller/volume_controller.dart';
 import '../video_playback_session.dart';
 import 'buffered_video_progress_bar.dart';
-import 'dlna_device_dialog.dart';
 import 'player_overlay_title.dart';
 import 'package:selene/utils/app_logger.dart';
 
@@ -20,15 +19,10 @@ class MobilePlayerControls extends StatefulWidget {
   final VoidCallback? onNextEpisode;
   final VoidCallback? onPause;
   final bool canCast;
-  final Future<String?> Function() onCastUrlRequested;
+  final Future<void> Function() onCastRequested;
   final bool isLastEpisode;
   final bool isLoadingVideo;
-  final Function(dynamic)? onCastStarted;
-  final String? videoTitle;
   final String? overlayTitle;
-  final int? currentEpisodeIndex;
-  final int? totalEpisodes;
-  final String? sourceName;
   final VoidCallback? onExitFullScreen;
   final bool live;
   final Future<void> Function() onPlayRequested;
@@ -48,15 +42,10 @@ class MobilePlayerControls extends StatefulWidget {
     this.onNextEpisode,
     this.onPause,
     required this.canCast,
-    required this.onCastUrlRequested,
+    required this.onCastRequested,
     this.isLastEpisode = false,
     this.isLoadingVideo = false,
-    this.onCastStarted,
-    this.videoTitle,
     this.overlayTitle,
-    this.currentEpisodeIndex,
-    this.totalEpisodes,
-    this.sourceName,
     this.onExitFullScreen,
     this.live = false,
     required this.onPlayRequested,
@@ -394,33 +383,13 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
     _startHideTimer();
   }
 
-  Future<void> _showDLNADialog() async {
-    final castUrl = await widget.onCastUrlRequested();
-    if (!mounted || castUrl == null || castUrl.isEmpty) return;
-    if (_isPlaying) {
-      await widget.onPauseRequested();
-      if (!mounted) return;
-      widget.onPause?.call();
-    }
+  Future<void> _requestCast() async {
     if (_isFullscreen) {
       _exitFullscreen();
       await Future.delayed(const Duration(milliseconds: 250));
       if (!mounted) return;
     }
-    if (!mounted) return;
-    final resumePos = widget.playbackState.position;
-    await showDialog(
-      context: context,
-      builder: (context) => DLNADeviceDialog(
-        currentUrl: castUrl,
-        resumePosition: resumePos,
-        videoTitle: widget.videoTitle,
-        currentEpisodeIndex: widget.currentEpisodeIndex,
-        totalEpisodes: widget.totalEpisodes,
-        sourceName: widget.sourceName,
-        onCastStarted: widget.onCastStarted,
-      ),
-    );
+    await widget.onCastRequested();
   }
 
   Future<void> _showSpeedDialog() async {
@@ -744,7 +713,7 @@ class _MobilePlayerControlsState extends State<MobilePlayerControls> {
           child: GestureDetector(
             onTap: () async {
               _onUserInteraction();
-              await _showDLNADialog();
+              await _requestCast();
             },
             behavior: HitTestBehavior.opaque,
             child: Container(

@@ -19,6 +19,7 @@ import 'package:selene/ui/home/widgets/home_recommendation_section.dart';
 import 'package:selene/ui/live/view_models/live_player_view_model.dart';
 import 'package:selene/ui/live/view_models/live_view_model.dart';
 import 'package:selene/ui/live/widgets/live_screen.dart';
+import 'package:selene/ui/player/view_models/dlna_cast_view_model.dart';
 import 'package:selene/ui/search/view_models/search_view_model.dart';
 import 'package:selene/ui/search/widgets/search_screen.dart';
 import 'package:selene/ui/settings/view_models/settings_view_model.dart';
@@ -40,6 +41,7 @@ class HomeScreen extends StatefulWidget {
     required this.searchViewModelFactory,
     required this.liveViewModelFactory,
     required this.livePlayerViewModelFactory,
+    required this.dlnaCastViewModelFactory,
     required this.catalogViewModelFactory,
     required this.animeViewModelFactory,
     required this.shellViewModelFactory,
@@ -51,6 +53,7 @@ class HomeScreen extends StatefulWidget {
   final LiveViewModel Function() liveViewModelFactory;
   final LivePlayerViewModel Function(LiveChannel channel, LiveSource source)
   livePlayerViewModelFactory;
+  final DlnaCastViewModel Function() dlnaCastViewModelFactory;
   final CatalogViewModel Function(CatalogDefinition definition)
   catalogViewModelFactory;
   final AnimeViewModel Function() animeViewModelFactory;
@@ -414,6 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
         LiveScreen(
           viewModel: _liveViewModel,
           playerViewModelFactory: widget.livePlayerViewModelFactory,
+          dlnaCastViewModelFactory: widget.dlnaCastViewModelFactory,
         ),
       ],
     );

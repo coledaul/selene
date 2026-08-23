@@ -224,6 +224,7 @@ void main() {
         kind: PlaybackMediaKind.networkVod,
       );
       engine.emitDuration(const Duration(seconds: 100));
+      engine.emitPosition(const Duration(milliseconds: 100));
       await _flushEvents();
       await engine.cacheListeners.single(
         jsonEncode(<String, Object>{
@@ -365,12 +366,125 @@ void main() {
       ]);
     });
 
+    test('媒体时长和播放进度都不得冒充真实首帧', () async {
+      await session.open(
+        'https://example.com/video.mp4',
+        kind: PlaybackMediaKind.networkVod,
+      );
+
+      engine.emitDuration(const Duration(minutes: 10));
+      await _flushEvents();
+
+      expect(session.state.duration, const Duration(minutes: 10));
+      expect(session.state.ready, isFalse);
+      expect(session.state.opening, isTrue);
+
+      engine.emitPosition(const Duration(milliseconds: 100));
+      await _flushEvents();
+
+      expect(session.state.ready, isFalse);
+      expect(session.state.opening, isTrue);
+
+      engine.emitFirstFrame();
+      await _flushEvents();
+
+      expect(session.state.ready, isTrue);
+      expect(session.state.opening, isFalse);
+    });
+
+    test('播放器控制器首次首帧事件可以直接结束首次播放 loading', () async {
+      await session.open(
+        'https://example.com/video.mp4',
+        kind: PlaybackMediaKind.networkVod,
+      );
+
+      engine.emitFirstFrame();
+      await _flushEvents();
+
+      expect(session.state.ready, isTrue);
+      expect(session.state.opening, isFalse);
+    });
+
+    test('旧源尚未完成的一次性首帧事件不能误标记新源 ready', () async {
+      await session.open(
+        'https://example.com/first.mp4',
+        kind: PlaybackMediaKind.networkVod,
+      );
+      await session.open(
+        'https://example.com/second.mp4',
+        kind: PlaybackMediaKind.networkVod,
+      );
+
+      engine.emitFirstFrame();
+      await _flushEvents();
+
+      expect(session.state.ready, isFalse);
+      expect(session.state.opening, isTrue);
+
+      engine.emitPosition(const Duration(milliseconds: 100));
+      await _flushEvents();
+      expect(session.state.ready, isFalse);
+    });
+
+    test('播放器 open 尚未完成时的进度事件不能提前结束 loading', () async {
+      final openGate = Completer<void>();
+      engine.openGate = openGate;
+      final open = session.open(
+        'https://example.com/video.mp4',
+        kind: PlaybackMediaKind.networkVod,
+      );
+      await _flushEvents();
+
+      engine.emitPosition(const Duration(seconds: 1));
+      await _flushEvents();
+
+      expect(session.state.ready, isFalse);
+      expect(session.state.opening, isTrue);
+
+      openGate.complete();
+      await open;
+      engine.emitPosition(const Duration(seconds: 2));
+      await _flushEvents();
+
+      expect(session.state.ready, isFalse);
+      expect(session.state.opening, isTrue);
+
+      engine.emitFirstFrame();
+      await _flushEvents();
+
+      expect(session.state.ready, isTrue);
+      expect(session.state.opening, isFalse);
+    });
+
+    test('续播位置越过起播点仍必须等待真实首帧', () async {
+      const startAt = Duration(minutes: 12);
+      await session.open(
+        'https://example.com/video.mp4',
+        kind: PlaybackMediaKind.networkVod,
+        startAt: startAt,
+      );
+
+      engine.emitPosition(startAt);
+      await _flushEvents();
+      expect(session.state.ready, isFalse);
+
+      engine.emitPosition(startAt + const Duration(milliseconds: 100));
+      await _flushEvents();
+      expect(session.state.ready, isFalse);
+
+      engine.emitFirstFrame();
+      await _flushEvents();
+      expect(session.state.ready, isTrue);
+    });
+
     test('ready 后播放错误仍暴露可重试失败', () async {
       await session.open(
         'https://example.com/video.mp4',
         kind: PlaybackMediaKind.networkVod,
       );
       engine.emitDuration(const Duration(minutes: 1));
+      engine.emitPosition(const Duration(milliseconds: 100));
+      engine.emitFirstFrame();
       await _flushEvents();
 
       engine.emitError('contains-sensitive-url');
@@ -382,7 +496,7 @@ void main() {
       expect(diagnostics.join('\n'), isNot(contains('contains-sensitive-url')));
     });
 
-    test('ready 后播放错误从真实当前位置重试而不是退回初始续播点', () async {
+    test('ready 后播放错误保留真实当前位置供新会话重试', () async {
       await session.open(
         'https://example.com/video.mp4',
         kind: PlaybackMediaKind.networkVod,
@@ -390,13 +504,15 @@ void main() {
       );
       engine.emitDuration(const Duration(minutes: 30));
       engine.emitPosition(const Duration(minutes: 12));
+      engine.emitPosition(const Duration(minutes: 12, milliseconds: 100));
       await _flushEvents();
       engine.emitError('playback failed');
       await _flushEvents();
 
-      await session.retryCurrent();
-
-      expect(engine.openedStartAts.last, const Duration(minutes: 12));
+      expect(
+        session.state.position,
+        const Duration(minutes: 12, milliseconds: 100),
+      );
     });
 
     test('缓存内 Seek 不进入重新缓冲，缓存外 Seek 明确进入缓冲', () async {
@@ -405,6 +521,8 @@ void main() {
         kind: PlaybackMediaKind.networkVod,
       );
       engine.emitDuration(const Duration(seconds: 100));
+      engine.emitPosition(const Duration(milliseconds: 100));
+      engine.emitFirstFrame();
       await _flushEvents();
       await engine.cacheListeners.single(
         jsonEncode(<String, Object>{
@@ -618,6 +736,7 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   final StreamController<String> errorStream;
 
   Completer<void>? openGate;
+  final Completer<void> firstFrameGate = Completer<void>();
   Completer<void>? playGate;
   Completer<void>? seekGate;
   Completer<void>? rateGate;
@@ -681,6 +800,9 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   Future<void> stop() async {
     calls.add('stop');
   }
+
+  @override
+  Future<void> waitUntilFirstFrameRendered() => firstFrameGate.future;
 
   @override
   Future<void> open(
@@ -792,6 +914,10 @@ final class _FakePlaybackEngine implements PlaybackEngine {
 
   void emitError(String value) {
     errorStream.add(value);
+  }
+
+  void emitFirstFrame() {
+    if (!firstFrameGate.isCompleted) firstFrameGate.complete();
   }
 
   Future<void> closeStreams() async {

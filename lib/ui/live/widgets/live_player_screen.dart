@@ -1,6 +1,8 @@
 import 'dart:io' show Platform;
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:selene/domain/models/dlna_device.dart';
 import 'package:selene/domain/models/epg_program.dart';
 import 'package:selene/domain/models/live_channel.dart';
 import 'package:selene/domain/models/live_source.dart';
@@ -13,14 +15,22 @@ import 'package:selene/ui/live/view_models/live_player_ui_state.dart';
 import 'package:selene/ui/live/view_models/live_player_view_model.dart';
 import 'package:selene/ui/player/widgets/video_player_surface.dart';
 import 'package:selene/ui/player/widgets/video_player_widget.dart';
+import 'package:selene/ui/player/widgets/dlna_device_dialog.dart';
+import 'package:selene/ui/player/view_models/dlna_cast_view_model.dart';
+import 'package:selene/utils/result.dart';
 import 'package:selene/utils/device_utils.dart';
 import 'package:selene/utils/font_utils.dart';
 import 'package:provider/provider.dart';
 
 class LivePlayerScreen extends StatefulWidget {
-  const LivePlayerScreen({super.key, required this.viewModelFactory});
+  const LivePlayerScreen({
+    super.key,
+    required this.viewModelFactory,
+    required this.dlnaCastViewModelFactory,
+  });
 
   final LivePlayerViewModel Function() viewModelFactory;
+  final DlnaCastViewModel Function() dlnaCastViewModelFactory;
 
   @override
   State<LivePlayerScreen> createState() => _LivePlayerScreenState();
@@ -29,6 +39,8 @@ class LivePlayerScreen extends StatefulWidget {
 class _LivePlayerScreenState extends State<LivePlayerScreen>
     with TickerProviderStateMixin {
   late final LivePlayerViewModel _viewModel;
+  late final DlnaCastViewModel _dlnaCastViewModel;
+  late final Future<Result<void>> _recentDeviceLoad;
   late SystemUiOverlayStyle _originalStyle;
   bool _isInitialized = false;
   LivePlayerUiState get _state => _viewModel.state;
@@ -77,7 +89,9 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
   void initState() {
     super.initState();
     _viewModel = widget.viewModelFactory();
+    _dlnaCastViewModel = widget.dlnaCastViewModelFactory();
     _viewModel.addListener(_handleViewModelChanged);
+    _recentDeviceLoad = _dlnaCastViewModel.loadRecentDevice();
 
     // 初始化动画控制器
     _loadingAnimationController = AnimationController(
@@ -145,6 +159,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
     _viewModel
       ..removeListener(_handleViewModelChanged)
       ..dispose();
+    _dlnaCastViewModel.dispose();
     super.dispose();
   }
 
@@ -160,6 +175,56 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
     }
   }
 
+  Future<void> _showDlnaDeviceDialog() async {
+    final channel = _currentChannel;
+    final controller = _videoPlayerController;
+    if (channel.url.isEmpty || controller == null) return;
+    await _recentDeviceLoad;
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (_) => DLNADeviceDialog(
+        recentDevice: _dlnaCastViewModel.recentDevice,
+        castViewModel: _dlnaCastViewModel,
+        onConnect: (device) async {
+          if (!mounted || _currentChannel.id != channel.id) {
+            return const FailureResult<void>(
+              AppFailure(
+                kind: FailureKind.cancellation,
+                message: '直播频道已变化，请重新选择投屏设备',
+              ),
+            );
+          }
+          final wasPlaying = controller.isPlaying;
+          if (wasPlaying) await controller.pause();
+          final result = await _dlnaCastViewModel.connect(
+            device,
+            mediaUrl: channel.url,
+            title: channel.name,
+          );
+          if (result.isFailure && wasPlaying) {
+            try {
+              await controller.play();
+            } catch (_) {}
+          }
+          return result;
+        },
+        onCastStarted: (device) => unawaited(_rememberDlnaDevice(device)),
+      ),
+    );
+  }
+
+  Future<void> _rememberDlnaDevice(DiscoveredDlnaDevice device) async {
+    final result = await _dlnaCastViewModel.rememberDevice(
+      device.toRecentDevice(),
+    );
+    if (!mounted || result.isSuccess) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result.failureOrNull?.message ?? '最近投屏设备保存失败')),
+    );
+  }
+
   /// 处理视频播放器 ready 事件
   void _onVideoPlayerReady() {
     if (mounted) {
@@ -167,6 +232,10 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
         _isLoading = false;
       });
     }
+  }
+
+  void _onVideoPlayerFailure(AppFailure _) {
+    if (mounted) setState(() => _isLoading = false);
   }
 
   /// 滚动到当前正在播放的节目（横向列表）
@@ -546,6 +615,8 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
         _scrollToCurrentProgram();
       },
       onReady: _onVideoPlayerReady,
+      onFailure: _onVideoPlayerFailure,
+      onCastRequested: _showDlnaDeviceDialog,
       live: true,
     );
   }

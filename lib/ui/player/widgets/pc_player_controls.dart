@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../video_playback_session.dart';
 import 'buffered_video_progress_bar.dart';
-import 'dlna_device_dialog.dart';
 import 'player_overlay_title.dart';
 
 // 桌面端带 hover 效果的按钮组件
@@ -57,15 +56,10 @@ class PCPlayerControls extends StatefulWidget {
   final VoidCallback? onNextEpisode;
   final VoidCallback? onPause;
   final bool canCast;
-  final Future<String?> Function() onCastUrlRequested;
+  final Future<void> Function() onCastRequested;
   final bool isLastEpisode;
   final bool isLoadingVideo;
-  final Function(dynamic)? onCastStarted;
-  final String? videoTitle;
   final String? overlayTitle;
-  final int? currentEpisodeIndex;
-  final int? totalEpisodes;
-  final String? sourceName;
   final Function(bool isWebFullscreen)? onWebFullscreenChanged;
   final Function(VoidCallback)? onExitWebFullscreenCallbackReady;
   final VoidCallback? onExitFullScreen;
@@ -84,15 +78,10 @@ class PCPlayerControls extends StatefulWidget {
     this.onNextEpisode,
     this.onPause,
     required this.canCast,
-    required this.onCastUrlRequested,
+    required this.onCastRequested,
     this.isLastEpisode = false,
     this.isLoadingVideo = false,
-    this.onCastStarted,
-    this.videoTitle,
     this.overlayTitle,
-    this.currentEpisodeIndex,
-    this.totalEpisodes,
-    this.sourceName,
     this.onWebFullscreenChanged,
     this.onExitWebFullscreenCallbackReady,
     this.onExitFullScreen,
@@ -386,46 +375,14 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
     }
   }
 
-  Future<void> _showDLNADialog() async {
-    final castUrl = await widget.onCastUrlRequested();
-    if (!mounted || castUrl == null || castUrl.isEmpty) return;
-    if (widget.playbackState.playing) {
-      if (!widget.live) {
-        await widget.onPauseRequested();
-      }
-      widget.onPause?.call();
-    }
-
+  Future<void> _requestCast() async {
     // 如果在全屏状态，通知父组件并退出全屏
     if (_isFullscreen) {
       _toggleFullscreen();
       await Future<void>.delayed(const Duration(milliseconds: 250));
       if (!mounted) return;
-      await _showDLNADialogInternal(castUrl);
-    } else {
-      // 非全屏状态，直接显示对话框
-      await _showDLNADialogInternal(castUrl);
     }
-  }
-
-  Future<void> _showDLNADialogInternal(String castUrl) async {
-    // 获取当前播放位置
-    final resumePos = widget.playbackState.position;
-
-    if (mounted) {
-      await showDialog(
-        context: context,
-        builder: (context) => DLNADeviceDialog(
-          currentUrl: castUrl,
-          resumePosition: resumePos,
-          videoTitle: widget.videoTitle,
-          currentEpisodeIndex: widget.currentEpisodeIndex,
-          totalEpisodes: widget.totalEpisodes,
-          sourceName: widget.sourceName,
-          onCastStarted: widget.onCastStarted,
-        ),
-      );
-    }
+    await widget.onCastRequested();
   }
 
   // 处理键盘事件
@@ -693,7 +650,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
                     child: HoverButton(
                       onTap: () async {
                         _onUserInteraction();
-                        await _showDLNADialog();
+                        await _requestCast();
                       },
                       child: Icon(
                         Icons.cast,

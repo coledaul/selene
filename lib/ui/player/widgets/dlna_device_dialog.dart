@@ -1,29 +1,28 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:selene/utils/app_logger.dart';
-import 'package:dlna_dart/dlna.dart';
+import 'package:selene/domain/models/dlna_device.dart';
+import 'package:selene/ui/player/view_models/dlna_cast_view_model.dart';
+import 'package:selene/utils/result.dart';
+
+typedef DlnaDeviceConnector =
+    Future<Result<void>> Function(DiscoveredDlnaDevice device);
 
 /// 发现并选择局域网 DLNA 设备的播放器对话框。
 class DLNADeviceDialog extends StatefulWidget {
-  final String currentUrl;
-  final Function(DLNADevice)? onCastStarted;
-  final DLNADevice? currentDevice;
-  final Duration? resumePosition;
-  final String? videoTitle;
-  final int? currentEpisodeIndex;
-  final int? totalEpisodes;
-  final String? sourceName;
+  final DlnaDeviceConnector onConnect;
+  final ValueChanged<DiscoveredDlnaDevice>? onCastStarted;
+  final DiscoveredDlnaDevice? currentDevice;
+  final RecentDlnaDevice? recentDevice;
+  final DlnaCastViewModel castViewModel;
 
   const DLNADeviceDialog({
     super.key,
-    required this.currentUrl,
+    required this.onConnect,
     this.onCastStarted,
     this.currentDevice,
-    this.resumePosition,
-    this.videoTitle,
-    this.currentEpisodeIndex,
-    this.totalEpisodes,
-    this.sourceName,
+    this.recentDevice,
+    required this.castViewModel,
   });
 
   @override
@@ -31,87 +30,35 @@ class DLNADeviceDialog extends StatefulWidget {
 }
 
 class _DLNADeviceDialogState extends State<DLNADeviceDialog> {
-  DLNAManager? _dlnaManager;
-  Map<String, DLNADevice> _devices = {};
-  bool _isScanning = false;
-  String _scanStatus = '准备扫描设备...';
-  Timer? _scanTimer;
-  StreamSubscription? _devicesSubscription;
-  int _scanGeneration = 0;
+  bool _isConnecting = false;
+  int _connectionGeneration = 0;
+
+  Map<String, DiscoveredDlnaDevice> get _devices =>
+      widget.castViewModel.devices;
+  bool get _isScanning => widget.castViewModel.scanning;
+  String get _scanStatus => widget.castViewModel.scanStatus;
 
   @override
   void initState() {
     super.initState();
-    _startScanning();
+    widget.castViewModel.addListener(_handleCastStateChanged);
+    unawaited(widget.castViewModel.startScanning());
   }
 
   @override
   void dispose() {
-    _stopScanning();
+    _connectionGeneration++;
+    widget.castViewModel.removeListener(_handleCastStateChanged);
+    unawaited(widget.castViewModel.stopScanning());
     super.dispose();
   }
 
-  Future<void> _startScanning() async {
-    if (!mounted) return;
-
-    final scanGeneration = ++_scanGeneration;
-
-    try {
-      setState(() {
-        _isScanning = true;
-        _scanStatus = '正在扫描DLNA设备...';
-      });
-
-      final dlnaManager = DLNAManager();
-      _dlnaManager = dlnaManager;
-      final manager = await dlnaManager.start();
-      if (!mounted || scanGeneration != _scanGeneration) {
-        dlnaManager.stop();
-        return;
-      }
-
-      // 监听设备发现
-      await _devicesSubscription?.cancel();
-      _devicesSubscription = manager.devices.stream.listen((deviceList) {
-        if (mounted) {
-          setState(() {
-            _devices = deviceList;
-            _scanStatus = '发现 ${_devices.length} 个设备';
-          });
-        }
-      });
-
-      // 设置扫描超时
-      _scanTimer = Timer(const Duration(seconds: 10), () {
-        if (mounted) {
-          setState(() {
-            _isScanning = false;
-            _scanStatus = '扫描完成，发现 ${_devices.length} 个设备';
-          });
-        }
-      });
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isScanning = false;
-          _scanStatus = '扫描失败: $e';
-        });
-      }
-    }
+  void _handleCastStateChanged() {
+    if (mounted) setState(() {});
   }
 
-  void _stopScanning() {
-    _scanGeneration++;
-    _scanTimer?.cancel();
-    _devicesSubscription?.cancel();
-    _devicesSubscription = null;
-    _dlnaManager?.stop();
-  }
-
-  void _refreshScanning() {
-    _stopScanning();
-    _devices.clear();
-    _startScanning();
+  Future<void> _refreshScanning() async {
+    await widget.castViewModel.refreshScanning();
   }
 
   @override
@@ -200,144 +147,168 @@ class _DLNADeviceDialogState extends State<DLNADeviceDialog> {
             ),
             const SizedBox(height: 16),
 
-            // 设备列表
-            Expanded(
-              child: _devices.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.devices_other,
-                            size: 64,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant
-                                .withValues(alpha: 0.5),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _isScanning ? '正在搜索设备...' : '未发现DLNA设备',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          if (!_isScanning) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              '请确保设备与手机在同一网络下',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant
-                                    .withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _devices.length,
-                      itemBuilder: (context, index) {
-                        final deviceEntry = _devices.entries.elementAt(index);
-                        final device = deviceEntry.value;
-                        final isCurrentDevice =
-                            widget.currentDevice != null &&
-                            device.info.friendlyName ==
-                                widget.currentDevice!.info.friendlyName;
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: isCurrentDevice
-                                ? Theme.of(context).colorScheme.primaryContainer
-                                : Theme.of(
-                                    context,
-                                  ).colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(8),
-                            border: isCurrentDevice
-                                ? Border.all(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                    width: 2,
-                                  )
-                                : null,
-                          ),
-                          child: ListTile(
-                            leading: Icon(
-                              _getDeviceIcon(device.info.friendlyName),
-                              color: isCurrentDevice
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).colorScheme.primary,
-                            ),
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    device.info.friendlyName,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      color: Theme.of(
-                                        context,
-                                      ).textTheme.titleMedium?.color,
-                                    ),
-                                  ),
-                                ),
-                                if (isCurrentDevice)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      '当前设备',
-                                      style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onPrimary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            subtitle: Text(
-                              '活跃时间: ${_formatTime(device.activeTime)}',
-                              style: TextStyle(
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.bodyMedium?.color,
-                              ),
-                            ),
-                            onTap: isCurrentDevice
-                                ? null
-                                : () {
-                                    // 直接连接设备
-                                    _showConnectionDialog(device);
-                                  },
-                            enabled: !isCurrentDevice,
-                          ),
-                        );
-                      },
-                    ),
-            ),
+            Expanded(child: _buildDeviceSections()),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildDeviceSections() {
+    return ListView(
+      children: <Widget>[
+        if (widget.recentDevice != null) ...[
+          Text('最近使用', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          _buildRecentDeviceTile(),
+          const SizedBox(height: 8),
+          Text('全部设备', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+        ],
+        if (_devices.isEmpty)
+          SizedBox(
+            height: 180,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.devices_other,
+                    size: 64,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _isScanning ? '正在搜索设备...' : '未发现DLNA设备',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (!_isScanning) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '请确保设备与手机在同一网络下',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          )
+        else
+          ..._devices.values.map(
+            (device) => _buildDeviceTile(
+              key: ValueKey<String>('device-${device.endpoint}'),
+              device: device,
+              name: device.friendlyName,
+              statusText: '活跃时间: ${_formatTime(device.activeTime)}',
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildRecentDeviceTile() {
+    final recent = widget.recentDevice!;
+    final matches = _devices.values.where(
+      (device) => recent.matchesEndpoint(device.endpoint),
+    );
+    final device = matches.isEmpty ? null : matches.first;
+    return _buildDeviceTile(
+      key: const ValueKey<String>('recent-device'),
+      device: device,
+      name: recent.friendlyName,
+      statusText: device == null
+          ? (_isScanning ? '正在查找设备...' : '当前未发现')
+          : '活跃时间: ${_formatTime(device.activeTime)}',
+    );
+  }
+
+  Widget _buildDeviceTile({
+    required Key key,
+    required DiscoveredDlnaDevice? device,
+    required String name,
+    required String statusText,
+  }) {
+    final isCurrentDevice = device != null && _isCurrentDevice(device);
+    final enabled = device != null && !isCurrentDevice && !_isConnecting;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(8),
+      side: isCurrentDevice
+          ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)
+          : BorderSide.none,
+    );
+    return Padding(
+      key: key,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: isCurrentDevice
+            ? Theme.of(context).colorScheme.primaryContainer
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          leading: Icon(
+            _getDeviceIcon(name),
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).textTheme.titleMedium?.color,
+                  ),
+                ),
+              ),
+              if (isCurrentDevice)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '当前设备',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          subtitle: Text(
+            statusText,
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+            ),
+          ),
+          onTap: enabled ? () => _showConnectionDialog(device) : null,
+          enabled: enabled,
+        ),
+      ),
+    );
+  }
+
+  bool _isCurrentDevice(DiscoveredDlnaDevice device) {
+    final current = widget.currentDevice;
+    if (current == null) return false;
+    return current.matchesEndpoint(device.endpoint);
   }
 
   IconData _getDeviceIcon(String deviceName) {
@@ -368,67 +339,53 @@ class _DLNADeviceDialogState extends State<DLNADeviceDialog> {
     }
   }
 
-  void _showConnectionDialog(DLNADevice device) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('投屏'),
-        content: Text('正在投屏到 ${device.info.friendlyName}...'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
+  Future<void> _showConnectionDialog(DiscoveredDlnaDevice device) async {
+    if (_isConnecting) return;
+    final generation = ++_connectionGeneration;
+    setState(() => _isConnecting = true);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: const Text('投屏'),
+            content: Text('正在投屏到 ${device.friendlyName}...'),
           ),
-        ],
+        ),
       ),
     );
 
-    // 执行投屏操作
-    _castToDevice(device);
-  }
-
-  void _castToDevice(DLNADevice device) async {
+    Result<void> result;
     try {
-      // 构建标题：{title} - {第 x 集} - {sourceName}
-      // 如果总集数为 1，则不显示集数
-      String formattedTitle = widget.videoTitle ?? '视频';
-      if (widget.sourceName != null) {
-        if (widget.totalEpisodes != null &&
-            widget.totalEpisodes! > 1 &&
-            widget.currentEpisodeIndex != null) {
-          final episodeNumber = widget.currentEpisodeIndex! + 1;
-          formattedTitle =
-              '${widget.videoTitle} - 第 $episodeNumber 集 - ${widget.sourceName}';
-        } else {
-          formattedTitle = '${widget.videoTitle} - ${widget.sourceName}';
-        }
-      }
-
-      // 设置设备URL并播放
-      AppLogger.debug('开始连接 DLNA 设备');
-      device.setUrl(widget.currentUrl, title: formattedTitle);
-      device.play();
-
-      if (mounted) {
-        Navigator.of(context).pop(); // 关闭连接对话框
-        Navigator.of(context).pop(); // 关闭设备选择对话框
-
-        // 通知父组件投屏已开始，传递设备对象
-        widget.onCastStarted?.call(device);
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop(); // 关闭连接对话框
-
-        // 显示投屏失败提示
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('投屏失败: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
+      result = await widget.onConnect(device);
+    } catch (error, stackTrace) {
+      result = FailureResult<void>(
+        AppFailure(
+          kind: FailureKind.platform,
+          message: '投屏失败，请重试',
+          cause: error,
+          stackTrace: stackTrace,
+        ),
+      );
     }
+    if (!mounted || generation != _connectionGeneration) return;
+
+    Navigator.of(context).pop();
+    if (result.isFailure) {
+      setState(() => _isConnecting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.failureOrNull?.message ?? '投屏失败，请重试'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    widget.onCastStarted?.call(device);
+    if (mounted) Navigator.of(context).pop();
   }
 }

@@ -11,7 +11,9 @@ import 'playback_models.dart';
 export 'playback_engine.dart';
 export 'playback_models.dart';
 
-/// 页面级播放会话，统一拥有播放器、媒体缓存策略与异步状态。
+/// 单媒体播放会话，统一拥有播放器、缓存策略与异步状态。
+///
+/// [VideoPlayerWidget] 在换源和重试时会重建本会话，使每个媒体都拥有独立的真实首帧信号。
 final class VideoPlaybackSession extends ChangeNotifier {
   VideoPlaybackSession({PlaybackEngine? engine, PlaybackDiagnostic? diagnostic})
     : _engine = engine ?? MediaKitPlaybackEngine(),
@@ -30,8 +32,10 @@ final class VideoPlaybackSession extends ChangeNotifier {
   Future<void> _rateCommandQueue = Future<void>.value();
   Future<void> _volumeCommandQueue = Future<void>.value();
   int _generation = 0;
+  int _openedGeneration = 0;
   int _rateCommandGeneration = 0;
   int _volumeCommandGeneration = 0;
+  bool _controllerFirstFrameWaitStarted = false;
   bool _cacheStateObserved = false;
   bool _cacheStateProbeStarted = false;
   bool _receivedCacheState = false;
@@ -40,16 +44,13 @@ final class VideoPlaybackSession extends ChangeNotifier {
   bool _disposed = false;
   bool _notifierDisposed = false;
   Future<void>? _disposeFuture;
-  String? _currentUrl;
   Map<String, String> _currentHeaders = const <String, String>{};
-  Duration? _currentStartAt;
   PlaybackMediaKind _currentKind = PlaybackMediaKind.networkVod;
 
   VideoPlaybackState get state => _state;
   VideoController get videoController => _engine.videoController;
   double get playbackRate => _state.rate;
   double get volume => _state.volume;
-  String? get currentUrl => _currentUrl;
 
   Future<void> open(
     String url, {
@@ -61,11 +62,10 @@ final class VideoPlaybackSession extends ChangeNotifier {
     final effectiveHeaders = headers == null
         ? _currentHeaders
         : Map<String, String>.unmodifiable(headers);
-    _currentUrl = url;
     _currentHeaders = effectiveHeaders;
-    _currentStartAt = startAt;
     _currentKind = kind;
     final generation = ++_generation;
+    _openedGeneration = 0;
     _cacheStateProbeStarted = false;
     _receivedCacheState = false;
     _receivedObservedCacheState = false;
@@ -93,17 +93,6 @@ final class VideoPlaybackSession extends ChangeNotifier {
     });
     _operationQueue = operation;
     return operation;
-  }
-
-  Future<void> retryCurrent() {
-    final url = _currentUrl;
-    if (url == null || _disposed) return Future<void>.value();
-    return open(
-      url,
-      kind: _currentKind,
-      startAt: _currentStartAt,
-      headers: _currentHeaders,
-    );
   }
 
   Future<void> _openSource(
@@ -167,6 +156,11 @@ final class VideoPlaybackSession extends ChangeNotifier {
     try {
       await _engine.open(url, headers: headers, startAt: startAt);
       if (!_isActive(generation)) return;
+      _openedGeneration = generation;
+      if (!_controllerFirstFrameWaitStarted) {
+        _controllerFirstFrameWaitStarted = true;
+        unawaited(_waitForControllerFirstFrame(generation));
+      }
       await _rateCommandQueue.catchError((Object _, StackTrace _) {});
       if (!_isActive(generation)) return;
       await _engine.setRate(_state.rate);
@@ -200,16 +194,8 @@ final class VideoPlaybackSession extends ChangeNotifier {
       ..add(
         _engine.durations.listen((duration) {
           if (!_isActive(generation)) return;
-          final ready = duration > Duration.zero;
-          _publish(
-            _state.copyWith(
-              duration: duration,
-              ready: ready,
-              opening: ready ? false : _state.opening,
-              buffering: ready ? _engine.buffering : _state.buffering,
-            ),
-          );
-          if (ready &&
+          _publish(_state.copyWith(duration: duration));
+          if (duration > Duration.zero &&
               _currentKind == PlaybackMediaKind.networkVod &&
               _engine.supportsNativeCacheProperties) {
             unawaited(_probeCacheState(generation, policy));
@@ -242,7 +228,6 @@ final class VideoPlaybackSession extends ChangeNotifier {
       ..add(
         _engine.errors.listen((_) {
           if (!_isActive(generation)) return;
-          _currentStartAt = _state.position;
           _diagnose('播放器错误流事件', const _PlaybackStreamError());
           _setFailure(
             generation,
@@ -256,6 +241,22 @@ final class VideoPlaybackSession extends ChangeNotifier {
           );
         }),
       );
+  }
+
+  Future<void> _waitForControllerFirstFrame(int generation) async {
+    try {
+      await _engine.waitUntilFirstFrameRendered();
+      if (!_isActive(generation) || _openedGeneration != generation) return;
+      _publish(
+        _state.copyWith(
+          ready: true,
+          opening: false,
+          buffering: _engine.buffering,
+        ),
+      );
+    } catch (error) {
+      _diagnose('播放器首帧状态读取失败', error);
+    }
   }
 
   Future<void> _probeCacheState(

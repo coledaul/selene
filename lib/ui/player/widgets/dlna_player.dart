@@ -1,44 +1,36 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:selene/utils/app_logger.dart';
 import 'package:flutter/services.dart';
-import 'package:dlna_dart/dlna.dart';
-import 'package:dlna_dart/xmlParser.dart';
+
+import '../../../domain/models/dlna_device.dart';
+import '../../../utils/app_logger.dart';
+import '../../../utils/result.dart';
+import '../view_models/dlna_cast_view_model.dart';
 import 'dlna_player_controls.dart';
 
 /// DLNAPlayer 的页面级控制器。
 class DLNAPlayerController {
-  final _DLNAPlayerState _state;
-
   DLNAPlayerController._(this._state);
 
-  /// 更新视频 URL
-  void updateVideoUrl(String url, String title, {Duration? startAt}) {
-    startAt ??= const Duration();
-    _state.updateVideoUrl(url, title, startAt: startAt);
-  }
+  final _DLNAPlayerState _state;
 
-  /// 获取当前播放位置
-  Duration get currentPosition => _state._position;
+  Future<Result<void>> updateVideoUrl(
+    String url,
+    String title, {
+    Duration? startAt,
+  }) => _state.updateVideoUrl(url, title, startAt: startAt ?? Duration.zero);
+
+  Duration get currentPosition =>
+      _state.widget.castViewModel.playbackState.position;
 }
 
+/// 只负责渲染和转发交互的 DLNA 播放器视图。
 class DLNAPlayer extends StatefulWidget {
-  final DLNADevice device;
-  final VoidCallback? onBackPressed;
-  final VoidCallback? onNextEpisode;
-  final bool isLastEpisode;
-  final VoidCallback? onChangeDevice;
-  final Duration? resumePosition;
-  final Function(Duration)? onStopCasting;
-  final Function(Duration position, Duration duration)? onProgressUpdate;
-  final VoidCallback? onPause;
-  final VoidCallback? onReady;
-  final Function(DLNAPlayerController)? onControllerCreated;
-  final VoidCallback? onVideoCompleted;
-
   const DLNAPlayer({
     super.key,
     required this.device,
+    required this.castViewModel,
     this.onBackPressed,
     this.onNextEpisode,
     this.isLastEpisode = false,
@@ -48,30 +40,85 @@ class DLNAPlayer extends StatefulWidget {
     this.onProgressUpdate,
     this.onPause,
     this.onReady,
+    this.onFailure,
     this.onControllerCreated,
     this.onVideoCompleted,
   });
+
+  final DiscoveredDlnaDevice device;
+  final DlnaCastViewModel castViewModel;
+  final VoidCallback? onBackPressed;
+  final VoidCallback? onNextEpisode;
+  final bool isLastEpisode;
+  final VoidCallback? onChangeDevice;
+  final Duration? resumePosition;
+  final ValueChanged<Duration>? onStopCasting;
+  final void Function(Duration position, Duration duration)? onProgressUpdate;
+  final VoidCallback? onPause;
+  final VoidCallback? onReady;
+  final ValueChanged<AppFailure>? onFailure;
+  final ValueChanged<DLNAPlayerController>? onControllerCreated;
+  final VoidCallback? onVideoCompleted;
 
   @override
   State<DLNAPlayer> createState() => _DLNAPlayerState();
 }
 
 class _DLNAPlayerState extends State<DLNAPlayer> {
-  Timer? _statusTimer;
-  PositionParser? position;
-  Duration _position = Duration.zero;
-  Duration _duration = Duration.zero;
-  bool _isPlaying = false;
-  bool _isLoading = true;
-  Duration _resumePosition = Duration.zero;
+  late DlnaPlaybackState _lastState;
 
   @override
   void initState() {
     super.initState();
-    _resumePosition = widget.resumePosition ?? Duration.zero;
     _setPortraitOrientation();
-    _startStatusPolling();
+    _lastState = widget.castViewModel.playbackState;
+    widget.castViewModel.addListener(_handlePlaybackChanged);
+    widget.castViewModel.startPlaybackMonitoring(
+      widget.device,
+      resumePosition: widget.resumePosition,
+    );
     widget.onControllerCreated?.call(DLNAPlayerController._(this));
+  }
+
+  @override
+  void didUpdateWidget(covariant DLNAPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.castViewModel, oldWidget.castViewModel)) {
+      oldWidget.castViewModel.removeListener(_handlePlaybackChanged);
+      oldWidget.castViewModel.stopPlaybackMonitoring();
+      widget.castViewModel.addListener(_handlePlaybackChanged);
+    }
+    if (widget.device.id != oldWidget.device.id ||
+        !identical(widget.castViewModel, oldWidget.castViewModel)) {
+      _lastState = widget.castViewModel.playbackState;
+      widget.castViewModel.startPlaybackMonitoring(
+        widget.device,
+        resumePosition: widget.resumePosition,
+      );
+    }
+  }
+
+  void _handlePlaybackChanged() {
+    if (!mounted) return;
+    final next = widget.castViewModel.playbackState;
+    final becameReady =
+        _lastState.loading &&
+        !next.loading &&
+        next.deviceId == widget.device.id &&
+        next.duration > Duration.zero;
+    final becameCompleted = !_lastState.completed && next.completed;
+    final progressChanged =
+        _lastState.position != next.position ||
+        _lastState.duration != next.duration;
+    final becameFailed = _lastState.failure == null && next.failure != null;
+    _lastState = next;
+    setState(() {});
+    if (becameReady) widget.onReady?.call();
+    if (!next.loading && progressChanged) {
+      widget.onProgressUpdate?.call(next.position, next.duration);
+    }
+    if (becameCompleted) widget.onVideoCompleted?.call();
+    if (becameFailed) widget.onFailure?.call(next.failure!);
   }
 
   void _setPortraitOrientation() {
@@ -90,160 +137,73 @@ class _DLNAPlayerState extends State<DLNAPlayer> {
     ]);
   }
 
-  void _startStatusPolling() {
-    _statusTimer = Timer.periodic(const Duration(milliseconds: 300), (timer) {
-      _updateStatus();
-    });
-  }
-
-  Future<void> _updateStatus() async {
-    if (!mounted) return;
-
-    try {
-      // 获取播放位置
-      final positionStr = await widget.device.position();
-      if (!mounted) return;
-      final p = PositionParser(positionStr);
-
-      position = p;
-      final newPosition = Duration(seconds: position?.RelTimeInt ?? 0);
-      final newDuration = Duration(seconds: position?.TrackDurationInt ?? 0);
-
-      final transportStr = await widget.device.getTransportInfo();
-      if (!mounted) return;
-      final t = TransportInfoParser(transportStr);
-
-      _isPlaying = t.CurrentTransportState == "PLAYING";
-
-      // 检查进度是否发生变化
-      final positionChanged = newPosition != _position;
-      final durationChanged = newDuration != _duration;
-
-      _position = newPosition;
-      _duration = newDuration;
-
-      // 如果获取到有效的 duration，则不再是加载状态
-      if (_duration.inMilliseconds > 0) {
-        if (_isPlaying && _isLoading) {
-          _isLoading = false;
-          widget.onReady?.call();
-          // 不再是加载状态时，检查 resumePosition，如果不为 0 则跳转并清空
-          if (_resumePosition.inSeconds > 0) {
-            debugPrint('DLNA加载完成，跳转到恢复位置: ${_resumePosition.inSeconds}秒');
-            _seekTo(_resumePosition);
-            _resumePosition = Duration.zero; // 清空 resumePosition
-          }
-        }
-
-        // 如果进度发生变化，通知父组件
-        if (!_isLoading && (positionChanged || durationChanged)) {
-          widget.onProgressUpdate?.call(_position, _duration);
-        }
-
-        // 检查视频是否播放完成（当前位置 >= 总时长 - 1秒）
-        if (!_isLoading &&
-            _duration.inSeconds > 0 &&
-            _position.inSeconds >= _duration.inSeconds - 1 &&
-            _isPlaying) {
-          debugPrint('DLNA视频播放完成');
-          widget.device.pause();
-          widget.onVideoCompleted?.call();
-        }
-      }
-
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (e) {
-      debugPrint('获取DLNA状态失败: $e');
-    }
-  }
-
-  void _togglePlayPause() {
-    if (_isPlaying) {
-      widget.device.pause();
-      _isPlaying = false;
-      // 暂停时保存进度
-      widget.onPause?.call();
-    } else {
-      widget.device.play();
-      _isPlaying = true;
-    }
-    if (mounted) {
-      setState(() {});
-    }
+  Future<void> _togglePlayPause() async {
+    final wasPlaying = widget.castViewModel.playbackState.playing;
+    final result = await widget.castViewModel.togglePlayback();
+    if (!mounted || result.isFailure) return;
+    if (wasPlaying) widget.onPause?.call();
   }
 
   void _stop() {
-    // 通知父组件停止投屏，并传递当前播放位置
-    widget.onStopCasting?.call(_position);
+    widget.onStopCasting?.call(widget.castViewModel.playbackState.position);
   }
 
-  void _seekTo(Duration position) {
-    final hours = position.inHours;
-    final minutes = position.inMinutes.remainder(60);
-    final seconds = position.inSeconds.remainder(60);
-    final timeStr =
-        '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    widget.device.seek(timeStr);
-  }
-
-  void _setVolume(double volume) {
-    final volumeInt = (volume * 100).round();
-    widget.device.volume(volumeInt);
-  }
-
-  /// 更新视频 URL
-  void updateVideoUrl(String url, String title, {Duration? startAt}) {
-    if (!mounted) return;
+  Future<Result<void>> updateVideoUrl(
+    String url,
+    String title, {
+    required Duration startAt,
+  }) async {
+    if (!mounted) {
+      return const FailureResult<void>(
+        AppFailure(kind: FailureKind.cancellation, message: '投屏页面已关闭'),
+      );
+    }
 
     AppLogger.debug('DLNA 播放地址已更新');
-
-    widget.device.pause();
-    _isPlaying = false;
-
-    // 关闭状态轮询
-    _statusTimer?.cancel();
-
-    setState(() {
-      _isLoading = true;
-      _resumePosition = startAt ?? Duration.zero;
-    });
-
-    // 设置新的 URL
-    widget.device.setUrl(url, title: title);
-
-    // 开始播放
-    widget.device.play();
-
-    // 重新启动状态轮询
-    _startStatusPolling();
+    widget.castViewModel.stopPlaybackMonitoring();
+    final result = await widget.castViewModel.connect(
+      widget.device,
+      mediaUrl: url,
+      title: title,
+    );
+    if (mounted && result.isSuccess) {
+      _lastState = widget.castViewModel.playbackState;
+      widget.castViewModel.startPlaybackMonitoring(
+        widget.device,
+        resumePosition: startAt,
+      );
+    }
+    return result;
   }
 
   @override
   void dispose() {
-    _statusTimer?.cancel();
+    widget.castViewModel.removeListener(_handlePlaybackChanged);
+    widget.castViewModel.stopPlaybackMonitoring();
     _restoreOrientation();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final state = widget.castViewModel.playbackState;
     return Container(
       color: Colors.black,
       child: DLNAPlayerControls(
-        device: widget.device,
-        position: _position,
-        duration: _duration,
-        isPlaying: _isPlaying,
-        isLoading: _isLoading,
+        deviceName: widget.device.friendlyName,
+        position: state.position,
+        duration: state.duration,
+        isPlaying: state.playing,
+        isLoading: state.loading,
         onBackPressed: widget.onBackPressed,
         onNextEpisode: widget.onNextEpisode,
         isLastEpisode: widget.isLastEpisode,
-        onPlayPause: _togglePlayPause,
+        onPlayPause: () => unawaited(_togglePlayPause()),
         onStop: _stop,
-        onSeek: _seekTo,
-        onVolumeChange: _setVolume,
+        onSeek: (position) =>
+            unawaited(widget.castViewModel.seekPlayback(position)),
+        onVolumeChange: (volume) =>
+            unawaited(widget.castViewModel.setPlaybackVolume(volume)),
         onChangeDevice: widget.onChangeDevice,
       ),
     );

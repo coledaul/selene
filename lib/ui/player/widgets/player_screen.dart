@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:selene/domain/models/dlna_device.dart';
 import 'package:selene/domain/models/douban_movie.dart';
 import 'package:selene/domain/models/play_record.dart';
 import 'package:selene/domain/models/player_models.dart';
@@ -14,10 +15,12 @@ import 'package:selene/ui/core/widgets/switch_loading_overlay.dart';
 import 'package:selene/ui/core/widgets/windows_title_bar.dart';
 import 'package:selene/ui/core/widgets/video_card.dart';
 import 'package:selene/ui/player/view_models/player_view_model.dart';
+import 'package:selene/ui/player/view_models/dlna_cast_view_model.dart';
 import 'package:selene/ui/player/widgets/dlna_device_dialog.dart';
 import 'package:selene/ui/player/widgets/dlna_player.dart';
 import 'package:selene/ui/player/widgets/player_details_panel.dart';
 import 'package:selene/ui/player/widgets/player_episodes_panel.dart';
+import 'package:selene/ui/player/widgets/player_page_problem_overlay.dart';
 import 'package:selene/ui/player/widgets/player_sources_panel.dart';
 import 'package:selene/ui/player/widgets/video_player_surface.dart';
 import 'package:selene/ui/player/widgets/video_player_widget.dart';
@@ -34,6 +37,7 @@ class PlayerScreen extends StatefulWidget {
   final String? stype;
   final String? prefer;
   final PlayerViewModel Function() viewModelFactory;
+  final DlnaCastViewModel Function() dlnaCastViewModelFactory;
 
   const PlayerScreen({
     super.key,
@@ -45,6 +49,7 @@ class PlayerScreen extends StatefulWidget {
     this.stype,
     this.prefer,
     required this.viewModelFactory,
+    required this.dlnaCastViewModelFactory,
   });
 
   @override
@@ -54,10 +59,11 @@ class PlayerScreen extends StatefulWidget {
 class _PlayerScreenState extends State<PlayerScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late final PlayerViewModel _viewModel;
+  late final DlnaCastViewModel _dlnaCastViewModel;
+  late final Future<void> _recentDeviceLoad;
   late SystemUiOverlayStyle _originalStyle;
   bool _isInitialized = false;
-  String? _errorMessage;
-  bool _showError = false;
+  PlayerPageProblem? _pageProblem;
 
   // 缓存设备类型，避免分辨率变化时改变布局
   late bool _isTablet;
@@ -101,7 +107,7 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   // 投屏状态
   bool _isCasting = false;
-  dynamic _dlnaDevice;
+  DiscoveredDlnaDevice? _dlnaDevice;
   Duration? _castStartPosition;
   Duration? _dlnaCurrentPosition; // DLNA 当前播放位置
   Duration? _dlnaCurrentDuration; // DLNA 视频总时长
@@ -138,7 +144,9 @@ class _PlayerScreenState extends State<PlayerScreen>
   void initState() {
     super.initState();
     _viewModel = widget.viewModelFactory();
+    _dlnaCastViewModel = widget.dlnaCastViewModelFactory();
     _viewModel.addListener(_handleViewModelChanged);
+    _recentDeviceLoad = _loadRecentDlnaDevice();
     _refreshAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
@@ -169,6 +177,14 @@ class _PlayerScreenState extends State<PlayerScreen>
           _loadingProgress = state.loadingProgress;
         }
       });
+    }
+  }
+
+  Future<void> _loadRecentDlnaDevice() async {
+    final result = await _dlnaCastViewModel.loadRecentDevice();
+    if (result.isFailure &&
+        result.failureOrNull?.kind != FailureKind.cancellation) {
+      AppLogger.debug('最近投屏设备读取失败', error: result.failureOrNull);
     }
   }
 
@@ -205,7 +221,10 @@ class _PlayerScreenState extends State<PlayerScreen>
     );
     if (!_isActiveLoad(loadGeneration)) return;
     if (result.isFailure || currentDetail == null) {
-      showError(result.failureOrNull?.message ?? '未找到匹配结果');
+      _showPageProblem(
+        result.failureOrNull?.message ?? '未找到匹配结果',
+        retry: _retryInitialLoad,
+      );
       return;
     }
     final warning = _viewModel.state.warningMessage;
@@ -295,49 +314,38 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   // 处理返回按钮点击
   void _onBackPressed() async {
-    // 如果正在投屏，停止投屏
-    if (_isCasting && _dlnaDevice != null) {
-      try {
-        // 显示弹窗让用户选择
-        final shouldStop = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('停止投屏'),
-            content: const Text('DLNA 设备可继续保持播放，是否需要停止？\n\n（保持播放时无法同步进度和播放记录）'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('保持'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('停止'),
-              ),
-            ],
-          ),
-        );
-        if (!mounted) return;
-
-        // 如果用户选择停止，才调用 stop
-        if (shouldStop == true) {
-          try {
-            _dlnaDevice.stop();
-            debugPrint('用户选择停止投屏');
-          } catch (e) {
-            debugPrint('停止投屏失败: $e');
-          }
-        } else {
-          debugPrint('用户选择保持播放');
-        }
-      } catch (e) {
-        debugPrint('停止投屏失败: $e');
-      }
-    }
+    if (_isCasting && _dlnaDevice != null) await _confirmRemotePlaybackExit();
 
     // 关闭页面前保存进度
     if (!mounted) return;
     _saveProgress(force: true, scene: '返回按钮');
     Navigator.of(context).pop();
+  }
+
+  Future<void> _confirmRemotePlaybackExit() async {
+    final device = _dlnaDevice;
+    if (device == null) return;
+    final shouldStop = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('停止投屏'),
+        content: const Text('DLNA 设备可继续保持播放，是否需要停止？\n\n（保持播放时无法同步进度和播放记录）'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('保持'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('停止'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || shouldStop != true) return;
+    final result = await _dlnaCastViewModel.stopPlayback(device);
+    if (!mounted || result.isSuccess) return;
+    _showToast(result.failureOrNull?.message ?? '停止投屏失败');
   }
 
   // 退出网页全屏
@@ -499,25 +507,38 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   /// 显示错误信息
-  void showError(String message) {
+  void _showPageProblem(String message, {PlayerPageRetry? retry}) {
     if (mounted) {
       setState(() {
-        _errorMessage = message;
-        _showError = true;
+        _pageProblem = PlayerPageProblem(message: message, retry: retry);
         _isLoading = false;
         _showSwitchLoadingOverlay = false;
       });
     }
   }
 
-  /// 隐藏错误信息
-  void hideError() {
-    if (mounted) {
-      setState(() {
-        _showError = false;
-        _errorMessage = null;
-      });
-    }
+  Future<void> _retryInitialLoad() async {
+    if (!mounted) return;
+    setState(() {
+      _pageProblem = null;
+      _isLoading = true;
+    });
+    await initVideoData();
+  }
+
+  Future<void> _retryPlaybackUrl(String url, Duration? startAt) async {
+    if (!mounted) return;
+    setState(() {
+      _pageProblem = null;
+      _showSwitchLoadingOverlay = true;
+      _switchLoadingMessage = '视频加载中...';
+    });
+    await updateVideoUrl(url, startAt: startAt);
+  }
+
+  void _finishPlaybackOpeningWithFailure() {
+    if (!mounted) return;
+    setState(() => _showSwitchLoadingOverlay = false);
   }
 
   void updateLoadingMessage(String message) {
@@ -564,50 +585,61 @@ class _PlayerScreenState extends State<PlayerScreen>
         return;
       }
       if (resolved.isFailure) {
-        showError(resolved.failureOrNull?.message ?? '播放地址解析失败，请重试');
+        _showPageProblem(
+          resolved.failureOrNull?.message ?? '播放地址解析失败，请重试',
+          retry: () => _retryPlaybackUrl(newUrl, startAt),
+        );
         return;
       }
       final playbackMedia = resolved.valueOrNull!;
 
       if (targetIsCasting) {
-        // 构建标题：{title} - {第 x 集} - {sourceName}
-        // 如果总集数为 1，则不显示集数
-        final sourceName = currentDetail?.sourceName ?? currentSource;
-        String formattedTitle;
-        if (totalEpisodes > 1) {
-          final episodeNumber = currentEpisodeIndex + 1;
-          formattedTitle = '$videoTitle - 第 $episodeNumber 集 - $sourceName';
-        } else {
-          formattedTitle = '$videoTitle - $sourceName';
+        final controller = _dlnaPlayerController;
+        if (controller == null) {
+          _showPageProblem(
+            '投屏控制器尚未准备完成，请重试',
+            retry: () => _retryPlaybackUrl(newUrl, startAt),
+          );
+          return;
         }
-        // 投屏状态：调用 DLNA 播放器的 updateVideoUrl
-        _dlnaPlayerController?.updateVideoUrl(
+        final castResult = await controller.updateVideoUrl(
           playbackMedia.url,
-          formattedTitle,
+          _buildCastTitle(),
           startAt: startAt,
         );
+        if (!mounted || sourceGeneration != _playbackSourceGeneration) return;
+        if (castResult.isFailure) {
+          _showPageProblem(
+            castResult.failureOrNull?.message ?? '切换投屏内容失败，请重试',
+            retry: () => _retryPlaybackUrl(newUrl, startAt),
+          );
+          return;
+        }
       } else {
         // 本地播放：根据设备类型调用对应播放器的 updateDataSource
         final controller = _videoPlayerController;
         if (controller == null) {
-          showError('播放器尚未准备完成，请重试');
+          _showPageProblem(
+            '播放器尚未准备完成，请重试',
+            retry: () => _retryPlaybackUrl(newUrl, startAt),
+          );
           return;
         }
-        final failure = await controller.updateDataSource(
-          playbackMedia,
-          startAt: startAt,
-        );
+        await controller.updateDataSource(playbackMedia, startAt: startAt);
         if (!mounted || sourceGeneration != _playbackSourceGeneration) return;
-        if (failure != null) {
-          showError(failure.message);
-        }
       }
     } on AppFailure catch (failure) {
       if (!mounted || sourceGeneration != _playbackSourceGeneration) return;
-      showError(failure.message);
+      _showPageProblem(
+        failure.message,
+        retry: () => _retryPlaybackUrl(newUrl, startAt),
+      );
     } catch (_) {
       if (!mounted || sourceGeneration != _playbackSourceGeneration) return;
-      showError('切换视频失败，请重试');
+      _showPageProblem(
+        '切换视频失败，请重试',
+        retry: () => _retryPlaybackUrl(newUrl, startAt),
+      );
     }
   }
 
@@ -617,7 +649,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     if (detail == null ||
         episodeIndex < 0 ||
         episodeIndex >= detail.episodes.length) {
-      showError('当前剧集没有可用的投屏地址');
+      _showToast('当前剧集没有可用的投屏地址');
       return null;
     }
 
@@ -631,10 +663,18 @@ class _PlayerScreenState extends State<PlayerScreen>
     );
     if (!mounted || sourceGeneration != _playbackSourceGeneration) return null;
     if (resolved.isFailure) {
-      showError(resolved.failureOrNull?.message ?? '投屏地址解析失败，请重试');
+      _showToast(resolved.failureOrNull?.message ?? '投屏地址解析失败，请重试');
       return null;
     }
     return resolved.valueOrNull!.url;
+  }
+
+  String _buildCastTitle() {
+    final sourceName = currentDetail?.sourceName ?? currentSource;
+    if (totalEpisodes > 1) {
+      return '$videoTitle - 第 ${currentEpisodeIndex + 1} 集 - $sourceName';
+    }
+    return '$videoTitle - $sourceName';
   }
 
   Future<void> _showDownloadSelector() async {
@@ -695,6 +735,10 @@ class _PlayerScreenState extends State<PlayerScreen>
 
     // 添加视频播放状态监听器来触发保存检查
     _addVideoProgressListener();
+  }
+
+  void _onVideoPlayerFailure(AppFailure _) {
+    _finishPlaybackOpeningWithFailure();
   }
 
   /// 添加视频播放进度监听器
@@ -986,6 +1030,7 @@ class _PlayerScreenState extends State<PlayerScreen>
               _videoPlayerController = controller;
             },
             onReady: _onVideoPlayerReady,
+            onFailure: _onVideoPlayerFailure,
             onNextEpisode: _onNextEpisode,
             onVideoCompleted: _onVideoCompleted,
             onPause: () {
@@ -995,8 +1040,7 @@ class _PlayerScreenState extends State<PlayerScreen>
             isLastEpisode:
                 currentDetail != null &&
                 currentEpisodeIndex >= currentDetail!.episodes.length - 1,
-            onCastStarted: _onCastStarted,
-            onCastUrlRequested: _resolveRemoteCastUrl,
+            onCastRequested: _showDlnaDeviceDialog,
             videoTitle: videoTitle,
             currentEpisodeIndex: currentEpisodeIndex,
             totalEpisodes: totalEpisodes,
@@ -1009,7 +1053,9 @@ class _PlayerScreenState extends State<PlayerScreen>
           ),
         if (_isCasting && _dlnaDevice != null)
           DLNAPlayer(
-            device: _dlnaDevice,
+            key: ValueKey<String>(_dlnaDevice!.endpoint),
+            device: _dlnaDevice!,
+            castViewModel: _dlnaCastViewModel,
             onBackPressed: _onBackPressed,
             onNextEpisode: _onNextEpisode,
             onVideoCompleted: _onVideoCompleted,
@@ -1025,6 +1071,7 @@ class _PlayerScreenState extends State<PlayerScreen>
               _saveProgress(force: true, scene: 'DLNA暂停');
             },
             onReady: _onVideoPlayerReady,
+            onFailure: (failure) => _showToast(failure.message),
             onControllerCreated: (controller) {
               _dlnaPlayerController = controller;
             },
@@ -1040,18 +1087,121 @@ class _PlayerScreenState extends State<PlayerScreen>
     );
   }
 
-  /// 投屏开始回调
-  void _onCastStarted(dynamic device) {
-    // 保存当前播放位置
-    final currentPos = _videoPlayerController?.currentPosition;
+  Future<void> _showDlnaDeviceDialog() async {
+    if (currentDetail == null) return;
+    await _recentDeviceLoad;
+    if (!mounted) return;
+    final castUrl = await _resolveRemoteCastUrl();
+    if (!mounted || castUrl == null || castUrl.isEmpty) return;
 
+    final sourceGeneration = _playbackSourceGeneration;
+    final wasCasting = _isCasting;
+    final previousDevice = _dlnaDevice;
+    Duration? resumePosition;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => DLNADeviceDialog(
+        currentDevice: previousDevice,
+        recentDevice: _dlnaCastViewModel.recentDevice,
+        castViewModel: _dlnaCastViewModel,
+        onConnect: (device) async {
+          if (!mounted || sourceGeneration != _playbackSourceGeneration) {
+            return const FailureResult<void>(
+              AppFailure(
+                kind: FailureKind.cancellation,
+                message: '播放内容已变化，请重新选择投屏设备',
+              ),
+            );
+          }
+          resumePosition = wasCasting
+              ? (_dlnaCurrentPosition ??
+                    _dlnaPlayerController?.currentPosition ??
+                    _castStartPosition)
+              : _videoPlayerController?.currentPosition;
+          return _connectToDlnaDevice(
+            device,
+            castUrl: castUrl,
+            previousDevice: previousDevice,
+            wasCasting: wasCasting,
+          );
+        },
+        onCastStarted: (device) {
+          _activateDlnaDevice(
+            device,
+            resumePosition: resumePosition,
+            wasCasting: wasCasting,
+          );
+          unawaited(_rememberDlnaDevice(device));
+        },
+      ),
+    );
+  }
+
+  Future<Result<void>> _connectToDlnaDevice(
+    DiscoveredDlnaDevice device, {
+    required String castUrl,
+    required DiscoveredDlnaDevice? previousDevice,
+    required bool wasCasting,
+  }) async {
+    final localController = wasCasting ? null : _videoPlayerController;
+    final localWasPlaying = localController?.isPlaying ?? false;
+    if (!wasCasting) {
+      _saveProgress(force: true, scene: '开始投屏');
+      if (localWasPlaying) await localController?.pause();
+    }
+
+    final result = await _dlnaCastViewModel.connect(
+      device,
+      mediaUrl: castUrl,
+      title: _buildCastTitle(),
+    );
+    if (result.isFailure) {
+      if (localWasPlaying) {
+        try {
+          await localController?.play();
+        } catch (error, stackTrace) {
+          AppLogger.debug(
+            '投屏失败后恢复本地播放失败',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
+      }
+      return result;
+    }
+
+    if (wasCasting && previousDevice != null) {
+      final stopResult = await _dlnaCastViewModel.stopPlayback(previousDevice);
+      if (stopResult.isFailure) {
+        AppLogger.debug('切换投屏设备后停止原设备失败', error: stopResult.failureOrNull);
+      }
+    }
+    return const Success<void>(null);
+  }
+
+  void _activateDlnaDevice(
+    DiscoveredDlnaDevice device, {
+    required Duration? resumePosition,
+    required bool wasCasting,
+  }) {
+    if (!mounted) return;
     setState(() {
       _playbackSourceGeneration++;
       _isCasting = true;
       _dlnaDevice = device;
-      _castStartPosition = currentPos;
-      _videoPlayerController = null;
+      _castStartPosition = resumePosition;
+      _dlnaCurrentPosition = resumePosition;
+      _dlnaPlayerController = null;
+      if (!wasCasting) _videoPlayerController = null;
     });
+  }
+
+  Future<void> _rememberDlnaDevice(DiscoveredDlnaDevice device) async {
+    final result = await _dlnaCastViewModel.rememberDevice(
+      device.toRecentDevice(),
+    );
+    if (!mounted || result.isSuccess) return;
+    _showToast(result.failureOrNull?.message ?? '最近投屏设备保存失败');
   }
 
   /// DLNA 进度更新回调
@@ -1064,37 +1214,8 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   /// 停止投屏回调
   void _onStopCasting(Duration currentPosition) async {
-    // 显示弹窗让用户选择
-    final shouldStop = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('停止投屏'),
-        content: const Text('DLNA 设备可继续保持播放，是否需要停止？\n\n（保持播放时无法同步进度和播放记录）'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('保持'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('停止'),
-          ),
-        ],
-      ),
-    );
+    await _confirmRemotePlaybackExit();
     if (!mounted) return;
-
-    // 如果用户选择停止，才调用 stop
-    if (shouldStop == true) {
-      try {
-        _dlnaDevice.stop();
-        debugPrint('用户选择停止投屏');
-      } catch (e) {
-        debugPrint('停止投屏失败: $e');
-      }
-    } else {
-      debugPrint('用户选择保持播放');
-    }
 
     debugPrint('停止投屏，当前位置: ${currentPosition.inSeconds}秒');
 
@@ -1124,32 +1245,7 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   /// 换设备回调
-  void _onChangeDevice() async {
-    if (currentDetail == null) return;
-
-    // 获取当前播放的 URL
-    final currentUrl = currentDetail!.episodes[currentEpisodeIndex];
-
-    // 显示设备选择对话框
-    await showDialog(
-      context: context,
-      builder: (context) => DLNADeviceDialog(
-        currentUrl: currentUrl,
-        currentDevice: _dlnaDevice,
-        resumePosition: _castStartPosition,
-        videoTitle: videoTitle,
-        currentEpisodeIndex: currentEpisodeIndex,
-        totalEpisodes: totalEpisodes,
-        sourceName: currentDetail?.sourceName ?? currentSource,
-        onCastStarted: (device) {
-          if (!mounted) return;
-          setState(() {
-            _dlnaDevice = device;
-          });
-        },
-      ),
-    );
-  }
+  void _onChangeDevice() => unawaited(_showDlnaDeviceDialog());
 
   /// 构建视频详情展示区域
   Widget _buildVideoDetailSection(ThemeData theme) {
@@ -2236,227 +2332,6 @@ class _PlayerScreenState extends State<PlayerScreen>
     }
   }
 
-  /// 构建错误覆盖层
-  Widget _buildErrorOverlay(ThemeData theme) {
-    final isDarkMode = theme.brightness == Brightness.dark;
-
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        gradient: isDarkMode
-            ? null
-            : const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFe6f3fb),
-                  Color(0xFFeaf3f7),
-                  Color(0xFFf7f7f3),
-                  Color(0xFFe9ecef),
-                  Color(0xFFdbe3ea),
-                  Color(0xFFd3dde6),
-                ],
-                stops: [0.0, 0.18, 0.38, 0.60, 0.80, 1.0],
-              ),
-        color: isDarkMode ? Colors.black : null,
-      ),
-      child: Stack(
-        children: [
-          // 装饰性圆点
-          Positioned(
-            top: 100,
-            left: 40,
-            child: Container(
-              width: 12,
-              height: 12,
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            top: 140,
-            left: 60,
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: Colors.orange,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            top: 120,
-            right: 50,
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
-                color: Colors.amber,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-
-          // 主要内容
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // 错误图标
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFFFF8C42), Color(0xFFE74C3C)],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.orange.withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Text('😵', style: TextStyle(fontSize: 60)),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // 错误标题
-                Text(
-                  '哎呀, 出现了一些问题',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: isDarkMode ? Colors.white : Colors.black87,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-
-                // 错误信息框
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 40),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF8B4513).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFF8B4513).withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFFE74C3C),
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // 提示文字
-                Text(
-                  '请检查网络连接或尝试刷新页面',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 40),
-
-                // 按钮组
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  child: Column(
-                    children: [
-                      // 返回按钮
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            hideError();
-                            _onBackPressed();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            elevation: 0,
-                            shadowColor: Colors.transparent,
-                          ),
-                          child: const Text(
-                            '返回上页',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // 重试按钮
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: hideError,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDarkMode
-                                ? const Color(0xFF2D3748)
-                                : const Color(0xFFE2E8F0),
-                            foregroundColor: isDarkMode
-                                ? Colors.white
-                                : const Color(0xFF3182CE),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            elevation: 0,
-                            shadowColor: Colors.transparent,
-                          ),
-                          child: Text(
-                            '重新尝试',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: isDarkMode
-                                  ? Colors.white
-                                  : const Color(0xFF3182CE),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -2514,6 +2389,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     _viewModel
       ..removeListener(_handleViewModelChanged)
       ..dispose();
+    _dlnaCastViewModel.dispose();
     super.dispose();
   }
 
@@ -2578,8 +2454,11 @@ class _PlayerScreenState extends State<PlayerScreen>
                     // 播放器层（使用 Positioned 控制位置和大小）
                     _buildPlayerLayer(theme),
                     // 错误覆盖层
-                    if (_showError && _errorMessage != null)
-                      _buildErrorOverlay(theme),
+                    if (_pageProblem case final problem?)
+                      PlayerPageProblemOverlay(
+                        problem: problem,
+                        onBackPressed: _onBackPressed,
+                      ),
                     // 加载覆盖层
                     if (_isLoading) _buildLoadingOverlay(theme),
                   ],

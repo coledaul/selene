@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:dlna_dart/dlna.dart';
 import 'package:selene/utils/device_utils.dart';
 
 // 带 hover 效果的按钮组件（仅在 PC 端生效）
@@ -118,7 +117,7 @@ class _CapsuleHoverButtonState extends State<CapsuleHoverButton> {
 }
 
 class DLNAPlayerControls extends StatefulWidget {
-  final DLNADevice device;
+  final String deviceName;
   final Duration position;
   final Duration duration;
   final bool isPlaying;
@@ -134,7 +133,7 @@ class DLNAPlayerControls extends StatefulWidget {
 
   const DLNAPlayerControls({
     super.key,
-    required this.device,
+    required this.deviceName,
     required this.position,
     required this.duration,
     required this.isPlaying,
@@ -276,7 +275,7 @@ class _DLNAPlayerControlsState extends State<DLNAPlayerControls> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  widget.device.info.friendlyName,
+                  widget.deviceName,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -372,7 +371,7 @@ class _DLNAPlayerControlsState extends State<DLNAPlayerControls> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                widget.device.info.friendlyName,
+                widget.deviceName,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,

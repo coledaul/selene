@@ -10,6 +10,7 @@ import '../data/repositories/anime_repository.dart';
 import '../data/repositories/cache_repository.dart';
 import '../data/repositories/catalog_repository.dart';
 import '../data/repositories/download_repository.dart';
+import '../data/repositories/dlna_device_repository.dart';
 import '../data/repositories/player_repository.dart';
 import '../data/repositories/metadata_repository.dart';
 import '../data/repositories/settings_repository.dart';
@@ -19,6 +20,9 @@ import '../data/repositories/update/update_repository.dart';
 import '../data/services/auth_profile_service.dart';
 import '../data/services/credential_service.dart';
 import '../data/services/download_export_service.dart';
+import '../data/services/dlna_device_preferences_service.dart';
+import '../data/services/dlna_discovery_service.dart';
+import '../data/services/dlna_playback_service.dart';
 import '../data/services/settings_preferences_service.dart';
 import '../data/services/search_stream_service.dart';
 import '../data/services/subscription_api_service.dart';
@@ -186,6 +190,15 @@ class AppDependencies {
       apiService: _apiService,
       streamService: DefaultSearchStreamService(_apiClient),
       sessionState: authRepository,
+    );
+  }
+
+  /// 扫描是页面级资源，每个 ViewModel 必须拥有独立发现会话。
+  DlnaDeviceRepository createDlnaDeviceRepository() {
+    return DefaultDlnaDeviceRepository(
+      preferencesService: SharedPreferencesDlnaDeviceService(),
+      discoveryService: DefaultDlnaDiscoveryService(),
+      playbackService: const DefaultDlnaPlaybackService(),
     );
   }
 

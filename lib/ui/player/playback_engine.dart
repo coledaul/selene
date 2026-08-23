@@ -22,6 +22,7 @@ abstract interface class PlaybackEngine {
   bool get supportsNativeCacheProperties;
 
   Future<void> stop();
+  Future<void> waitUntilFirstFrameRendered();
   Future<void> open(
     String url, {
     required Map<String, String> headers,
@@ -96,6 +97,10 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
 
   @override
   Future<void> stop() => _player.stop();
+
+  @override
+  Future<void> waitUntilFirstFrameRendered() =>
+      _videoController.waitUntilFirstFrameRendered;
 
   @override
   Future<void> open(

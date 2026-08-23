@@ -19,12 +19,12 @@ class VideoPlayerWidget extends StatefulWidget {
   final VoidCallback? onBackPressed;
   final Function(VideoPlayerWidgetController)? onControllerCreated;
   final VoidCallback? onReady;
+  final ValueChanged<AppFailure>? onFailure;
   final VoidCallback? onNextEpisode;
   final VoidCallback? onVideoCompleted;
   final VoidCallback? onPause;
   final bool isLastEpisode;
-  final Function(dynamic)? onCastStarted;
-  final Future<String?> Function()? onCastUrlRequested;
+  final Future<void> Function()? onCastRequested;
   final String? videoTitle;
   final String? overlayTitle;
   final int? currentEpisodeIndex;
@@ -45,12 +45,12 @@ class VideoPlayerWidget extends StatefulWidget {
     this.onBackPressed,
     this.onControllerCreated,
     this.onReady,
+    this.onFailure,
     this.onNextEpisode,
     this.onVideoCompleted,
     this.onPause,
     this.isLastEpisode = false,
-    this.onCastStarted,
-    this.onCastUrlRequested,
+    this.onCastRequested,
     this.videoTitle,
     this.overlayTitle,
     this.currentEpisodeIndex,
@@ -70,68 +70,60 @@ class VideoPlayerWidget extends StatefulWidget {
 
 class VideoPlayerWidgetController {
   VideoPlayerWidgetController._({
-    required VideoPlaybackSession session,
+    required _VideoPlayerWidgetState owner,
     required VoidCallback exitWebFullscreen,
     required bool Function() isPipMode,
-  }) : _session = session,
+  }) : _owner = owner,
        _exitWebFullscreen = exitWebFullscreen,
        _isPipMode = isPipMode;
 
-  final VideoPlaybackSession _session;
+  final _VideoPlayerWidgetState _owner;
   final VoidCallback _exitWebFullscreen;
   final bool Function() _isPipMode;
 
-  Future<AppFailure?> updateDataSource(
+  Future<void> updateDataSource(
     PlaybackMediaSource media, {
     Duration? startAt,
     Map<String, String>? headers,
-  }) async {
-    await _session.open(
-      media.url,
-      kind: media.kind,
-      startAt: startAt,
-      headers: headers,
-    );
-    return _session.state.failure;
-  }
+  }) => _owner._replaceMedia(media, startAt: startAt, headers: headers);
 
   Future<void> seekTo(Duration position) async {
-    await _session.seek(position);
+    await _owner._session.seek(position);
   }
 
-  Duration? get currentPosition => _session.state.position;
+  Duration? get currentPosition => _owner._session.state.position;
 
-  Duration? get duration => _session.state.duration;
+  Duration? get duration => _owner._session.state.duration;
 
-  bool get isPlaying => _session.state.playing;
+  bool get isPlaying => _owner._session.state.playing;
 
   Future<void> pause() async {
-    await _session.pause();
+    await _owner._session.pause();
   }
 
   Future<void> play() async {
-    await _session.play();
+    await _owner._session.play();
   }
 
   void addProgressListener(VoidCallback listener) {
-    _session.addProgressListener(listener);
+    _owner._addProgressListener(listener);
   }
 
   void removeProgressListener(VoidCallback listener) {
-    _session.removeProgressListener(listener);
+    _owner._removeProgressListener(listener);
   }
 
   Future<void> setSpeed(double speed) async {
-    await _session.setRate(speed);
+    await _owner._session.setRate(speed);
   }
 
-  double get playbackSpeed => _session.playbackRate;
+  double get playbackSpeed => _owner._session.playbackRate;
 
   Future<void> setVolume(double volume) async {
-    await _session.setVolume(volume);
+    await _owner._session.setVolume(volume);
   }
 
-  double? get volume => _session.volume;
+  double? get volume => _owner._session.volume;
 
   void exitWebFullscreen() {
     _exitWebFullscreen();
@@ -142,8 +134,14 @@ class VideoPlayerWidgetController {
 
 class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     with WidgetsBindingObserver {
-  late final VideoPlaybackSession _session;
+  late VideoPlaybackSession _session;
   late VideoPlaybackState _lastPlaybackState;
+  final Set<VoidCallback> _progressListeners = <VoidCallback>{};
+  Future<void> _sourceQueue = Future<void>.value();
+  int _sourceGeneration = 0;
+  PlaybackMediaSource? _currentMedia;
+  Map<String, String> _currentHeaders = const <String, String>{};
+  Duration? _currentStartAt;
   VoidCallback? _exitWebFullscreenCallback;
   final Pip _pip = Pip();
   bool _isPipMode = false;
@@ -156,27 +154,25 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _session = widget.sessionFactory?.call() ?? VideoPlaybackSession();
+    _session = _createSession();
     _lastPlaybackState = _session.state;
     _session.addListener(_handleSessionChanged);
     _setupPip();
     _registerPipObserver();
     widget.onControllerCreated?.call(
       VideoPlayerWidgetController._(
-        session: _session,
+        owner: this,
         exitWebFullscreen: _exitWebFullscreen,
         isPipMode: () => _isPipMode,
       ),
     );
     final url = widget.url;
     if (url != null) {
-      unawaited(
-        _session.open(
-          url,
-          kind: _mediaKind,
-          headers: widget.headers ?? const <String, String>{},
-        ),
+      _currentMedia = PlaybackMediaSource(url: url, kind: _mediaKind);
+      _currentHeaders = Map<String, String>.unmodifiable(
+        widget.headers ?? const <String, String>{},
       );
+      unawaited(_session.open(url, kind: _mediaKind, headers: _currentHeaders));
     }
   }
 
@@ -191,12 +187,87 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     final url = widget.url;
     if (sourceChanged && url != null) {
       unawaited(
-        _session.open(
-          url,
-          kind: _mediaKind,
-          headers: widget.headers ?? const <String, String>{},
+        _replaceMedia(
+          PlaybackMediaSource(url: url, kind: _mediaKind),
+          headers: widget.headers,
         ),
       );
+    }
+  }
+
+  VideoPlaybackSession _createSession() =>
+      widget.sessionFactory?.call() ?? VideoPlaybackSession();
+
+  Future<void> _replaceMedia(
+    PlaybackMediaSource media, {
+    Duration? startAt,
+    Map<String, String>? headers,
+  }) {
+    _currentMedia = media;
+    _currentStartAt = startAt;
+    _currentHeaders = Map<String, String>.unmodifiable(
+      headers ?? const <String, String>{},
+    );
+    final generation = ++_sourceGeneration;
+    final previous = _sourceQueue.catchError((Object _, StackTrace _) {});
+    final operation = previous.then<void>((_) async {
+      if (!_isActiveSource(generation)) return;
+      final oldSession = _session;
+      final rate = oldSession.playbackRate;
+      final volume = oldSession.volume;
+      oldSession.removeListener(_handleSessionChanged);
+      for (final listener in _progressListeners) {
+        oldSession.removeProgressListener(listener);
+      }
+      await oldSession.disposeSession();
+      if (!_isActiveSource(generation)) return;
+
+      final nextSession = _createSession();
+      _session = nextSession;
+      _lastPlaybackState = nextSession.state;
+      nextSession.addListener(_handleSessionChanged);
+      for (final listener in _progressListeners) {
+        nextSession.addProgressListener(listener);
+      }
+      final rateOperation = nextSession.setRate(rate);
+      final volumeOperation = nextSession.setVolume(volume);
+      final openOperation = nextSession.open(
+        media.url,
+        kind: media.kind,
+        startAt: startAt,
+        headers: _currentHeaders,
+      );
+      if (mounted) setState(() {});
+      await Future.wait(<Future<void>>[
+        rateOperation,
+        volumeOperation,
+        openOperation,
+      ]);
+    });
+    _sourceQueue = operation;
+    return operation;
+  }
+
+  Future<void> _retryCurrentMedia() {
+    final media = _currentMedia;
+    if (media == null) return Future<void>.value();
+    final position = _session.state.position;
+    final startAt = position > Duration.zero ? position : _currentStartAt;
+    return _replaceMedia(media, startAt: startAt, headers: _currentHeaders);
+  }
+
+  bool _isActiveSource(int generation) =>
+      mounted && generation == _sourceGeneration;
+
+  void _addProgressListener(VoidCallback listener) {
+    if (_progressListeners.add(listener)) {
+      _session.addProgressListener(listener);
+    }
+  }
+
+  void _removeProgressListener(VoidCallback listener) {
+    if (_progressListeners.remove(listener)) {
+      _session.removeProgressListener(listener);
     }
   }
 
@@ -204,6 +275,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     if (!mounted) return;
     final next = _session.state;
     final becameReady = !_lastPlaybackState.ready && next.ready;
+    final becameFailed =
+        _lastPlaybackState.failure == null && next.failure != null;
     final becameCompleted =
         !_lastPlaybackState.completed && next.completed && !widget.live;
     final playingChanged = _lastPlaybackState.playing != next.playing;
@@ -213,6 +286,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     }
     setState(() {});
     if (becameReady) widget.onReady?.call();
+    if (becameFailed) widget.onFailure?.call(next.failure!);
     if (becameCompleted) widget.onVideoCompleted?.call();
   }
 
@@ -321,13 +395,18 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
 
   @override
   void dispose() {
+    _sourceGeneration++;
     WidgetsBinding.instance.removeObserver(this);
     _session.removeListener(_handleSessionChanged);
+    for (final listener in _progressListeners) {
+      _session.removeProgressListener(listener);
+    }
     if (Platform.isAndroid || Platform.isIOS) {
       _pip.unregisterStateChangedObserver();
       _pip.dispose();
     }
-    unawaited(_session.disposeSession());
+    final queued = _sourceQueue.catchError((Object _, StackTrace _) {});
+    unawaited(queued.then((_) => _session.disposeSession()));
     super.dispose();
   }
 
@@ -348,20 +427,11 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                       onBackPressed: widget.onBackPressed,
                       onNextEpisode: widget.onNextEpisode,
                       onPause: widget.onPause,
-                      canCast:
-                          widget.onCastUrlRequested != null ||
-                          playbackState.mediaKind !=
-                              PlaybackMediaKind.localFile,
-                      onCastUrlRequested:
-                          widget.onCastUrlRequested ?? _currentMediaUrl,
+                      canCast: widget.onCastRequested != null,
+                      onCastRequested: _requestCast,
                       isLastEpisode: widget.isLastEpisode,
                       isLoadingVideo: playbackState.opening,
-                      onCastStarted: widget.onCastStarted,
-                      videoTitle: widget.videoTitle,
                       overlayTitle: widget.overlayTitle,
-                      currentEpisodeIndex: widget.currentEpisodeIndex,
-                      totalEpisodes: widget.totalEpisodes,
-                      sourceName: widget.sourceName,
                       onWebFullscreenChanged: widget.onWebFullscreenChanged,
                       onExitWebFullscreenCallbackReady: (callback) {
                         _exitWebFullscreenCallback = callback;
@@ -382,20 +452,11 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
                       onFullscreenChange: (_) {},
                       onNextEpisode: widget.onNextEpisode,
                       onPause: widget.onPause,
-                      canCast:
-                          widget.onCastUrlRequested != null ||
-                          playbackState.mediaKind !=
-                              PlaybackMediaKind.localFile,
-                      onCastUrlRequested:
-                          widget.onCastUrlRequested ?? _currentMediaUrl,
+                      canCast: widget.onCastRequested != null,
+                      onCastRequested: _requestCast,
                       isLastEpisode: widget.isLastEpisode,
                       isLoadingVideo: playbackState.opening,
-                      onCastStarted: widget.onCastStarted,
-                      videoTitle: widget.videoTitle,
                       overlayTitle: widget.overlayTitle,
-                      currentEpisodeIndex: widget.currentEpisodeIndex,
-                      totalEpisodes: widget.totalEpisodes,
-                      sourceName: widget.sourceName,
                       onExitFullScreen: widget.onExitFullScreen,
                       live: widget.live,
                       onPlayRequested: _session.play,
@@ -424,7 +485,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
             state: playbackState,
             live: widget.live,
             isLastEpisode: widget.isLastEpisode,
-            onRetry: _session.retryCurrent,
+            onRetry: _retryCurrentMedia,
             onDismiss: _session.clearProblem,
             onReplay: _session.replay,
             onNextEpisode: widget.onNextEpisode,
@@ -435,5 +496,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     );
   }
 
-  Future<String?> _currentMediaUrl() async => _session.currentUrl;
+  Future<void> _requestCast() async {
+    final request = widget.onCastRequested;
+    if (request != null) await request();
+  }
 }

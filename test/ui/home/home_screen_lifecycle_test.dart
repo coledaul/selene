@@ -369,6 +369,7 @@ class _HomeHarnessState extends State<_HomeHarness> {
         return viewModel;
       },
       livePlayerViewModelFactory: (_, _) => throw UnimplementedError(),
+      dlnaCastViewModelFactory: () => throw UnimplementedError(),
       catalogViewModelFactory: (definition) {
         final viewModel = CatalogViewModel(
           repository: _catalogRepository,
