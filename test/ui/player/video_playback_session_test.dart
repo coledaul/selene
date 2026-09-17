@@ -392,7 +392,83 @@ void main() {
       expect(session.state.opening, isFalse);
     });
 
-    test('播放器控制器首次首帧事件可以直接结束首次播放 loading', () async {
+    test('首帧确认失败必须退出 loading 并允许重试', () async {
+      await session.open(
+        'https://example.com/video.mp4',
+        kind: PlaybackMediaKind.networkVod,
+      );
+      engine.firstFrameGate.completeError(TimeoutException('first frame'));
+      await _flushEvents();
+
+      expect(session.state.ready, isFalse);
+      expect(session.state.opening, isFalse);
+      expect(session.state.buffering, isFalse);
+      expect(session.state.failure, isNotNull);
+      expect(session.state.failureRetryable, isTrue);
+    });
+
+    test('播放已经失败时迟到的首帧不得发布 ready', () async {
+      await session.open(
+        'https://example.com/video.mp4',
+        kind: PlaybackMediaKind.networkVod,
+      );
+      engine.emitError('decode failed');
+      await _flushEvents();
+      engine.emitFirstFrame();
+      await _flushEvents();
+
+      expect(session.state.ready, isFalse);
+      expect(session.state.failure, isNotNull);
+    });
+
+    test('起播时恢复倍速失败只警告，不阻断视频首帧', () async {
+      engine.failingRate = true;
+      await session.open(
+        'https://example.com/video.mp4',
+        kind: PlaybackMediaKind.networkVod,
+      );
+      expect(session.state.failure, isNull);
+      expect(session.state.warning?.message, '倍速设置失败');
+
+      engine.emitFirstFrame();
+      await _flushEvents();
+      expect(session.state.ready, isTrue);
+      expect(session.state.opening, isFalse);
+    });
+
+    test('首帧前设置音量失败只警告，不阻断就绪或遮住超时错误', () async {
+      await session.open(
+        'https://example.com/video.mp4',
+        kind: PlaybackMediaKind.networkVod,
+      );
+      engine.failingVolume = true;
+      await session.setVolume(30);
+      expect(session.state.failure, isNull);
+      expect(session.state.warning?.message, '音量设置失败');
+      expect(session.state.volume, 100);
+
+      engine.firstFrameGate.completeError(TimeoutException('first frame'));
+      await _flushEvents();
+      expect(session.state.opening, isFalse);
+      expect(session.state.failure?.message, '视频画面加载失败，请重试');
+      expect(session.state.failureRetryable, isTrue);
+    });
+
+    test('首帧前设置音量失败不拒绝之后成功到达的首帧', () async {
+      await session.open(
+        'https://example.com/video.mp4',
+        kind: PlaybackMediaKind.networkVod,
+      );
+      engine.failingVolume = true;
+      await session.setVolume(30);
+      engine.emitFirstFrame();
+      await _flushEvents();
+      expect(session.state.ready, isTrue);
+      expect(session.state.failure, isNull);
+      expect(session.state.warning?.message, '音量设置失败');
+    });
+
+    test('确认输出首帧后结束首次播放 loading', () async {
       await session.open(
         'https://example.com/video.mp4',
         kind: PlaybackMediaKind.networkVod,
@@ -745,6 +821,8 @@ final class _FakePlaybackEngine implements PlaybackEngine {
   bool failingObserve = false;
   bool failingSeek = false;
   bool failingPlay = false;
+  bool failingRate = false;
+  bool failingVolume = false;
   String? cacheState;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -879,6 +957,7 @@ final class _FakePlaybackEngine implements PlaybackEngine {
     final gate = rateGate;
     rateGate = null;
     await gate?.future;
+    if (failingRate) throw StateError('rate failed');
     _rate = rate;
   }
 
@@ -888,6 +967,7 @@ final class _FakePlaybackEngine implements PlaybackEngine {
     final gate = volumeGate;
     volumeGate = null;
     await gate?.future;
+    if (failingVolume) throw StateError('volume failed');
     _volume = volume;
   }
 

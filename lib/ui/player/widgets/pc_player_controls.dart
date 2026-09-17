@@ -59,6 +59,7 @@ class PCPlayerControls extends StatefulWidget {
   final Future<void> Function() onCastRequested;
   final bool isLastEpisode;
   final bool isLoadingVideo;
+  final bool initialWebFullscreen;
   final String? overlayTitle;
   final Function(bool isWebFullscreen)? onWebFullscreenChanged;
   final Function(VoidCallback)? onExitWebFullscreenCallbackReady;
@@ -81,6 +82,7 @@ class PCPlayerControls extends StatefulWidget {
     required this.onCastRequested,
     this.isLastEpisode = false,
     this.isLoadingVideo = false,
+    this.initialWebFullscreen = false,
     this.overlayTitle,
     this.onWebFullscreenChanged,
     this.onExitWebFullscreenCallbackReady,
@@ -107,7 +109,7 @@ class _PCPlayerControlsState extends State<PCPlayerControls> {
   double _swipeStartX = 0;
   Duration _swipeStartPosition = Duration.zero;
   bool _isFullscreen = false;
-  bool _isWebFullscreen = false;
+  late bool _isWebFullscreen = widget.initialWebFullscreen;
   bool _showSpeedMenu = false;
   final GlobalKey _speedButtonKey = GlobalKey();
   bool _isHoveringSpeedButton = false;

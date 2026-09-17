@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import 'native_playback_bridge.dart';
+import 'playback_first_frame.dart';
+import 'video_output_readiness.dart';
 
 abstract interface class PlaybackEngine {
   VideoController get videoController;
@@ -47,11 +51,33 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
       ) {
     _videoController = VideoController(_player);
     _nativeBridge = NativePlaybackBridge(_player);
+    _firstFrame = PlaybackFirstFrame(
+      waitForOutput: () => _videoController.waitUntilFirstFrameRendered,
+      isOutputReady: _isAndroid
+          ? _nativeBridge.hasRenderedVideoFrame
+          : _hasUsableVideoOutput,
+      waitForPresentation: () => WidgetsBinding.instance.endOfFrame,
+    );
   }
 
   final Player _player;
   late final VideoController _videoController;
   late final NativePlaybackBridge _nativeBridge;
+  late final PlaybackFirstFrame _firstFrame;
+
+  bool get _isAndroid =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  Future<bool> _hasUsableVideoOutput() async {
+    // Web 使用 HTML video，不套用原生 Texture 的占位尺寸约定。
+    if (kIsWeb) return true;
+    return isVideoOutputUsable(
+      textureId: _videoController.id.value,
+      textureRect: _videoController.rect.value,
+      videoWidth: _player.state.width,
+      videoHeight: _player.state.height,
+    );
+  }
 
   @override
   VideoController get videoController => _videoController;
@@ -99,18 +125,23 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   Future<void> stop() => _player.stop();
 
   @override
-  Future<void> waitUntilFirstFrameRendered() =>
-      _videoController.waitUntilFirstFrameRendered;
+  Future<void> waitUntilFirstFrameRendered() => _firstFrame.wait();
 
   @override
   Future<void> open(
     String url, {
     required Map<String, String> headers,
     Duration? startAt,
-  }) => _player.open(
-    Media(url, start: startAt, httpHeaders: headers),
-    play: true,
-  );
+  }) async {
+    if (_isAndroid) {
+      // 保留 mpv 启动/seek 时等待 VO 输出首帧的保证。
+      await _nativeBridge.setProperty('video-latency-hacks', 'no');
+    }
+    await _player.open(
+      Media(url, start: startAt, httpHeaders: headers),
+      play: true,
+    );
+  }
 
   @override
   Future<void> setProperty(String property, String value) =>
@@ -143,7 +174,10 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   Future<void> setVolume(double volume) => _player.setVolume(volume);
 
   @override
-  Future<void> dispose() => _player.dispose();
+  Future<void> dispose() {
+    _firstFrame.dispose();
+    return _player.dispose();
+  }
 }
 
 typedef PlaybackDiagnostic = void Function(String event, Object error);

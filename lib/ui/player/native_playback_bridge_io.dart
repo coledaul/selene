@@ -1,6 +1,7 @@
 import 'package:media_kit/media_kit.dart';
 
 import 'mpv_property_value.dart';
+import 'native_video_frame_probe.dart';
 
 /// 使用 media_kit 公开的原生播放器 API 访问高级 mpv 属性。
 final class NativePlaybackBridge {
@@ -37,4 +38,7 @@ final class NativePlaybackBridge {
 
   Future<void> unobserveCacheState() =>
       _nativePlayer.unobserveProperty('demuxer-cache-state');
+
+  Future<bool> hasRenderedVideoFrame() =>
+      NativeVideoFrameProbe(_nativePlayer.getProperty).hasRenderedFrame();
 }

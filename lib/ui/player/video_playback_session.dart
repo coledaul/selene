@@ -163,7 +163,7 @@ final class VideoPlaybackSession extends ChangeNotifier {
       }
       await _rateCommandQueue.catchError((Object _, StackTrace _) {});
       if (!_isActive(generation)) return;
-      await _engine.setRate(_state.rate);
+      await setRate(_state.rate);
     } catch (error) {
       _diagnose('播放器媒体打开失败', error);
       _setFailure(
@@ -246,7 +246,11 @@ final class VideoPlaybackSession extends ChangeNotifier {
   Future<void> _waitForControllerFirstFrame(int generation) async {
     try {
       await _engine.waitUntilFirstFrameRendered();
-      if (!_isActive(generation) || _openedGeneration != generation) return;
+      if (!_isActive(generation) ||
+          _openedGeneration != generation ||
+          _state.failure != null) {
+        return;
+      }
       _publish(
         _state.copyWith(
           ready: true,
@@ -255,7 +259,15 @@ final class VideoPlaybackSession extends ChangeNotifier {
         ),
       );
     } catch (error) {
+      if (!_isActive(generation) || _state.failure != null) return;
       _diagnose('播放器首帧状态读取失败', error);
+      _setFailure(
+        generation,
+        const AppFailure(kind: FailureKind.platform, message: '视频画面加载失败，请重试'),
+        retryable: true,
+        opening: false,
+        buffering: false,
+      );
     }
   }
 
@@ -544,7 +556,8 @@ final class VideoPlaybackSession extends ChangeNotifier {
       _diagnose(diagnosticEvent, error);
       if (_disposed || !isCurrent()) return;
       publishActualValue();
-      _setFailure(_generation, failure);
+      // 倍速或音量不可用不代表媒体打开失败，不能阻断首帧就绪。
+      _setWarning(_generation, failure);
     }
   }
 

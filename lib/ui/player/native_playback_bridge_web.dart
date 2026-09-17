@@ -15,4 +15,7 @@ final class NativePlaybackBridge {
   Future<String?> readCacheState() async => null;
 
   Future<void> unobserveCacheState() async {}
+
+  Future<bool> hasRenderedVideoFrame() =>
+      Future.error(UnsupportedError('Web 不使用原生首帧查询'));
 }

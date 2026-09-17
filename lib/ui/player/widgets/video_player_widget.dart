@@ -145,6 +145,9 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
   VoidCallback? _exitWebFullscreenCallback;
   final Pip _pip = Pip();
   bool _isPipMode = false;
+  GlobalKey<VideoState> _videoKey = GlobalKey<VideoState>();
+  bool _restoreNativeFullscreen = false;
+  bool _isWebFullscreen = false;
 
   PlaybackMediaKind get _mediaKind =>
       widget.mediaKind ??
@@ -212,6 +215,14 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
     final previous = _sourceQueue.catchError((Object _, StackTrace _) {});
     final operation = previous.then<void>((_) async {
       if (!_isActiveSource(generation)) return;
+      final oldVideo = _videoKey.currentState;
+      if (oldVideo != null && oldVideo.isFullscreen()) {
+        _restoreNativeFullscreen = true;
+        // 全屏路由持有旧控制器，先卸载它再释放会话。
+        await oldVideo.exitFullscreen();
+        await WidgetsBinding.instance.endOfFrame;
+        if (!_isActiveSource(generation)) return;
+      }
       final oldSession = _session;
       final rate = oldSession.playbackRate;
       final volume = oldSession.volume;
@@ -224,6 +235,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
 
       final nextSession = _createSession();
       _session = nextSession;
+      _videoKey = GlobalKey<VideoState>();
       _lastPlaybackState = nextSession.state;
       nextSession.addListener(_handleSessionChanged);
       for (final listener in _progressListeners) {
@@ -238,6 +250,14 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
         headers: _currentHeaders,
       );
       if (mounted) setState(() {});
+      if (_restoreNativeFullscreen) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_isActiveSource(generation)) return;
+          _restoreNativeFullscreen = false;
+          final video = _videoKey.currentState;
+          if (video != null) unawaited(video.enterFullscreen());
+        });
+      }
       await Future.wait(<Future<void>>[
         rateOperation,
         volumeOperation,
@@ -412,87 +432,97 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
 
   @override
   Widget build(BuildContext context) {
-    final playbackState = _session.state;
-    return Container(
+    final session = _session;
+    return ColoredBox(
       color: Colors.black,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Video(
-            controller: _session.videoController,
-            controls: (state) {
-              return widget.surface == VideoPlayerSurface.desktop
-                  ? PCPlayerControls(
-                      state: state,
-                      onBackPressed: widget.onBackPressed,
-                      onNextEpisode: widget.onNextEpisode,
-                      onPause: widget.onPause,
-                      canCast: widget.onCastRequested != null,
-                      onCastRequested: _requestCast,
-                      isLastEpisode: widget.isLastEpisode,
-                      isLoadingVideo: playbackState.opening,
-                      overlayTitle: widget.overlayTitle,
-                      onWebFullscreenChanged: widget.onWebFullscreenChanged,
-                      onExitWebFullscreenCallbackReady: (callback) {
-                        _exitWebFullscreenCallback = callback;
-                      },
-                      onExitFullScreen: widget.onExitFullScreen,
-                      live: widget.live,
-                      onPlayRequested: _session.play,
-                      onPauseRequested: _session.pause,
-                      onSetSpeed: _session.setRate,
-                      onSetVolume: _session.setVolume,
-                      playbackState: playbackState,
-                      onSeekRequested: _session.seek,
-                    )
-                  : MobilePlayerControls(
-                      state: state,
-                      onControlsVisibilityChanged: (_) {},
-                      onBackPressed: widget.onBackPressed,
-                      onFullscreenChange: (_) {},
-                      onNextEpisode: widget.onNextEpisode,
-                      onPause: widget.onPause,
-                      canCast: widget.onCastRequested != null,
-                      onCastRequested: _requestCast,
-                      isLastEpisode: widget.isLastEpisode,
-                      isLoadingVideo: playbackState.opening,
-                      overlayTitle: widget.overlayTitle,
-                      onExitFullScreen: widget.onExitFullScreen,
-                      live: widget.live,
-                      onPlayRequested: _session.play,
-                      onPauseRequested: _session.pause,
-                      onSetSpeed: _session.setRate,
-                      onEnterPipMode: _enterPipMode,
-                      isPipMode: _isPipMode,
-                      playbackState: playbackState,
-                      onSeekRequested: _session.seek,
-                    );
-            },
-          ),
-          if (playbackState.buffering && !playbackState.opening)
-            const IgnorePointer(
-              child: Center(
-                child: SizedBox.square(
-                  dimension: 32,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 3,
-                  ),
+      child: Video(
+        // 上游 Video 仅在 initState 绑定播放器流，每个会话使用独立 Key。
+        key: _videoKey,
+        controller: session.videoController,
+        controls: (state) => _buildControls(state, session),
+      ),
+    );
+  }
+
+  Widget _buildControls(VideoState state, VideoPlaybackSession session) {
+    final playbackState = session.state;
+    // 放在 Video.controls 中，让普通/全屏页面共享加载、错误与重试入口。
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        widget.surface == VideoPlayerSurface.desktop
+            ? PCPlayerControls(
+                state: state,
+                onBackPressed: widget.onBackPressed,
+                onNextEpisode: widget.onNextEpisode,
+                onPause: widget.onPause,
+                canCast: widget.onCastRequested != null,
+                onCastRequested: _requestCast,
+                isLastEpisode: widget.isLastEpisode,
+                isLoadingVideo: playbackState.opening,
+                overlayTitle: widget.overlayTitle,
+                initialWebFullscreen: _isWebFullscreen,
+                onWebFullscreenChanged: (value) {
+                  _isWebFullscreen = value;
+                  widget.onWebFullscreenChanged?.call(value);
+                },
+                onExitWebFullscreenCallbackReady: (callback) {
+                  _exitWebFullscreenCallback = callback;
+                },
+                onExitFullScreen: widget.onExitFullScreen,
+                live: widget.live,
+                onPlayRequested: session.play,
+                onPauseRequested: session.pause,
+                onSetSpeed: session.setRate,
+                onSetVolume: session.setVolume,
+                playbackState: playbackState,
+                onSeekRequested: session.seek,
+              )
+            : MobilePlayerControls(
+                state: state,
+                onControlsVisibilityChanged: (_) {},
+                onBackPressed: widget.onBackPressed,
+                onFullscreenChange: (_) {},
+                onNextEpisode: widget.onNextEpisode,
+                onPause: widget.onPause,
+                canCast: widget.onCastRequested != null,
+                onCastRequested: _requestCast,
+                isLastEpisode: widget.isLastEpisode,
+                isLoadingVideo: playbackState.opening,
+                overlayTitle: widget.overlayTitle,
+                onExitFullScreen: widget.onExitFullScreen,
+                live: widget.live,
+                onPlayRequested: session.play,
+                onPauseRequested: session.pause,
+                onSetSpeed: session.setRate,
+                onEnterPipMode: _enterPipMode,
+                isPipMode: _isPipMode,
+                playbackState: playbackState,
+                onSeekRequested: session.seek,
+              ),
+        if (playbackState.buffering && !playbackState.opening)
+          const IgnorePointer(
+            child: Center(
+              child: SizedBox.square(
+                dimension: 32,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 3,
                 ),
               ),
             ),
-          PlaybackStatusOverlay(
-            state: playbackState,
-            live: widget.live,
-            isLastEpisode: widget.isLastEpisode,
-            onRetry: _retryCurrentMedia,
-            onDismiss: _session.clearProblem,
-            onReplay: _session.replay,
-            onNextEpisode: widget.onNextEpisode,
-            onBackPressed: widget.onBackPressed,
           ),
-        ],
-      ),
+        PlaybackStatusOverlay(
+          state: playbackState,
+          live: widget.live,
+          isLastEpisode: widget.isLastEpisode,
+          onRetry: _retryCurrentMedia,
+          onDismiss: session.clearProblem,
+          onReplay: session.replay,
+          onNextEpisode: widget.onNextEpisode,
+          onBackPressed: widget.onBackPressed,
+        ),
+      ],
     );
   }
 
