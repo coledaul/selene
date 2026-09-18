@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_button_styles.dart';
+import 'package:selene/ui/core/widgets/app_button_progress.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:flutter/services.dart';
 
 import '../../../utils/font_utils.dart';
@@ -165,9 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
           message,
           style: FontUtils.poppins(color: Colors.white, fontSize: 14),
         ),
-        backgroundColor: error
-            ? const Color(0xFFe74c3c)
-            : const Color(0xFF27ae60),
+        backgroundColor: error ? const Color(0xFFe74c3c) : AppBrand.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         margin: const EdgeInsets.all(16),
@@ -385,25 +386,27 @@ class _LoginScreenState extends State<LoginScreen> {
     final enabled = _viewModel.state.formValid && !_viewModel.busy;
     return ElevatedButton(
       onPressed: enabled ? onPressed : null,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: enabled
-            ? const Color(0xFF2c3e50)
-            : const Color(0xFFbdc3c7),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 0,
+      style: AppButtonStyles.elevated(
+        context,
+        loading: _viewModel.busy,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF2c3e50),
+          disabledBackgroundColor: const Color(0xFFbdc3c7),
+          foregroundColor: Colors.white,
+          disabledForegroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+        ),
       ),
-      child: _viewModel.busy
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : Text(
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Opacity(
+            opacity: _viewModel.busy ? 0 : 1,
+            child: Text(
               '登录',
               style: FontUtils.poppins(
                 fontSize: 16,
@@ -411,6 +414,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 letterSpacing: 1,
               ),
             ),
+          ),
+          if (_viewModel.busy)
+            const Positioned.fill(
+              child: Center(
+                child: FittedBox(child: AppButtonProgress(label: '正在登录')),
+              ),
+            ),
+        ],
+      ),
     );
   }
 

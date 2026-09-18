@@ -35,7 +35,7 @@ final class UpdateDownloadEvent {
   const UpdateDownloadEvent({
     required this.taskId,
     required this.status,
-    this.progress = 0,
+    this.progress,
     this.downloadedBytes = 0,
     this.totalBytes = 0,
     this.errorMessage,
@@ -43,7 +43,9 @@ final class UpdateDownloadEvent {
 
   final String taskId;
   final UpdateDownloadStatus status;
-  final double progress;
+
+  /// null 表示只有状态变化，不应重置已下载的进度。
+  final double? progress;
   final int downloadedBytes;
   final int totalBytes;
   final String? errorMessage;

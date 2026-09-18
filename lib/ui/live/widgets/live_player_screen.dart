@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:selene/domain/models/dlna_device.dart';
 import 'package:selene/domain/models/epg_program.dart';
@@ -896,7 +897,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
           child: ListTile(
             key: itemKey,
             selected: isSelected,
-            selectedTileColor: const Color(0xFF27ae60).withValues(alpha: 0.1),
+            selectedTileColor: AppBrand.primary.withValues(alpha: 0.1),
             visualDensity: const VisualDensity(vertical: -1),
             leading: channel.logo.isNotEmpty
                 ? AspectRatio(
@@ -947,7 +948,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
                 fontSize: 14,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected
-                    ? const Color(0xFF27ae60)
+                    ? AppBrand.primary
                     : themeService.isDarkMode
                     ? Colors.white
                     : const Color(0xFF2c3e50),
@@ -1184,7 +1185,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
                                 alignment: Alignment.centerLeft, // 内容左对齐
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(0xFF27AE60)
+                                      ? AppBrand.primary
                                       : Theme.of(
                                           context,
                                         ).chipTheme.backgroundColor,
@@ -1696,9 +1697,9 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
     if (isLive) {
       // 正在播放 - 绿色背景 + 绿色边框
       backgroundColor = themeService.isDarkMode
-          ? const Color(0xFF27ae60).withValues(alpha: 0.2)
-          : const Color(0xFF27ae60).withValues(alpha: 0.1);
-      borderColor = const Color(0xFF27ae60).withValues(alpha: 0.3);
+          ? AppBrand.primary.withValues(alpha: 0.2)
+          : AppBrand.primary.withValues(alpha: 0.1);
+      borderColor = AppBrand.primary.withValues(alpha: 0.3);
       textColor = themeService.isDarkMode
           ? const Color(0xFF4ade80)
           : const Color(0xFF16a34a);
@@ -1766,7 +1767,7 @@ class _LivePlayerScreenState extends State<LivePlayerScreen>
                       width: 4,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF27ae60),
+                        color: AppBrand.primary,
                         shape: BoxShape.circle,
                       ),
                     ),

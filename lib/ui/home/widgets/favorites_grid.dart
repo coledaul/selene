@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:selene/domain/models/favorite_item.dart';
 import 'package:selene/domain/models/play_record.dart';
 import 'package:selene/domain/models/video_info.dart';
@@ -114,7 +115,7 @@ class _FavoritesGridState extends State<FavoritesGrid>
   Widget _buildLoadingState() {
     return RefreshIndicator(
       onRefresh: _loadData,
-      color: const Color(0xFF27ae60),
+      color: AppBrand.primary,
       child: LayoutBuilder(
         builder: (context, constraints) {
           // 平板模式根据宽度动态展示6～9列，手机模式3列
@@ -218,7 +219,7 @@ class _FavoritesGridState extends State<FavoritesGrid>
           ElevatedButton(
             onPressed: _loadFavorites,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF27ae60),
+              backgroundColor: AppBrand.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -275,7 +276,7 @@ class _FavoritesGridState extends State<FavoritesGrid>
   Widget _buildFavoritesGrid() {
     return RefreshIndicator(
       onRefresh: _loadFavorites,
-      color: const Color(0xFF27ae60),
+      color: AppBrand.primary,
       child: LayoutBuilder(
         builder: (context, constraints) {
           // 平板模式根据宽度动态展示6～9列，手机模式3列

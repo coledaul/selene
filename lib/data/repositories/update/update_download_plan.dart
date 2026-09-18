@@ -5,13 +5,15 @@ import '../../services/update/update_source_service.dart';
 
 /// 单次更新下载的不可变输入和有序线路游标。
 ///
-/// 它只负责生成确定性任务请求，不执行 I/O，也不持有 UI 状态。
+/// 同一次尝试生成稳定任务请求；重新下载使用新的 attemptId 隔离旧回调。
+/// 不执行 I/O，也不持有 UI 状态。
 final class UpdateDownloadPlan {
   UpdateDownloadPlan({
     required this.version,
     required this.asset,
     required this.requestedSource,
     required this.priority,
+    required this.attemptId,
     required List<UpdateSourceCandidate> candidates,
   }) : _candidates = List<UpdateSourceCandidate>.unmodifiable(candidates);
 
@@ -19,6 +21,7 @@ final class UpdateDownloadPlan {
   final AppReleaseAsset asset;
   final UpdateDownloadSource requestedSource;
   final int priority;
+  final String attemptId;
   final List<UpdateSourceCandidate> _candidates;
   int _index = 0;
 
@@ -27,7 +30,8 @@ final class UpdateDownloadPlan {
   UpdateDownloadRequest get currentRequest {
     final candidate = _candidates[_index];
     return UpdateDownloadRequest(
-      taskId: _taskId(version, asset.architecture.name, candidate.source),
+      taskId:
+          '${_taskId(version, asset.architecture.name, candidate.source)}-$attemptId',
       version: version,
       asset: asset,
       source: candidate.source,

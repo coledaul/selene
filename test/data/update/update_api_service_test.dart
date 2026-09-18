@@ -10,11 +10,13 @@ import 'package:selene/utils/result.dart';
 
 void main() {
   group('GitHubUpdateApiService', () {
-    test('从独立仓库查询更新并使用 API 返回的发布页', () async {
+    test('优先通过加速地址查询固定仓库，并保留 GitHub 发布页', () async {
       Uri? requestedUri;
+      var requestCount = 0;
       final dio = Dio()
         ..httpClientAdapter = _UpdateAdapter((options) {
           requestedUri = options.uri;
+          requestCount++;
           return _jsonResponse(<String, Object?>{
             'tag_name': '1.8.3',
             'body': 'release notes',
@@ -31,15 +33,124 @@ void main() {
       expect(
         requestedUri,
         Uri.parse(
-          'https://api.github.com/repos/coledaul/selene/releases/latest',
+          'https://gh-proxy.com/https://api.github.com/repos/coledaul/selene/releases/latest',
         ),
       );
       expect(result.valueOrNull?.latestVersion, '1.8.3');
+      expect(requestCount, 1);
       expect(result.valueOrNull?.releaseNotes, 'release notes');
       expect(
         result.valueOrNull?.releaseUri,
         Uri.parse('https://github.com/coledaul/selene/releases/tag/1.8.3'),
       );
+    });
+
+    for (final scenario in [
+      'timeout',
+      'rateLimit',
+      'notFound',
+      'html',
+      'invalidRelease',
+    ]) {
+      test('加速响应 $scenario 时只回退一次直连', () async {
+        final requests = <Uri>[];
+        final dio = Dio()
+          ..httpClientAdapter = _UpdateAdapter((options) {
+            requests.add(options.uri);
+            if (options.uri.host == 'gh-proxy.com') {
+              return switch (scenario) {
+                'timeout' => throw DioException(
+                  requestOptions: options,
+                  type: DioExceptionType.connectionTimeout,
+                ),
+                'rateLimit' => ResponseBody.fromString('{}', 429),
+                'notFound' => ResponseBody.fromString('{}', 404),
+                'html' => ResponseBody.fromString(
+                  '<html>unavailable</html>',
+                  200,
+                ),
+                _ => _jsonResponse({
+                  'tag_name': 'v1.8.3',
+                  'html_url': 'https://example.com/releases/tag/v1.8.3',
+                }),
+              };
+            }
+            return _jsonResponse({
+              'tag_name': 'v1.8.3',
+              'html_url':
+                  'https://github.com/coledaul/selene/releases/tag/v1.8.3',
+            });
+          });
+        addTearDown(() => dio.close(force: true));
+        final result = await GitHubUpdateApiService(
+          dio: dio,
+          packageInfo: () async => _packageInfo('1.8.2'),
+        ).check();
+        expect(result.valueOrNull?.latestVersion, '1.8.3');
+        expect(requests.map((uri) => uri.host), [
+          'gh-proxy.com',
+          'api.github.com',
+        ]);
+      });
+    }
+
+    test('两条检测线路均失败时返回失败，不伪造已是最新版', () async {
+      final requests = <Uri>[];
+      final dio = Dio()
+        ..httpClientAdapter = _UpdateAdapter((options) {
+          requests.add(options.uri);
+          throw DioException(
+            requestOptions: options,
+            type: DioExceptionType.receiveTimeout,
+          );
+        });
+      addTearDown(() => dio.close(force: true));
+      final result = await GitHubUpdateApiService(
+        dio: dio,
+        packageInfo: () async => _packageInfo('1.8.2'),
+      ).check();
+      expect(result.failureOrNull?.kind, FailureKind.timeout);
+      expect(requests.map((uri) => uri.host), [
+        'gh-proxy.com',
+        'api.github.com',
+      ]);
+    });
+
+    test('检查取消后不启动直连回退', () async {
+      final requests = <Uri>[];
+      final dio = Dio()
+        ..httpClientAdapter = _UpdateAdapter((options) {
+          requests.add(options.uri);
+          throw DioException(
+            requestOptions: options,
+            type: DioExceptionType.cancel,
+          );
+        });
+      addTearDown(() => dio.close(force: true));
+      final result = await GitHubUpdateApiService(
+        dio: dio,
+        packageInfo: () async => _packageInfo('1.8.2'),
+      ).check();
+      expect(result.failureOrNull?.kind, FailureKind.cancellation);
+      expect(requests.map((uri) => uri.host), ['gh-proxy.com']);
+    });
+
+    test('服务已释放时不再发出检测请求', () async {
+      var requests = 0;
+      final dio = Dio()
+        ..httpClientAdapter = _UpdateAdapter((_) {
+          requests++;
+          return ResponseBody.fromString('{}', 500);
+        });
+      addTearDown(() => dio.close(force: true));
+      final service = GitHubUpdateApiService(
+        dio: dio,
+        packageInfo: () async => _packageInfo('1.8.2'),
+      );
+      service.dispose();
+      final result = await service.check();
+      expect(result.failureOrNull?.kind, FailureKind.cancellation);
+      expect(requests, 0);
     });
 
     test('支持带 v 前缀的发布标签', () async {
@@ -63,14 +174,16 @@ void main() {
     });
 
     test('没有新版本时不返回更新信息', () async {
+      var requests = 0;
       final dio = Dio()
-        ..httpClientAdapter = _UpdateAdapter(
-          (_) => _jsonResponse(<String, Object?>{
+        ..httpClientAdapter = _UpdateAdapter((_) {
+          requests++;
+          return _jsonResponse(<String, Object?>{
             'tag_name': 'v1.8.2',
             'html_url':
                 'https://github.com/coledaul/selene/releases/tag/v1.8.2',
-          }),
-        );
+          });
+        });
       addTearDown(() => dio.close(force: true));
 
       final result = await GitHubUpdateApiService(
@@ -80,6 +193,7 @@ void main() {
 
       expect(result.isSuccess, isTrue);
       expect(result.valueOrNull, isNull);
+      expect(requests, 1);
     });
 
     test('拒绝跳转到目标仓库之外的发布页', () async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:provider/provider.dart';
 import 'package:selene/ui/core/view_models/theme_view_model.dart';
 import 'package:selene/utils/device_utils.dart';
@@ -273,7 +274,7 @@ class _TopTabSwitcherState extends State<TopTabSwitcher>
 
               // PC端悬停时文字变绿色
               if (isPC && isHovering) {
-                textColor = const Color(0xFF27AE60);
+                textColor = AppBrand.primary;
               }
 
               return Center(

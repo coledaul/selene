@@ -14,13 +14,11 @@ import 'update_transfer_controller.dart';
 
 abstract interface class UpdateRepository implements Listenable {
   bool get supportsInAppDownload;
-  UpdateDownloadSource get downloadSource;
   UpdateTransferState get transfer;
 
   Future<void> initialize();
   Future<Result<AppVersionInfo?>> check({bool respectPromptPolicy = true});
   Future<Result<void>> dismiss(String version);
-  Future<Result<void>> setDownloadSource(UpdateDownloadSource source);
   Future<Result<void>> startDownload(AppVersionInfo versionInfo);
   Future<Result<void>> pause();
   Future<Result<void>> resume();
@@ -41,11 +39,9 @@ final class DefaultUpdateRepository extends ChangeNotifier
     required UpdatePermissionService permissionService,
     required UpdateLauncherService launcherService,
     UpdateSourceResolver sourceResolver = const UpdateSourceResolver(),
-    DateTime Function()? now,
   }) : _apiService = apiService,
        _preferencesService = preferencesService,
        _launcherService = launcherService,
-       _now = now ?? DateTime.now,
        _transferController = UpdateTransferController(
          downloadService: downloadService,
          packageFileService: packageFileService,
@@ -58,18 +54,15 @@ final class DefaultUpdateRepository extends ChangeNotifier
   final UpdateApiService _apiService;
   final UpdatePreferencesService _preferencesService;
   final UpdateLauncherService _launcherService;
-  final DateTime Function() _now;
   final UpdateTransferController _transferController;
 
   Future<void>? _initialization;
   bool _initialized = false;
   bool _disposed = false;
+  bool _automaticCheckStarted = false;
 
   @override
   bool get supportsInAppDownload => _transferController.supportsInAppDownload;
-
-  @override
-  UpdateDownloadSource get downloadSource => _transferController.downloadSource;
 
   @override
   UpdateTransferState get transfer => _transferController.transfer;
@@ -80,7 +73,7 @@ final class DefaultUpdateRepository extends ChangeNotifier
     final current = _initialization;
     if (current != null) return current;
 
-    final initialization = _initialize();
+    final initialization = _transferController.initialize();
     _initialization = initialization;
     try {
       await initialization;
@@ -90,15 +83,16 @@ final class DefaultUpdateRepository extends ChangeNotifier
     }
   }
 
-  Future<void> _initialize() async {
-    final source = await _preferencesService.loadDownloadSource();
-    await _transferController.initialize(source);
-  }
-
   @override
   Future<Result<AppVersionInfo?>> check({
     bool respectPromptPolicy = true,
   }) async {
+    // Repository 由应用持有；首页重建不会再次自动提示，冷启动重新检查。
+    // 标记在发起请求前设置，合并同次运行中的重复自动触发。
+    if (respectPromptPolicy) {
+      if (_automaticCheckStarted) return const Success(null);
+      _automaticCheckStarted = true;
+    }
     final result = await _apiService.check();
     return switch (result) {
       Success<AppVersionInfo?>(:final value) when value == null =>
@@ -140,7 +134,6 @@ final class DefaultUpdateRepository extends ChangeNotifier
     try {
       final shouldPrompt = await _preferencesService.shouldPrompt(
         value.latestVersion,
-        _now(),
       );
       return Success<AppVersionInfo?>(shouldPrompt ? value : null);
     } catch (error, stackTrace) {
@@ -155,22 +148,6 @@ final class DefaultUpdateRepository extends ChangeNotifier
       return const Success<void>(null);
     } catch (error, stackTrace) {
       return _failure(FailureKind.storage, '无法保存忽略版本设置', error, stackTrace);
-    }
-  }
-
-  @override
-  Future<Result<void>> setDownloadSource(UpdateDownloadSource source) async {
-    if (!_transferController.canChangeSource) {
-      return const FailureResult(
-        AppFailure(kind: FailureKind.conflict, message: '请先取消当前更新下载'),
-      );
-    }
-    try {
-      await _preferencesService.saveDownloadSource(source);
-      _transferController.setDownloadSource(source);
-      return const Success<void>(null);
-    } catch (error, stackTrace) {
-      return _failure(FailureKind.storage, '无法保存更新下载线路', error, stackTrace);
     }
   }
 

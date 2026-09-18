@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
@@ -567,8 +568,8 @@ class _SearchScreenState extends State<SearchScreen>
                         backgroundColor = themeService.isDarkMode
                             ? const Color(0xFF1e3a28) // 深色模式下的深绿背景
                             : const Color(0xFFe8f5e9); // 浅色模式下的浅绿背景
-                        textColor = const Color(0xFF27ae60); // 绿色文字
-                        borderColor = const Color(0xFF52c77a); // 浅绿边框
+                        textColor = AppBrand.primary; // 绿色文字
+                        borderColor = AppBrand.hover; // 浅绿边框
                       } else {
                         backgroundColor = themeService.isDarkMode
                             ? const Color(0xFF1e1e1e)
@@ -838,7 +839,7 @@ class _SearchScreenState extends State<SearchScreen>
                         child: CustomSwitch(
                           value: _useAggregatedView,
                           onChanged: _viewModel.setAggregatedView,
-                          activeColor: const Color(0xFF27ae60),
+                          activeColor: AppBrand.primary,
                           inactiveColor: themeService.isDarkMode
                               ? const Color(0xFF444444)
                               : const Color(0xFFcccccc),
@@ -1230,7 +1231,7 @@ class _SearchScreenState extends State<SearchScreen>
                 style: FontUtils.poppins(
                   fontSize: 13,
                   color: (DeviceUtils.isPC() && isHovered) || !isDefault
-                      ? const Color(0xFF27AE60)
+                      ? AppBrand.primary
                       : Theme.of(context).textTheme.bodySmall?.color,
                   fontWeight: (DeviceUtils.isPC() && isHovered) || !isDefault
                       ? FontWeight.w500
@@ -1242,7 +1243,7 @@ class _SearchScreenState extends State<SearchScreen>
                 Icons.arrow_drop_down,
                 size: 18,
                 color: (DeviceUtils.isPC() && isHovered) || !isDefault
-                    ? const Color(0xFF27AE60)
+                    ? AppBrand.primary
                     : Theme.of(context).textTheme.bodySmall?.color,
               ),
             ],
@@ -1342,7 +1343,7 @@ class _SearchScreenState extends State<SearchScreen>
                                 alignment: Alignment.centerLeft, // 内容左对齐
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(0xFF27AE60)
+                                      ? AppBrand.primary
                                       : Theme.of(
                                           context,
                                         ).chipTheme.backgroundColor,
@@ -1424,7 +1425,7 @@ class _SearchScreenState extends State<SearchScreen>
                   fontSize: 13,
                   color:
                       (DeviceUtils.isPC() && _isYearSortHovered) || !isDefault
-                      ? const Color(0xFF27AE60)
+                      ? AppBrand.primary
                       : Theme.of(context).textTheme.bodySmall?.color,
                   fontWeight:
                       (DeviceUtils.isPC() && _isYearSortHovered) || !isDefault
@@ -1437,7 +1438,7 @@ class _SearchScreenState extends State<SearchScreen>
                 icon,
                 size: 16,
                 color: (DeviceUtils.isPC() && _isYearSortHovered) || !isDefault
-                    ? const Color(0xFF27AE60)
+                    ? AppBrand.primary
                     : Theme.of(context).textTheme.bodySmall?.color,
               ),
             ],

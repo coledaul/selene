@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:selene/domain/models/catalog.dart';
 import 'package:selene/domain/models/live_channel.dart';
 import 'package:selene/domain/models/live_source.dart';
@@ -27,6 +28,7 @@ import 'package:selene/ui/shell/view_models/shell_view_model.dart';
 import 'package:selene/ui/shell/widgets/main_layout.dart';
 import 'package:selene/ui/core/widgets/custom_refresh_indicator.dart';
 import 'package:selene/ui/core/widgets/top_tab_switcher.dart';
+import 'package:selene/ui/core/widgets/fading_tab_view.dart';
 import 'package:selene/ui/update/widgets/update_dialog.dart';
 import 'package:selene/ui/core/widgets/video_menu_bottom_sheet.dart';
 import 'package:selene/utils/font_utils.dart';
@@ -64,8 +66,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late PageController _pageController;
-  late PageController _bottomNavPageController;
   late final HomeViewModel _homeViewModel;
   late final SettingsViewModel _settingsViewModel;
   late final LiveViewModel _liveViewModel;
@@ -85,10 +85,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // 初始化 PageController，默认显示首页（索引0）
-    _pageController = PageController(initialPage: 0);
-    // 初始化底栏 PageController
-    _bottomNavPageController = PageController(initialPage: 0);
     _homeViewModel = widget.homeViewModelFactory();
     _settingsViewModel = widget.settingsViewModelFactory();
     _liveViewModel = widget.liveViewModelFactory();
@@ -104,8 +100,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _pageController.dispose();
-    _bottomNavPageController.dispose();
     _homeViewModel
       ..removeListener(_handleViewModelChanged)
       ..dispose();
@@ -169,32 +163,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         // PageView 支持左右滑动
         Expanded(
-          child: PageView(
-            controller: _pageController,
-            onPageChanged: (index) {
-              if (!mounted) return;
-
-              // 根据页面索引更新选中的标签
-              String newTab;
-              switch (index) {
-                case 0:
-                  newTab = '首页';
-                  break;
-                case 1:
-                  newTab = '播放历史';
-                  break;
-                case 2:
-                  newTab = '收藏夹';
-                  break;
-                default:
-                  newTab = '首页';
-              }
-
-              // 只在标签真正改变时更新状态
-              if (_selectedTopTab != newTab) {
-                _homeViewModel.selectTopTab(index);
-              }
-            },
+          child: FadingTabView(
+            index: _homeViewModel.state.topTabIndex,
+            onIndexChanged: _homeViewModel.selectTopTab,
             children: [
               // 首页内容
               _buildHomeTabContent(),
@@ -214,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return StyledRefreshIndicator(
       onRefresh: _refreshHomeData,
       refreshText: '刷新中...',
-      primaryColor: const Color(0xFF27AE60),
+      primaryColor: AppBrand.primary,
       child: SingleChildScrollView(
         child: Column(
           children: [
@@ -328,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return StyledRefreshIndicator(
       onRefresh: _refreshHomeData,
       refreshText: '刷新中...',
-      primaryColor: const Color(0xFF27AE60),
+      primaryColor: AppBrand.primary,
       child: SingleChildScrollView(
         child: Column(
           children: [
@@ -349,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return StyledRefreshIndicator(
       onRefresh: _refreshHomeData,
       refreshText: '刷新中...',
-      primaryColor: const Color(0xFF27AE60),
+      primaryColor: AppBrand.primary,
       child: SingleChildScrollView(
         child: Column(
           children: [
@@ -400,14 +371,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// 构建底栏 PageView，支持左右滑动切换
   Widget _buildBottomNavPageView() {
-    return PageView(
-      controller: _bottomNavPageController,
-      onPageChanged: (index) {
-        if (!mounted) return;
-        if (_currentBottomNavIndex != index) {
-          _homeViewModel.selectBottomNavigation(index);
-        }
-      },
+    return FadingTabView(
+      index: _currentBottomNavIndex,
+      onIndexChanged: _homeViewModel.selectBottomNavigation,
       children: [
         _buildHomeContentWithPageView(),
         CatalogScreen(viewModel: _movieViewModel),
@@ -433,15 +399,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _homeViewModel.selectBottomNavigation(index);
-
-    // 使用动画切换到对应页面
-    if (_bottomNavPageController.hasClients) {
-      _bottomNavPageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
   }
 
   /// 处理顶部标签切换
@@ -469,15 +426,6 @@ class _HomeScreenState extends State<HomeScreen> {
         pageIndex = 0;
     }
     _homeViewModel.selectTopTab(pageIndex);
-
-    // 使用动画切换到对应页面
-    if (_pageController.hasClients) {
-      _pageController.animateToPage(
-        pageIndex,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
   }
 
   /// 处理点击搜索按钮
@@ -524,24 +472,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
 
     _homeViewModel.selectHome();
-
-    // 使用动画切换到首页
-    if (_bottomNavPageController.hasClients) {
-      _bottomNavPageController.animateToPage(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-
-    // 同时切换顶部标签到首页
-    if (_pageController.hasClients) {
-      _pageController.animateToPage(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
   }
 
   /// 处理视频卡片点击

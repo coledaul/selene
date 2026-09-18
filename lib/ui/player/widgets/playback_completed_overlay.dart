@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_button_styles.dart';
 
 /// 保留当前媒体的播放完成操作层。
 final class PlaybackCompletedOverlay extends StatelessWidget {
@@ -50,12 +51,14 @@ final class PlaybackCompletedOverlay extends StatelessWidget {
                   ),
                   if (showNext)
                     OutlinedButton.icon(
+                      style: AppButtonStyles.onMedia,
                       onPressed: onNextEpisode,
                       icon: const Icon(Icons.skip_next),
                       label: const Text('下一集'),
                     ),
                   if (isLastEpisode && onBackPressed != null)
                     TextButton(
+                      style: AppButtonStyles.onMedia,
                       onPressed: onBackPressed,
                       child: const Text('返回'),
                     ),

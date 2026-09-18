@@ -11,6 +11,7 @@ void main() {
       asset: _asset(),
       requestedSource: UpdateDownloadSource.automatic,
       priority: 0,
+      attemptId: 'attempt-1',
       candidates: <UpdateSourceCandidate>[
         UpdateSourceCandidate(
           source: UpdateDownloadSource.proxy,
@@ -23,12 +24,18 @@ void main() {
       ],
     );
 
-    expect(plan.currentRequest.taskId, 'selene-update-1.8.4-arm64-proxy');
+    expect(
+      plan.currentRequest.taskId,
+      'selene-update-1.8.4-arm64-proxy-attempt-1',
+    );
     expect(plan.currentRequest.retries, 0);
     expect(plan.currentRequest.priority, 0);
 
     expect(plan.moveNext(), isTrue);
-    expect(plan.currentRequest.taskId, 'selene-update-1.8.4-arm64-direct');
+    expect(
+      plan.currentRequest.taskId,
+      'selene-update-1.8.4-arm64-direct-attempt-1',
+    );
     expect(plan.currentRequest.retries, 2);
     expect(plan.moveNext(), isFalse);
   });
@@ -39,6 +46,7 @@ void main() {
       asset: _asset(),
       requestedSource: UpdateDownloadSource.proxy,
       priority: 5,
+      attemptId: 'attempt-1',
       candidates: <UpdateSourceCandidate>[
         UpdateSourceCandidate(
           source: UpdateDownloadSource.proxy,

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:selene/domain/models/play_record.dart';
 import 'package:selene/domain/models/video_info.dart';
 import 'package:selene/ui/core/widgets/shimmer_effect.dart';
@@ -83,7 +84,7 @@ class _HistoryGridState extends State<HistoryGrid>
   Widget _buildLoadingState() {
     return RefreshIndicator(
       onRefresh: _loadData,
-      color: const Color(0xFF27ae60),
+      color: AppBrand.primary,
       child: LayoutBuilder(
         builder: (context, constraints) {
           // 平板模式根据宽度动态展示6～9列，手机模式3列
@@ -181,7 +182,7 @@ class _HistoryGridState extends State<HistoryGrid>
           ElevatedButton(
             onPressed: _loadPlayRecords,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF27ae60),
+              backgroundColor: AppBrand.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -234,7 +235,7 @@ class _HistoryGridState extends State<HistoryGrid>
   Widget _buildHistoryGrid() {
     return RefreshIndicator(
       onRefresh: _loadPlayRecords,
-      color: const Color(0xFF27ae60),
+      color: AppBrand.primary,
       child: LayoutBuilder(
         builder: (context, constraints) {
           // 平板模式根据宽度动态展示6～9列，手机模式3列

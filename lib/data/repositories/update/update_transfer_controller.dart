@@ -10,6 +10,7 @@ import '../../services/update/update_download_service.dart';
 import '../../services/update/update_package_file_service.dart';
 import '../../services/update/update_permission_service.dart';
 import '../../services/update/update_source_service.dart';
+import 'pending_update_action.dart';
 import 'update_download_plan.dart';
 
 /// 管理单个 Android 更新包从排队到交付系统安装器的完整生命周期。
@@ -22,10 +23,12 @@ final class UpdateTransferController extends ChangeNotifier {
     required UpdatePackageVerifier packageFileService,
     required UpdatePermissionService permissionService,
     required UpdateSourceResolver sourceResolver,
+    Duration actionTimeout = const Duration(seconds: 15),
   }) : _downloadService = downloadService,
        _packageFileService = packageFileService,
        _permissionService = permissionService,
-       _sourceResolver = sourceResolver;
+       _sourceResolver = sourceResolver,
+       _actionTimeout = actionTimeout;
 
   static const _apkMimeType = 'application/vnd.android.package-archive';
 
@@ -33,31 +36,62 @@ final class UpdateTransferController extends ChangeNotifier {
   final UpdatePackageVerifier _packageFileService;
   final UpdatePermissionService _permissionService;
   final UpdateSourceResolver _sourceResolver;
+  final Duration _actionTimeout;
 
   StreamSubscription<UpdateDownloadEvent>? _downloadSubscription;
-  UpdateDownloadSource _downloadSource = UpdateDownloadSource.automatic;
   UpdateTransferState _transfer = const UpdateTransferState();
   UpdateDownloadPlan? _downloadPlan;
   int _operationGeneration = 0;
   bool _initialized = false;
   bool _disposed = false;
+  bool _commandRunning = false;
+  // 状态处理包含文件清理/校验，必须等待前一事件结束后再处理下一事件。
+  Future<void> _eventQueue = Future<void>.value();
+  PendingUpdateAction? _pendingAction;
+  // 清理或切换线路时停止接收旧任务事件，但保留用于展示的传输快照。
+  String? _eventTaskId;
+  static int _attemptSequence = 0;
+
+  Future<Result<void>> _exclusive(
+    Future<Result<void>> Function() action,
+  ) async {
+    if (_disposed) return _superseded();
+    if (_commandRunning) {
+      return const FailureResult(
+        AppFailure(kind: FailureKind.conflict, message: '更新操作正在处理中'),
+      );
+    }
+    _commandRunning = true;
+    try {
+      return await action();
+    } finally {
+      _commandRunning = false;
+    }
+  }
+
+  bool _current(int generation, [String? taskId]) =>
+      !_disposed &&
+      generation == _operationGeneration &&
+      (taskId == null || taskId == _eventTaskId);
+
+  Result<void> _superseded() => const FailureResult(
+    AppFailure(kind: FailureKind.cancellation, message: '更新操作已取消'),
+  );
 
   bool get supportsInAppDownload => _downloadService.supported;
-  UpdateDownloadSource get downloadSource => _downloadSource;
   UpdateTransferState get transfer => _transfer;
-  bool get canChangeSource =>
-      !_transfer.isActive && _transfer.phase != UpdateTransferPhase.paused;
-
-  Future<void> initialize(UpdateDownloadSource source) async {
-    _downloadSource = source;
+  Future<void> initialize() async {
+    if (_disposed) return;
     if (_initialized) {
       notifyListeners();
       return;
     }
-    _downloadSubscription ??= _downloadService.updates.listen(
-      (event) => unawaited(_handleDownloadEventSafely(event)),
-    );
+    _downloadSubscription ??= _downloadService.updates.listen((event) {
+      _eventQueue = _eventQueue.then((_) => _handleDownloadEventSafely(event));
+    });
+    final generation = _operationGeneration;
     final record = await _downloadService.initialize();
+    if (!_current(generation)) return;
     _initialized = true;
     if (record == null) {
       notifyListeners();
@@ -68,11 +102,6 @@ final class UpdateTransferController extends ChangeNotifier {
     if (record.status == UpdateDownloadStatus.complete) {
       await _verify(record.request.taskId, record.request.asset);
     }
-  }
-
-  void setDownloadSource(UpdateDownloadSource source) {
-    _downloadSource = source;
-    notifyListeners();
   }
 
   Future<void> reconcile(AppVersionInfo versionInfo) async {
@@ -91,6 +120,10 @@ final class UpdateTransferController extends ChangeNotifier {
   }
 
   Future<void> clear() async {
+    final generation = ++_operationGeneration;
+    _pendingAction?.cancel();
+    _eventTaskId = null;
+    _downloadPlan = null;
     final taskId = _transfer.taskId;
     if (taskId == null) {
       if (_transfer.phase != UpdateTransferPhase.idle) {
@@ -98,12 +131,19 @@ final class UpdateTransferController extends ChangeNotifier {
       }
       return;
     }
-    _operationGeneration++;
-    await _downloadService.remove(taskId, deleteFile: true);
-    _setTransfer(const UpdateTransferState());
+    try {
+      await _downloadService.remove(taskId, deleteFile: true);
+      if (_current(generation)) _setTransfer(const UpdateTransferState());
+    } catch (_) {
+      if (_current(generation)) _failTransfer('无法清理更新包，请重试');
+      rethrow;
+    }
   }
 
-  Future<Result<void>> startDownload(AppVersionInfo versionInfo) async {
+  Future<Result<void>> startDownload(AppVersionInfo versionInfo) =>
+      _exclusive(() => _startDownload(versionInfo));
+
+  Future<Result<void>> _startDownload(AppVersionInfo versionInfo) async {
     final asset = versionInfo.androidAsset;
     if (!supportsInAppDownload || asset == null) {
       return const FailureResult(
@@ -117,16 +157,19 @@ final class UpdateTransferController extends ChangeNotifier {
       return const Success<void>(null);
     }
 
+    final generation = ++_operationGeneration;
     final previousTaskId = _transfer.taskId;
+    _eventTaskId = null;
     if (previousTaskId != null) {
       try {
         await _downloadService.remove(previousTaskId, deleteFile: true);
       } catch (error, stackTrace) {
+        if (_current(generation)) _eventTaskId = previousTaskId;
         return _failure(FailureKind.storage, '无法清理旧版本更新包', error, stackTrace);
       }
     }
 
-    _operationGeneration++;
+    if (!_current(generation)) return _superseded();
     var priority = 5;
     try {
       // 通知权限只决定是否启用 Android 14+ UIDT，不影响普通后台下载。
@@ -134,23 +177,31 @@ final class UpdateTransferController extends ChangeNotifier {
           ? 0
           : 5;
     } catch (_) {}
+    if (!_current(generation)) return _superseded();
     _downloadPlan = UpdateDownloadPlan(
       version: versionInfo.latestVersion,
       asset: asset,
-      requestedSource: _downloadSource,
+      requestedSource: UpdateDownloadSource.automatic,
       priority: priority,
-      candidates: _sourceResolver.resolve(asset, _downloadSource),
+      attemptId:
+          '${DateTime.now().microsecondsSinceEpoch}-${_attemptSequence++}',
+      candidates: _sourceResolver.resolve(
+        asset,
+        UpdateDownloadSource.automatic,
+      ),
     );
     return _enqueueCandidate();
   }
 
   Future<Result<void>> _enqueueCandidate() async {
+    final generation = _operationGeneration;
     final plan = _downloadPlan;
     if (plan == null || !plan.hasCandidate) {
-      return _failTransfer('更新下载失败，请切换线路或使用浏览器下载');
+      return _failTransfer('下载失败，请重试或使用浏览器下载');
     }
 
     final request = plan.currentRequest;
+    _eventTaskId = request.taskId;
     _setTransfer(
       UpdateTransferState(
         phase: UpdateTransferPhase.queued,
@@ -164,11 +215,14 @@ final class UpdateTransferController extends ChangeNotifier {
     );
 
     try {
-      if (await _downloadService.enqueue(request)) {
+      final accepted = await _downloadService.enqueue(request);
+      if (!_current(generation)) return _superseded();
+      if (request.taskId != _eventTaskId || accepted) {
         return const Success<void>(null);
       }
       return await _tryNextCandidate('无法创建更新下载任务');
     } catch (error, stackTrace) {
+      if (!_current(generation, request.taskId)) return _superseded();
       final fallback = await _tryNextCandidate('无法创建更新下载任务');
       return fallback.isSuccess
           ? fallback
@@ -177,26 +231,26 @@ final class UpdateTransferController extends ChangeNotifier {
   }
 
   Future<Result<void>> _tryNextCandidate(String message) async {
+    final generation = _operationGeneration;
     final taskId = _transfer.taskId;
+    _eventTaskId = null;
+    _setTransfer(_transfer.copyWith(phase: UpdateTransferPhase.queued));
     if (taskId != null) {
       try {
         await _downloadService.remove(taskId, deleteFile: true);
       } catch (error, stackTrace) {
+        if (!_current(generation)) return _superseded();
         _setTransfer(
           _transfer.copyWith(
             phase: UpdateTransferPhase.failed,
-            errorMessage: '切换更新下载线路失败，请重试',
+            errorMessage: '下载失败，请重试',
           ),
         );
-        return _failure(
-          FailureKind.storage,
-          '切换更新下载线路失败，请重试',
-          error,
-          stackTrace,
-        );
+        return _failure(FailureKind.storage, '下载失败，请重试', error, stackTrace);
       }
     }
 
+    if (!_current(generation)) return _superseded();
     final plan = _downloadPlan;
     if (plan != null && plan.moveNext()) {
       return _enqueueCandidate();
@@ -205,10 +259,11 @@ final class UpdateTransferController extends ChangeNotifier {
   }
 
   Future<void> _handleDownloadEventSafely(UpdateDownloadEvent event) async {
+    final generation = _operationGeneration;
     try {
       await _handleDownloadEvent(event);
     } catch (_) {
-      if (!_disposed && event.taskId == _transfer.taskId) {
+      if (_current(generation, event.taskId)) {
         _setTransfer(
           _transfer.copyWith(
             phase: UpdateTransferPhase.failed,
@@ -220,7 +275,18 @@ final class UpdateTransferController extends ChangeNotifier {
   }
 
   Future<void> _handleDownloadEvent(UpdateDownloadEvent event) async {
-    if (_disposed || event.taskId != _transfer.taskId) return;
+    if (_disposed || event.taskId != _eventTaskId) return;
+    if (const {
+      UpdateTransferPhase.verifying,
+      UpdateTransferPhase.readyToInstall,
+      UpdateTransferPhase.awaitingPermission,
+      UpdateTransferPhase.installerLaunched,
+      UpdateTransferPhase.cancelled,
+      UpdateTransferPhase.failed,
+    }.contains(_transfer.phase)) {
+      return;
+    }
+    _pendingAction?.observe(event);
     switch (event.status) {
       case UpdateDownloadStatus.queued:
         _setTransfer(
@@ -230,7 +296,11 @@ final class UpdateTransferController extends ChangeNotifier {
           ),
         );
       case UpdateDownloadStatus.downloading:
-        final progress = event.progress.clamp(0.0, 1.0);
+        if (event.progress != null &&
+            _transfer.phase == UpdateTransferPhase.paused) {
+          return;
+        }
+        final progress = event.progress?.clamp(0.0, 1.0) ?? _transfer.progress;
         final total = event.totalBytes > 0
             ? event.totalBytes
             : _transfer.asset?.size ?? 0;
@@ -238,7 +308,9 @@ final class UpdateTransferController extends ChangeNotifier {
           _transfer.copyWith(
             phase: UpdateTransferPhase.downloading,
             progress: progress,
-            downloadedBytes: event.downloadedBytes > 0
+            downloadedBytes: event.progress == null
+                ? _transfer.downloadedBytes
+                : event.downloadedBytes > 0
                 ? event.downloadedBytes
                 : (total * progress).round(),
             totalBytes: total,
@@ -253,18 +325,15 @@ final class UpdateTransferController extends ChangeNotifier {
       case UpdateDownloadStatus.notFound:
         await _tryNextCandidate('更新文件不存在，请重新检查版本');
       case UpdateDownloadStatus.failed:
-        await _tryNextCandidate(
-          event.errorMessage?.trim().isNotEmpty == true
-              ? '更新下载失败：${event.errorMessage}'
-              : '更新下载失败，请切换线路或使用浏览器下载',
-        );
+        // 插件异常可能包含内部下载地址，不作为用户提示直接展示。
+        await _tryNextCandidate('下载失败，请重试或使用浏览器下载');
       case UpdateDownloadStatus.cancelled:
         _setTransfer(_transfer.copyWith(phase: UpdateTransferPhase.cancelled));
     }
   }
 
   Future<void> _verify(String taskId, AppReleaseAsset asset) async {
-    final generation = ++_operationGeneration;
+    final generation = _operationGeneration;
     _setTransfer(
       _transfer.copyWith(
         phase: UpdateTransferPhase.verifying,
@@ -282,6 +351,7 @@ final class UpdateTransferController extends ChangeNotifier {
       if (_disposed || generation != _operationGeneration) return;
       if (!valid) {
         await _downloadService.remove(taskId, deleteFile: true);
+        if (!_current(generation)) return;
         _setTransfer(
           _transfer.copyWith(
             phase: UpdateTransferPhase.failed,
@@ -303,6 +373,7 @@ final class UpdateTransferController extends ChangeNotifier {
         } catch (_) {
           // 校验和清理均失败时仍必须落入确定的失败状态，供用户重新下载。
         }
+        if (!_current(generation)) return;
         _setTransfer(
           _transfer.copyWith(
             phase: UpdateTransferPhase.failed,
@@ -313,24 +384,28 @@ final class UpdateTransferController extends ChangeNotifier {
     }
   }
 
-  Future<Result<void>> pause() => _taskAction(
-    expected: UpdateTransferPhase.downloading,
-    action: _downloadService.pause,
-    successPhase: UpdateTransferPhase.paused,
-    failureMessage: '暂停更新下载失败',
+  Future<Result<void>> pause() => _exclusive(
+    () => _taskAction(
+      expected: UpdateTransferPhase.downloading,
+      action: _downloadService.pause,
+      confirmation: UpdateDownloadStatus.paused,
+      failureMessage: '当前下载暂时无法暂停，请稍后重试或等待下载完成',
+    ),
   );
 
-  Future<Result<void>> resume() => _taskAction(
-    expected: UpdateTransferPhase.paused,
-    action: _downloadService.resume,
-    successPhase: UpdateTransferPhase.queued,
-    failureMessage: '继续更新下载失败',
+  Future<Result<void>> resume() => _exclusive(
+    () => _taskAction(
+      expected: UpdateTransferPhase.paused,
+      action: _downloadService.resume,
+      confirmation: UpdateDownloadStatus.downloading,
+      failureMessage: '继续更新下载失败',
+    ),
   );
 
   Future<Result<void>> _taskAction({
     required UpdateTransferPhase expected,
     required Future<bool> Function(String taskId) action,
-    required UpdateTransferPhase successPhase,
+    required UpdateDownloadStatus confirmation,
     required String failureMessage,
   }) async {
     final taskId = _transfer.taskId;
@@ -339,29 +414,63 @@ final class UpdateTransferController extends ChangeNotifier {
         AppFailure(kind: FailureKind.conflict, message: failureMessage),
       );
     }
+    final generation = _operationGeneration;
+    final pending = PendingUpdateAction(taskId: taskId, target: confirmation);
+    _pendingAction = pending;
     try {
       if (!await action(taskId)) {
+        if (!_current(generation)) return _superseded();
+        if (_transfer.phase == UpdateTransferPhase.readyToInstall ||
+            _transfer.phase == UpdateTransferPhase.verifying ||
+            (confirmation == UpdateDownloadStatus.paused &&
+                _transfer.phase == UpdateTransferPhase.paused) ||
+            (confirmation == UpdateDownloadStatus.downloading &&
+                _transfer.phase == UpdateTransferPhase.downloading)) {
+          return const Success<void>(null);
+        }
         return FailureResult(
           AppFailure(kind: FailureKind.platform, message: failureMessage),
         );
       }
-      _setTransfer(_transfer.copyWith(phase: successPhase));
+      final status = await pending.confirmed.timeout(_actionTimeout);
+      if (!_current(generation)) return _superseded();
+      if (status != confirmation && status != UpdateDownloadStatus.complete) {
+        return const FailureResult(
+          AppFailure(kind: FailureKind.platform, message: '更新下载状态已变化，请查看当前进度'),
+        );
+      }
       return const Success<void>(null);
+    } on TimeoutException catch (error, stackTrace) {
+      if (!_current(generation)) return _superseded();
+      return _failure(
+        FailureKind.timeout,
+        '等待下载状态确认超时，请稍后重试',
+        error,
+        stackTrace,
+      );
     } catch (error, stackTrace) {
+      if (!_current(generation)) return _superseded();
       return _failure(FailureKind.platform, failureMessage, error, stackTrace);
+    } finally {
+      if (identical(_pendingAction, pending)) _pendingAction = null;
     }
   }
 
-  Future<Result<void>> cancel() async {
+  Future<Result<void>> cancel() => _exclusive(_cancel);
+
+  Future<Result<void>> _cancel() async {
     final taskId = _transfer.taskId;
     if (taskId == null || !_transfer.canCancel) {
       return const FailureResult(
         AppFailure(kind: FailureKind.conflict, message: '当前没有可取消的更新下载'),
       );
     }
+    final generation = ++_operationGeneration;
     try {
-      _operationGeneration++;
+      _eventTaskId = null;
+      _downloadPlan = null;
       await _downloadService.remove(taskId, deleteFile: true);
+      if (!_current(generation)) return _superseded();
       _setTransfer(
         _transfer.copyWith(
           phase: UpdateTransferPhase.cancelled,
@@ -372,11 +481,15 @@ final class UpdateTransferController extends ChangeNotifier {
       );
       return const Success<void>(null);
     } catch (error, stackTrace) {
+      if (!_current(generation)) return _superseded();
+      _failTransfer('取消更新下载失败，请重试');
       return _failure(FailureKind.storage, '取消更新下载失败', error, stackTrace);
     }
   }
 
-  Future<Result<void>> install() async {
+  Future<Result<void>> install() => _exclusive(_install);
+
+  Future<Result<void>> _install() async {
     final taskId = _transfer.taskId;
     if ((_transfer.phase != UpdateTransferPhase.readyToInstall &&
             _transfer.phase != UpdateTransferPhase.installerLaunched) ||
@@ -385,6 +498,7 @@ final class UpdateTransferController extends ChangeNotifier {
         AppFailure(kind: FailureKind.conflict, message: '更新包尚未准备完成'),
       );
     }
+    final generation = _operationGeneration;
     _setTransfer(
       _transfer.copyWith(
         phase: UpdateTransferPhase.awaitingPermission,
@@ -393,6 +507,7 @@ final class UpdateTransferController extends ChangeNotifier {
     );
     try {
       final permission = await _permissionService.ensureInstallPermission();
+      if (!_current(generation)) return _superseded();
       if (permission != UpdateInstallPermission.granted) {
         _setTransfer(
           _transfer.copyWith(
@@ -409,7 +524,12 @@ final class UpdateTransferController extends ChangeNotifier {
           ),
         );
       }
-      if (!await _downloadService.openFile(taskId, mimeType: _apkMimeType)) {
+      final opened = await _downloadService.openFile(
+        taskId,
+        mimeType: _apkMimeType,
+      );
+      if (!_current(generation)) return _superseded();
+      if (!opened) {
         _setTransfer(
           _transfer.copyWith(
             phase: UpdateTransferPhase.readyToInstall,
@@ -429,6 +549,7 @@ final class UpdateTransferController extends ChangeNotifier {
       );
       return const Success<void>(null);
     } catch (error, stackTrace) {
+      if (!_current(generation)) return _superseded();
       _setTransfer(
         _transfer.copyWith(
           phase: UpdateTransferPhase.readyToInstall,
@@ -441,6 +562,7 @@ final class UpdateTransferController extends ChangeNotifier {
 
   void _restore(UpdateDownloadRecord record) {
     final request = record.request;
+    _eventTaskId = request.taskId;
     _transfer = UpdateTransferState(
       phase: switch (record.status) {
         UpdateDownloadStatus.queued => UpdateTransferPhase.queued,
@@ -454,7 +576,7 @@ final class UpdateTransferController extends ChangeNotifier {
       version: request.version,
       asset: request.asset,
       taskId: request.taskId,
-      requestedSource: _downloadSource,
+      requestedSource: UpdateDownloadSource.automatic,
       activeSource: request.source,
       progress: record.progress.clamp(0.0, 1.0),
       downloadedBytes: (request.asset.size * record.progress).round(),
@@ -504,6 +626,7 @@ final class UpdateTransferController extends ChangeNotifier {
     if (_disposed) return;
     _disposed = true;
     _operationGeneration++;
+    _pendingAction?.cancel();
     unawaited(_downloadSubscription?.cancel());
     _downloadService.dispose();
     super.dispose();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 
 import 'app_back_button.dart';
 
@@ -69,7 +70,7 @@ class SwitchLoadingOverlay extends StatelessWidget {
                           gradient: const LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [Color(0xFF2ecc71), Color(0xFF27ae60)],
+                            colors: [AppBrand.bright, AppBrand.primary],
                           ),
                           borderRadius: BorderRadius.circular(16),
                         ),

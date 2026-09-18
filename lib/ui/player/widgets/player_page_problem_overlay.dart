@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_button_styles.dart';
 
 typedef PlayerPageRetry = Future<void> Function();
 
@@ -191,17 +192,21 @@ final class _PlayerPageProblemOverlayState
                                 onPressed: _retrying
                                     ? null
                                     : () => unawaited(_retry()),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isDarkMode
-                                      ? const Color(0xFF2D3748)
-                                      : const Color(0xFFE2E8F0),
-                                  foregroundColor: isDarkMode
-                                      ? Colors.white
-                                      : const Color(0xFF3182CE),
-                                  elevation: 0,
-                                  shadowColor: Colors.transparent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                                style: AppButtonStyles.elevated(
+                                  context,
+                                  loading: _retrying,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDarkMode
+                                        ? const Color(0xFF2D3748)
+                                        : const Color(0xFFE2E8F0),
+                                    foregroundColor: isDarkMode
+                                        ? Colors.white
+                                        : const Color(0xFF3182CE),
+                                    elevation: 0,
+                                    shadowColor: Colors.transparent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
                                   ),
                                 ),
                                 child: Text(

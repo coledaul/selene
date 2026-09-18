@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:selene/domain/models/live_channel.dart';
 import 'package:selene/domain/models/live_source.dart';
 import 'package:selene/ui/core/view_models/theme_view_model.dart';
@@ -230,9 +231,9 @@ class _LiveScreenState extends State<LiveScreen>
                         Icons.refresh,
                         size: 20,
                         color: _isRefreshing
-                            ? const Color(0xFF27ae60)
+                            ? AppBrand.primary
                             : (DeviceUtils.isPC() && _isRefreshButtonHovered
-                                  ? const Color(0xFF27ae60)
+                                  ? AppBrand.primary
                                   : (themeService.isDarkMode
                                         ? Colors.grey[600]
                                         : Colors.grey[500])),
@@ -362,7 +363,7 @@ class _LiveScreenState extends State<LiveScreen>
                                 alignment: Alignment.centerLeft, // 内容左对齐
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(0xFF27AE60)
+                                      ? AppBrand.primary
                                       : Theme.of(
                                           context,
                                         ).chipTheme.backgroundColor,
@@ -398,7 +399,7 @@ class _LiveScreenState extends State<LiveScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF27ae60)),
+            valueColor: AlwaysStoppedAnimation<Color>(AppBrand.primary),
           ),
           const SizedBox(height: 16),
           Text(
@@ -420,7 +421,7 @@ class _LiveScreenState extends State<LiveScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF27ae60)),
+            valueColor: AlwaysStoppedAnimation<Color>(AppBrand.primary),
           ),
           const SizedBox(height: 16),
           Text(
@@ -461,7 +462,7 @@ class _LiveScreenState extends State<LiveScreen>
           ElevatedButton(
             onPressed: refreshChannels,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF27ae60),
+              backgroundColor: AppBrand.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -655,7 +656,7 @@ class _LiveChannelCardState extends State<_LiveChannelCard> {
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: isPC && _isHovered
-                      ? const Color(0xFF27ae60)
+                      ? AppBrand.primary
                       : (widget.themeService.isDarkMode
                             ? Colors.white
                             : const Color(0xFF2c3e50)),

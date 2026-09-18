@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:selene/routing/routes.dart';
@@ -116,9 +117,7 @@ class _UserMenuState extends State<UserMenu> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message, style: FontUtils.poppins(color: Colors.white)),
-        backgroundColor: error
-            ? const Color(0xFFEF4444)
-            : const Color(0xFF27AE60),
+        backgroundColor: error ? const Color(0xFFEF4444) : AppBrand.primary,
       ),
     );
   }

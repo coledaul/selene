@@ -11,10 +11,121 @@ import 'package:selene/data/services/auth_profile_service.dart';
 import 'package:selene/data/services/credential_service.dart';
 import 'package:selene/ui/auth/view_models/login_view_model.dart';
 import 'package:selene/ui/auth/widgets/login_screen.dart';
+import 'package:selene/ui/core/themes/app_theme.dart';
 import 'package:selene/utils/result.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  for (final dark in [false, true]) {
+    testWidgets('本地订阅保存阶段也保持加载样式并在失败后恢复 dark=$dark', (tester) async {
+      final fixture = await _Fixture.create(const AuthProfile());
+      final saved = Completer<Result<void>>();
+      fixture.subscriptions.pendingSave = saved;
+      await tester.pumpWidget(_app(fixture, dark: dark, local: true));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextFormField),
+        'https://example.com/subscription',
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byType(ElevatedButton));
+      await tester.tap(find.byType(ElevatedButton));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(fixture.subscriptions.saveCount, 1);
+      expect(_loginMaterial(tester).color, const Color(0xFF2C3E50));
+      expect(
+        tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+        isNull,
+      );
+      saved.complete(
+        const FailureResult(
+          AppFailure(kind: FailureKind.storage, message: '保存失败'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(
+        tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+        isNotNull,
+      );
+    });
+
+    for (final local in [false, true]) {
+      testWidgets('真实主题下登录按下与加载保持配色，失败后恢复 dark=$dark local=$local', (
+        tester,
+      ) async {
+        final fixture = await _Fixture.create(
+          const AuthProfile(
+            serverUrl: 'https://example.com',
+            username: 'alice',
+          ),
+        );
+        fixture.authenticator
+          ..delayLogin = true
+          ..nextResult = const AuthLoginResult.failure(
+            AuthLoginFailure.network,
+            '连接失败',
+          );
+        final prepared = Completer<Result<SubscriptionCandidate>>();
+        if (local) fixture.subscriptions.pendingPrepare = prepared;
+        await tester.pumpWidget(_app(fixture, dark: dark, local: local));
+        await tester.pumpAndSettle();
+        final field = local
+            ? find.byType(TextFormField)
+            : find.byKey(const Key('password-field'));
+        await tester.enterText(
+          field,
+          local ? 'https://example.com/subscription' : 'secret',
+        );
+        await tester.pumpAndSettle();
+        final button = find.byType(ElevatedButton);
+        await tester.ensureVisible(button);
+        await tester.pumpAndSettle();
+        final before = _loginMaterial(tester).color;
+        final beforeSize = tester.getSize(button);
+        expect(before, const Color(0xFF2C3E50));
+        final gesture = await tester.startGesture(tester.getCenter(button));
+        await tester.pump(const Duration(milliseconds: 80));
+        expect(_loginMaterial(tester).color, before);
+        await gesture.up();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(tester.widget<ElevatedButton>(button).onPressed, isNull);
+        expect(_loginMaterial(tester).color, before);
+        expect(
+          tester
+              .widget<CircularProgressIndicator>(
+                find.byType(CircularProgressIndicator),
+              )
+              .color,
+          Colors.white,
+        );
+        expect(tester.getSize(button), beforeSize);
+        await tester.tap(button);
+        await tester.pump();
+        if (local) {
+          prepared.complete(
+            const FailureResult(
+              AppFailure(kind: FailureKind.network, message: '连接失败'),
+            ),
+          );
+        } else {
+          expect(fixture.authenticator.loginCount, 1);
+          fixture.authenticator.completePending();
+        }
+        await tester.pumpAndSettle();
+        expect(tester.widget<ElevatedButton>(button).onPressed, isNotNull);
+        expect(_loginMaterial(tester).color, before);
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        await tester.enterText(field, '');
+        await tester.pumpAndSettle();
+        expect(tester.widget<ElevatedButton>(button).onPressed, isNull);
+        expect(_loginMaterial(tester).color, const Color(0xFFBDC3C7));
+      });
+    }
+  }
 
   testWidgets('手机和平板共用唯一服务器登录表单并预填连接资料', (tester) async {
     final fixture = await _Fixture.create(
@@ -205,13 +316,27 @@ void main() {
   });
 }
 
-Widget _app(_Fixture fixture) {
+Material _loginMaterial(WidgetTester tester) => tester.widget<Material>(
+  find
+      .descendant(
+        of: find.byType(ElevatedButton),
+        matching: find.byType(Material),
+      )
+      .first,
+);
+
+Widget _app(_Fixture fixture, {bool dark = false, bool local = false}) {
   return MaterialApp(
+    theme: dark ? AppTheme.dark : AppTheme.light,
     home: LoginScreen(
-      viewModelFactory: () => LoginViewModel(
-        authRepository: fixture.controller,
-        subscriptionRepository: fixture.subscriptions,
-      ),
+      viewModelFactory: () {
+        final viewModel = LoginViewModel(
+          authRepository: fixture.controller,
+          subscriptionRepository: fixture.subscriptions,
+        );
+        if (local) viewModel.toggleMode();
+        return viewModel;
+      },
     ),
   );
 }
@@ -291,11 +416,15 @@ class _Fixture {
 }
 
 class _MemorySubscriptionRepository implements SubscriptionRepository {
+  Completer<Result<SubscriptionCandidate>>? pendingPrepare;
+  Completer<Result<void>>? pendingSave;
+  int saveCount = 0;
   @override
   Future<String> loadUrl() async => '';
 
   @override
   Future<Result<SubscriptionCandidate>> prepare(String url) async {
+    if (pendingPrepare != null) return pendingPrepare!.future;
     return Success(
       SubscriptionCandidate(
         url: url,
@@ -310,8 +439,12 @@ class _MemorySubscriptionRepository implements SubscriptionRepository {
   Future<Result<void>> refresh() async => const Success<void>(null);
 
   @override
-  Future<Result<void>> save(SubscriptionCandidate candidate) async =>
-      const Success<void>(null);
+  Future<Result<void>> save(SubscriptionCandidate candidate) async {
+    saveCount++;
+    return pendingSave == null
+        ? const Success<void>(null)
+        : await pendingSave!.future;
+  }
 
   @override
   void dispose() {}

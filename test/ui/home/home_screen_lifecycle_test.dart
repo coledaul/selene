@@ -34,6 +34,7 @@ import 'package:selene/domain/models/search_session_event.dart';
 import 'package:selene/ui/catalog/view_models/anime_view_model.dart';
 import 'package:selene/ui/catalog/view_models/catalog_view_model.dart';
 import 'package:selene/ui/core/view_models/theme_view_model.dart';
+import 'package:selene/ui/core/themes/app_theme.dart';
 import 'package:selene/ui/core/widgets/top_tab_switcher.dart';
 import 'package:selene/ui/home/view_models/home_view_model.dart';
 import 'package:selene/ui/home/widgets/home_screen.dart';
@@ -48,6 +49,84 @@ import 'package:selene/ui/shell/widgets/main_layout.dart';
 import 'package:selene/utils/result.dart';
 
 void main() {
+  testWidgets('首页继承应用根主题，不在布局内重新创建 Theme', (tester) async {
+    final key = GlobalKey<_HomeHarnessState>();
+    final theme = AppTheme.dark;
+    await tester.pumpWidget(_testApp(_HomeHarness(key: key), theme: theme));
+    await tester.pumpAndSettle();
+    expect(
+      Theme.of(tester.element(find.byType(PageView).first)).colorScheme,
+      theme.colorScheme,
+    );
+  });
+  for (final size in [const Size(844, 390), const Size(1200, 900)]) {
+    testWidgets('点击首页到综艺不经过中间页面或覆盖目标选中态：$size', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final key = GlobalKey<_HomeHarnessState>();
+      await tester.pumpWidget(_testApp(_HomeHarness(key: key)));
+      await tester.pumpAndSettle();
+      final viewModel = key.currentState!.homeViewModels.single;
+      final visited = <int>[];
+      viewModel.addListener(
+        () => visited.add(viewModel.state.bottomNavigationIndex),
+      );
+      tester.widget<MainLayout>(find.byType(MainLayout)).onBottomNavChanged(4);
+      await tester.pump();
+      for (var frame = 0; frame < 24; frame++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        final page = tester
+            .widget<PageView>(find.byType(PageView).first)
+            .controller!
+            .page!;
+        expect(page == 0 || page == 4, isTrue, reason: '不应横向扫过中间页面：$page');
+        expect(viewModel.state.bottomNavigationIndex, 4);
+      }
+      expect(visited, isNot(contains(anyOf(1, 2, 3))));
+      expect(
+        tester.widget<PageView>(find.byType(PageView).first).controller!.page,
+        4,
+      );
+    });
+  }
+
+  testWidgets('点击标题返回首页同步重置两级标签且不扫过中间页面', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final key = GlobalKey<_HomeHarnessState>();
+    await tester.pumpWidget(_testApp(_HomeHarness(key: key)));
+    await tester.pumpAndSettle();
+    tester
+        .widget<TopTabSwitcher>(find.byType(TopTabSwitcher))
+        .onTabChanged('收藏夹');
+    await tester.pumpAndSettle();
+    tester.widget<MainLayout>(find.byType(MainLayout)).onBottomNavChanged(4);
+    await tester.pumpAndSettle();
+    tester.widget<MainLayout>(find.byType(MainLayout)).onHomeTap!();
+    await tester.pump();
+    for (var frame = 0; frame < 24; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final page = tester
+          .widget<PageView>(find.byType(PageView).first)
+          .controller!
+          .page!;
+      expect(page == 4 || page == 0, isTrue);
+    }
+    final state = key.currentState!.homeViewModels.single.state;
+    expect(state.bottomNavigationIndex, 0);
+    expect(state.topTabIndex, 0);
+    expect(
+      tester.widget<PageView>(find.byType(PageView).last).controller!.page,
+      0,
+    );
+    expect(find.text('保留的推荐'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('父路由重建后首页内容和两级标签状态保持一致', (tester) async {
     tester.view.physicalSize = const Size(1200, 900);
     tester.view.devicePixelRatio = 1;
@@ -288,17 +367,17 @@ void main() {
 
 void _noop() {}
 
-Widget _testApp(Widget home) {
+Widget _testApp(Widget home, {ThemeData? theme}) {
   return ChangeNotifierProvider<ThemeViewModel>(
     create: (_) => ThemeViewModel(repository: _FakeThemeRepository()),
-    child: MaterialApp(home: home),
+    child: MaterialApp(theme: theme ?? AppTheme.light, home: home),
   );
 }
 
 Widget _testRouterApp(GoRouter router) {
   return ChangeNotifierProvider<ThemeViewModel>(
     create: (_) => ThemeViewModel(repository: _FakeThemeRepository()),
-    child: MaterialApp.router(routerConfig: router),
+    child: MaterialApp.router(theme: AppTheme.light, routerConfig: router),
   );
 }
 

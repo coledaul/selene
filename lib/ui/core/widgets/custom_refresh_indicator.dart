@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:provider/provider.dart';
 import 'package:selene/ui/core/view_models/theme_view_model.dart';
 import 'package:selene/utils/font_utils.dart';
@@ -22,7 +23,7 @@ class CustomRefreshIndicator extends StatelessWidget {
       builder: (context, themeService, child) {
         return RefreshIndicator(
           onRefresh: onRefresh,
-          color: const Color(0xFF27AE60), // 绿色主题
+          color: AppBrand.primary, // 绿色主题
           backgroundColor: themeService.isDarkMode
               ? const Color(0xFF1e1e1e)
               : Colors.white,
@@ -52,7 +53,7 @@ class CustomRefreshIndicatorContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ThemeViewModel>(
       builder: (context, themeService, child) {
-        final indicatorColor = color ?? const Color(0xFF27AE60); // 绿色主题
+        final indicatorColor = color ?? AppBrand.primary; // 绿色主题
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -113,7 +114,7 @@ class StyledRefreshIndicator extends StatelessWidget {
       builder: (context, themeService, child) {
         return RefreshIndicator(
           onRefresh: onRefresh,
-          color: primaryColor ?? const Color(0xFF27AE60), // 默认绿色主题
+          color: primaryColor ?? AppBrand.primary, // 默认绿色主题
           backgroundColor:
               backgroundColor ??
               (themeService.isDarkMode

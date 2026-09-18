@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 
 class PulsingDotsIndicator extends StatefulWidget {
   const PulsingDotsIndicator({super.key});
@@ -60,7 +61,7 @@ class _PulsingDotsIndicatorState extends State<PulsingDotsIndicator>
                     width: 10.0,
                     height: 10.0,
                     decoration: const BoxDecoration(
-                      color: Color(0xFF27AE60),
+                      color: AppBrand.primary,
                       shape: BoxShape.circle,
                     ),
                   ),

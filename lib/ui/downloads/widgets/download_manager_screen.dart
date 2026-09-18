@@ -1,14 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_button_styles.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import 'package:selene/domain/models/download_export_outcome.dart';
 import 'package:selene/domain/models/video_download_task.dart';
 import 'package:selene/ui/core/widgets/app_page_bar.dart';
 import 'package:selene/ui/downloads/view_models/download_view_model.dart';
 import 'package:selene/utils/result.dart';
-import 'downloaded_video_player_screen.dart';
 import 'download_settings_dialog.dart';
+import 'download_task_actions.dart';
 
 class DownloadManagerScreen extends StatefulWidget {
   const DownloadManagerScreen({super.key, required this.viewModelFactory});
@@ -39,13 +39,11 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
     return Scaffold(
       appBar: AppPageBar(
         title: '下载管理',
-        titleIcon: LucideIcons.download,
-        titleIconColor: const Color(0xFF27AE60),
         actions: [
           IconButton(
             tooltip: '下载设置',
             onPressed: () => _showDownloadSettings(context),
-            icon: const Icon(Icons.settings_outlined),
+            icon: const Icon(LucideIcons.settings2, size: 22),
           ),
         ],
       ),
@@ -66,8 +64,16 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
                       Text(state.initializationError!),
                       const SizedBox(height: 12),
                       FilledButton(
-                        onPressed: _viewModel.initialize.execute,
-                        child: const Text('重试'),
+                        style: AppButtonStyles.filled(
+                          context,
+                          loading: _viewModel.initialize.running,
+                        ),
+                        onPressed: _viewModel.initialize.running
+                            ? null
+                            : _viewModel.initialize.execute,
+                        child: Text(
+                          _viewModel.initialize.running ? '正在重试…' : '重试',
+                        ),
                       ),
                     ],
                   ),
@@ -84,6 +90,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
             itemCount: state.tasks.length,
             separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, index) => _DownloadTaskCard(
+              key: ValueKey(state.tasks[index].id),
               task: state.tasks[index],
               viewModel: _viewModel,
             ),
@@ -125,7 +132,7 @@ class _EmptyDownloads extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.download_for_offline_outlined,
+              LucideIcons.download,
               size: 56,
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -147,7 +154,11 @@ class _EmptyDownloads extends StatelessWidget {
 }
 
 class _DownloadTaskCard extends StatelessWidget {
-  const _DownloadTaskCard({required this.task, required this.viewModel});
+  const _DownloadTaskCard({
+    super.key,
+    required this.task,
+    required this.viewModel,
+  });
 
   final VideoDownloadTask task;
   final DownloadViewModel viewModel;
@@ -196,23 +207,21 @@ class _DownloadTaskCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                   ],
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _statusText(task),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: task.status == VideoDownloadStatus.failed
-                                ? theme.colorScheme.error
-                                : theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ..._actions(context),
-                    ],
+                  Text(
+                    _statusText(task),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: task.status == VideoDownloadStatus.failed
+                          ? theme.colorScheme.error
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: DownloadTaskActions(
+                      task: task,
+                      viewModel: viewModel,
+                    ),
                   ),
                 ],
               ),
@@ -247,125 +256,6 @@ class _DownloadTaskCard extends StatelessWidget {
               ),
       ),
     );
-  }
-
-  List<Widget> _actions(BuildContext context) {
-    switch (task.status) {
-      case VideoDownloadStatus.completed:
-        return <Widget>[
-          _actionButton(
-            tooltip: '播放',
-            icon: Icons.play_arrow_rounded,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => DownloadedVideoPlayerScreen(task: task),
-              ),
-            ),
-          ),
-          _exportButton(context),
-          _actionButton(
-            tooltip: '删除',
-            icon: Icons.delete_outline_rounded,
-            onPressed: () => _confirmDelete(context),
-          ),
-        ];
-      case VideoDownloadStatus.failed:
-      case VideoDownloadStatus.cancelled:
-        return <Widget>[
-          _actionButton(
-            tooltip: '重试',
-            icon: Icons.refresh_rounded,
-            onPressed: () => viewModel.retry.execute(task.id),
-          ),
-          _actionButton(
-            tooltip: '删除',
-            icon: Icons.delete_outline_rounded,
-            onPressed: () => _confirmDelete(context),
-          ),
-        ];
-      case VideoDownloadStatus.queued:
-      case VideoDownloadStatus.probing:
-      case VideoDownloadStatus.downloading:
-      case VideoDownloadStatus.finalizing:
-        return <Widget>[
-          _actionButton(
-            tooltip: '取消',
-            icon: Icons.close_rounded,
-            onPressed: () => viewModel.cancel.execute(task.id),
-          ),
-        ];
-    }
-  }
-
-  Widget _actionButton({
-    required String tooltip,
-    required IconData icon,
-    required VoidCallback? onPressed,
-  }) {
-    return IconButton(
-      constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-      tooltip: tooltip,
-      icon: Icon(icon),
-      onPressed: onPressed,
-    );
-  }
-
-  Widget _exportButton(BuildContext context) {
-    final isExporting = viewModel.exportingTaskId == task.id;
-    return IconButton(
-      constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-      tooltip: '导出',
-      onPressed: viewModel.export.running ? null : () => _export(context),
-      icon: isExporting
-          ? const SizedBox.square(
-              dimension: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.save_alt_rounded),
-    );
-  }
-
-  Future<void> _export(BuildContext context) async {
-    final result = await viewModel.export.execute(task.id);
-    if (!context.mounted || result == null) {
-      return;
-    }
-    if (result case Success<DownloadExportOutcome>(:final value)) {
-      if (value == DownloadExportOutcome.exported) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('已导出')));
-      }
-      return;
-    }
-    if (result case FailureResult<DownloadExportOutcome>(:final failure)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(failure.message)));
-    }
-  }
-
-  Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('删除下载'),
-        content: Text('确定删除“${task.title} · ${task.episodeTitle}”及本地文件吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && context.mounted) {
-      await viewModel.delete.execute(task.id);
-    }
   }
 
   static String _statusText(VideoDownloadTask task) {

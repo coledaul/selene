@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:selene/data/repositories/update/update_repository.dart';
@@ -8,6 +10,40 @@ import 'package:selene/ui/update/view_models/update_view_model.dart';
 import 'package:selene/utils/result.dart';
 
 void main() {
+  for (final action in ['download', 'resume', 'install']) {
+    for (final delayed in [false, true]) {
+      test('$action 的旧版本失败不能污染新版本，延迟返回=$delayed', () async {
+        final repository = _FakeUpdateRepository(supported: true);
+        final completion = Completer<Result<void>>();
+        repository.operationCompletion = completion;
+        final viewModel = UpdateViewModel(repository: repository);
+        addTearDown(viewModel.dispose);
+        viewModel.prepare(_version());
+        final command = switch (action) {
+          'download' => viewModel.download,
+          'resume' => viewModel.resume,
+          _ => viewModel.install,
+        };
+        final pending = command.execute();
+        const failure = FailureResult<void>(
+          AppFailure(kind: FailureKind.platform, message: '模拟失败'),
+        );
+        if (!delayed) {
+          completion.complete(failure);
+          await pending;
+          expect(viewModel.canUseBrowserDownload, isTrue);
+        }
+        viewModel.prepare(_version().copyWith(latestVersion: '1.8.4'));
+        if (delayed) {
+          completion.complete(failure);
+          await pending;
+        }
+        expect(command.failure, isNotNull);
+        expect(viewModel.canUseBrowserDownload, isFalse);
+      });
+    }
+  }
+
   test('只在 Repository 支持且 Release 有可信 APK 时启用应用内下载', () {
     final repository = _FakeUpdateRepository(supported: true);
     final viewModel = UpdateViewModel(repository: repository);
@@ -66,12 +102,10 @@ final class _FakeUpdateRepository extends ChangeNotifier
   final bool _supported;
   UpdateTransferState _transfer = const UpdateTransferState();
   int downloadCount = 0;
+  Completer<Result<void>>? operationCompletion;
 
   @override
   bool get supportsInAppDownload => _supported;
-
-  @override
-  UpdateDownloadSource get downloadSource => UpdateDownloadSource.automatic;
 
   @override
   UpdateTransferState get transfer => _transfer;
@@ -84,14 +118,18 @@ final class _FakeUpdateRepository extends ChangeNotifier
   @override
   Future<Result<void>> startDownload(AppVersionInfo versionInfo) async {
     downloadCount++;
-    return const Success<void>(null);
+    return operationCompletion == null
+        ? const Success<void>(null)
+        : await operationCompletion!.future;
   }
 
   @override
   Future<Result<void>> cancel() async => const Success<void>(null);
 
   @override
-  Future<Result<void>> install() async => const Success<void>(null);
+  Future<Result<void>> install() async => operationCompletion == null
+      ? const Success<void>(null)
+      : await operationCompletion!.future;
 
   @override
   Future<Result<void>> openRelease(AppVersionInfo versionInfo) async =>
@@ -101,11 +139,9 @@ final class _FakeUpdateRepository extends ChangeNotifier
   Future<Result<void>> pause() async => const Success<void>(null);
 
   @override
-  Future<Result<void>> resume() async => const Success<void>(null);
-
-  @override
-  Future<Result<void>> setDownloadSource(UpdateDownloadSource source) async =>
-      const Success<void>(null);
+  Future<Result<void>> resume() async => operationCompletion == null
+      ? const Success<void>(null)
+      : await operationCompletion!.future;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

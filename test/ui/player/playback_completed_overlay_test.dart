@@ -3,8 +3,34 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:selene/ui/player/widgets/playback_completed_overlay.dart';
+import 'package:selene/ui/core/themes/app_theme.dart';
 
 void main() {
+  for (final dark in [false, true]) {
+    testWidgets('播放完成遮罩不继承页面灰色文字 dark=$dark', (tester) async {
+      for (final last in [false, true]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: dark ? AppTheme.dark : AppTheme.light,
+            home: Scaffold(
+              body: PlaybackCompletedOverlay(
+                isLastEpisode: last,
+                onReplay: () async {},
+                onNextEpisode: () {},
+                onBackPressed: () {},
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final label = find.text(last ? '返回' : '下一集');
+        expect(
+          DefaultTextStyle.of(tester.element(label)).style.color,
+          Colors.white,
+        );
+      }
+    });
+  }
   testWidgets('非最后一集完成态显示重新播放和下一集', (tester) async {
     var replayCount = 0;
     var nextCount = 0;

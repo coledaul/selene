@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:selene/domain/models/dlna_device.dart';
 import 'package:selene/domain/models/douban_movie.dart';
@@ -19,6 +20,7 @@ import 'package:selene/ui/player/view_models/dlna_cast_view_model.dart';
 import 'package:selene/ui/player/widgets/dlna_device_dialog.dart';
 import 'package:selene/ui/player/widgets/dlna_player.dart';
 import 'package:selene/ui/player/widgets/player_details_panel.dart';
+import 'package:selene/ui/player/widgets/player_detail_actions.dart';
 import 'package:selene/ui/player/widgets/player_episodes_panel.dart';
 import 'package:selene/ui/player/widgets/player_page_problem_overlay.dart';
 import 'package:selene/ui/player/widgets/player_sources_panel.dart';
@@ -1287,29 +1289,10 @@ class _PlayerScreenState extends State<PlayerScreen>
                     ),
                   ),
                   const SizedBox(width: 12),
-                  IconButton(
-                    onPressed: _showDownloadSelector,
-                    tooltip: '下载视频',
-                    constraints: const BoxConstraints.tightFor(
-                      width: 44,
-                      height: 44,
-                    ),
-                    icon: Icon(
-                      Icons.download_for_offline_outlined,
-                      color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    onTap: _toggleFavorite,
-                    child: Icon(
-                      _isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: _isFavorite
-                          ? const Color(0xFFe74c3c)
-                          : (isDarkMode ? Colors.grey[400] : Colors.grey[600]),
-                      size: 28,
-                    ),
+                  PlayerDetailActions(
+                    isFavorite: _isFavorite,
+                    onDownload: _showDownloadSelector,
+                    onToggleFavorite: _toggleFavorite,
                   ),
                 ],
               ),
@@ -1370,7 +1353,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                       child: Text(
                         currentDetail!.class_!,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF2ecc71),
+                          color: AppBrand.bright,
                           fontWeight: FontWeight.w500,
                         ),
                         maxLines: 1,
@@ -2694,7 +2677,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                         width: 100,
                         height: 100,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2ecc71).withValues(alpha: 0.3),
+                          color: AppBrand.bright.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
@@ -2707,7 +2690,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [Color(0xFF2ecc71), Color(0xFF27ae60)],
+                          colors: [AppBrand.bright, AppBrand.primary],
                         ),
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -2734,7 +2717,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                     widthFactor: _loadingProgress,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2ecc71),
+                        color: AppBrand.bright,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),

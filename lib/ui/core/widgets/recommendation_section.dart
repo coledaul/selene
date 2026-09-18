@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:provider/provider.dart';
 import 'package:selene/domain/models/video_info.dart';
 import 'package:selene/ui/core/view_models/theme_view_model.dart';
@@ -227,7 +228,8 @@ class _RecommendationSectionState extends State<RecommendationSection> {
                         style: FontUtils.poppins(
                           fontSize: 14,
                           color: DeviceUtils.isPC() && _isMoreButtonHovered
-                              ? const Color(0xFF27ae60) // hover 时绿色
+                              ? AppBrand
+                                    .primary // hover 时绿色
                               : const Color(0xFF7f8c8d),
                         ),
                       ),
@@ -296,7 +298,7 @@ class _RecommendationSectionState extends State<RecommendationSection> {
                   '重试',
                   style: FontUtils.poppins(
                     fontSize: 12,
-                    color: const Color(0xFF27AE60),
+                    color: AppBrand.primary,
                   ),
                 ),
               ),

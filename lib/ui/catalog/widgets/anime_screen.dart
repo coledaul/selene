@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../domain/models/anime_catalog.dart';
@@ -96,7 +97,7 @@ class _AnimeScreenState extends State<AnimeScreen> {
     return StyledRefreshIndicator(
       onRefresh: widget.viewModel.refresh,
       refreshText: '刷新动漫数据...',
-      primaryColor: const Color(0xFF27AE60),
+      primaryColor: AppBrand.primary,
       child: SingleChildScrollView(
         controller: _scrollController,
         child: Column(

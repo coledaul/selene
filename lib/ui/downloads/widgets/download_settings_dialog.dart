@@ -21,6 +21,7 @@ class DownloadSettingsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
+      scrollable: true,
       title: const Text('下载设置'),
       content: SizedBox(
         width: 360,

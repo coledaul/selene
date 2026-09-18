@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:selene/ui/player/video_playback_session.dart';
 import 'package:selene/ui/player/widgets/playback_problem_presenter.dart';
 import 'package:selene/utils/result.dart';
+import 'package:selene/ui/core/themes/app_theme.dart';
 
 void main() {
   testWidgets('ready 后失败仍显示明确消息与重试入口', (tester) async {
@@ -26,6 +27,10 @@ void main() {
 
     expect(find.text('视频播放发生错误，请重试'), findsOneWidget);
     expect(find.text('重试'), findsOneWidget);
+    expect(
+      DefaultTextStyle.of(tester.element(find.text('重试'))).style.color,
+      Colors.white,
+    );
     await tester.tap(find.text('重试'));
     await tester.pump();
     expect(retryCount, 1);
@@ -75,6 +80,7 @@ void main() {
 }
 
 Widget _host(Widget child) => MaterialApp(
+  theme: AppTheme.light,
   home: Scaffold(
     backgroundColor: Colors.black,
     body: Stack(fit: StackFit.expand, children: [child]),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_button_styles.dart';
 
 import '../video_playback_session.dart';
 
@@ -74,6 +75,7 @@ class PlaybackProblemPresenter extends StatelessWidget {
                   ),
                   if (failure != null && state.failureRetryable)
                     TextButton(
+                      style: AppButtonStyles.onMedia,
                       onPressed: () => unawaited(onRetry()),
                       child: const Text('重试'),
                     ),

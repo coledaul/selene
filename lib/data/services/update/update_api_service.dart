@@ -59,10 +59,30 @@ final class GitHubUpdateApiService implements UpdateApiService {
       );
     }
 
-    try {
-      final response = await _dio.getUri<Map<String, dynamic>>(
-        AppLinks.latestReleaseApiUri,
+    final accelerated = await _checkRelease(
+      AppLinks.latestReleaseProxyApiUri,
+      packageInfo,
+    );
+    if (accelerated.isSuccess ||
+        _disposed ||
+        accelerated.failureOrNull?.kind == FailureKind.cancellation) {
+      return accelerated;
+    }
+    // 加速服务异常或返回无效内容时，使用同一解析和校验路径回退直连一次。
+    return _checkRelease(AppLinks.latestReleaseApiUri, packageInfo);
+  }
+
+  Future<Result<AppVersionInfo?>> _checkRelease(
+    Uri uri,
+    PackageInfo packageInfo,
+  ) async {
+    if (_disposed) {
+      return const FailureResult(
+        AppFailure(kind: FailureKind.cancellation, message: '更新检查已取消'),
       );
+    }
+    try {
+      final response = await _dio.getUri<Map<String, dynamic>>(uri);
       final data = response.data;
       final rawTag = data?['tag_name'];
       if (rawTag is! String || rawTag.trim().isEmpty) {
@@ -106,6 +126,16 @@ final class GitHubUpdateApiService implements UpdateApiService {
         ),
       );
     } on DioException catch (error, stackTrace) {
+      if (error.type == DioExceptionType.cancel) {
+        return FailureResult(
+          AppFailure(
+            kind: FailureKind.cancellation,
+            message: '更新检查已取消',
+            cause: error,
+            stackTrace: stackTrace,
+          ),
+        );
+      }
       if (error.response?.statusCode == 404) {
         return FailureResult(
           AppFailure(

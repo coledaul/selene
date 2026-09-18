@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_button_styles.dart';
+import 'package:selene/ui/core/widgets/app_button_progress.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:selene/domain/models/search_result.dart';
 import 'package:selene/ui/downloads/view_models/download_view_model.dart';
@@ -120,15 +123,13 @@ class _DownloadSelectionSheetState extends State<_DownloadSelectionSheet> {
               width: double.infinity,
               height: 48,
               child: FilledButton.icon(
+                style: AppButtonStyles.filled(context, loading: _submitting),
                 onPressed: _selectedIndexes.isEmpty || _submitting
                     ? null
                     : _enqueueSelected,
                 icon: _submitting
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.download_rounded),
+                    ? const AppButtonProgress(label: '正在创建下载任务')
+                    : const Icon(LucideIcons.download, size: 20),
                 label: Text(
                   _submitting ? '正在创建任务...' : '下载 ${_selectedIndexes.length} 集',
                 ),

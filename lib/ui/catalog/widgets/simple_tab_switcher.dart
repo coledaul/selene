@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:provider/provider.dart';
 import 'package:selene/ui/core/view_models/theme_view_model.dart';
 import 'package:selene/utils/device_utils.dart';
@@ -75,10 +76,10 @@ class _SimpleTabHoverState extends State<_SimpleTabHover> {
     Color color;
     if (widget.isSelected) {
       // 选中状态：绿色
-      color = const Color(0xFF27AE60);
+      color = AppBrand.primary;
     } else if (widget.isPC && _isHovered) {
       // PC上未选中且hover：绿色
-      color = const Color(0xFF27AE60);
+      color = AppBrand.primary;
     } else {
       // 未选中且未hover：默认颜色
       color = widget.themeService.isDarkMode

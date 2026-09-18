@@ -1,5 +1,5 @@
 abstract final class AppLinks {
-  static const releaseAssetProxyOrigin = 'https://gh-proxy.com';
+  static const githubProxyOrigin = 'https://gh-proxy.com';
   static const repositorySlug = 'coledaul/selene';
   static const repositoryUrl = 'https://github.com/$repositorySlug';
 
@@ -9,6 +9,8 @@ abstract final class AppLinks {
     'api.github.com',
     '/repos/$repositorySlug/releases/latest',
   );
+
+  static final latestReleaseProxyApiUri = _githubProxyUri(latestReleaseApiUri);
 
   static bool isReleaseUri(Uri uri, {required String tag}) {
     final segments = uri.pathSegments;
@@ -43,6 +45,8 @@ abstract final class AppLinks {
         segments[5].isNotEmpty;
   }
 
-  static Uri releaseAssetProxyUri(Uri original) =>
-      Uri.parse('$releaseAssetProxyOrigin/$original');
+  static Uri releaseAssetProxyUri(Uri original) => _githubProxyUri(original);
+
+  static Uri _githubProxyUri(Uri original) =>
+      Uri.parse('$githubProxyOrigin/$original');
 }

@@ -2,6 +2,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:selene/utils/app_links.dart';
 
 void main() {
+  test('检测与安装包复用固定 GitHub 加速服务', () {
+    expect(
+      AppLinks.latestReleaseProxyApiUri.toString(),
+      'https://gh-proxy.com/https://api.github.com/repos/coledaul/selene/releases/latest',
+    );
+    expect(
+      AppLinks.latestReleaseProxyApiUri.origin,
+      AppLinks.githubProxyOrigin,
+    );
+  });
+
   test('只为严格合法的 GitHub Release 资产构造固定加速地址', () {
     final original = Uri.parse(
       'https://github.com/coledaul/selene/releases/download/'

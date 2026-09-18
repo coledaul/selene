@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:selene/ui/core/themes/app_theme.dart';
 import 'package:selene/ui/core/view_models/theme_view_model.dart';
 import 'package:selene/ui/core/widgets/app_back_button.dart';
 import 'package:selene/ui/core/widgets/windows_title_bar.dart';
@@ -219,74 +219,71 @@ class _MainLayoutState extends State<MainLayout> {
   Widget build(BuildContext context) {
     return Consumer<ThemeViewModel>(
       builder: (context, themeService, child) {
-        return Theme(
-          data: themeService.isDarkMode ? AppTheme.dark : AppTheme.light,
-          child: Scaffold(
-            resizeToAvoidBottomInset: !widget.isSearchMode,
-            body: Stack(
-              children: [
-                // 主要内容区域
-                Column(
-                  children: [
-                    // 主内容区域（包含header和content）
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: themeService.isDarkMode
-                              ? const Color(0xFF000000) // 深色模式纯黑色
-                              : null,
-                          gradient: themeService.isDarkMode
-                              ? null
-                              : const LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Color(0xFFe6f3fb), // 浅色模式渐变
-                                    Color(0xFFeaf3f7),
-                                    Color(0xFFf7f7f3),
-                                    Color(0xFFe9ecef),
-                                    Color(0xFFdbe3ea),
-                                    Color(0xFFd3dde6),
-                                  ],
-                                  stops: [0.0, 0.18, 0.38, 0.60, 0.80, 1.0],
-                                ),
-                        ),
-                        child: Column(
-                          children: [
-                            // Windows 自定义标题栏
-                            if (Platform.isWindows)
-                              WindowsTitleBar(
-                                customBackgroundColor: widget.isSearchMode
-                                    ? (themeService.isDarkMode
-                                          ? const Color(0xFF121212)
-                                          : const Color(0xFFf5f5f5))
-                                    : null,
+        return Scaffold(
+          resizeToAvoidBottomInset: !widget.isSearchMode,
+          body: Stack(
+            children: [
+              // 主要内容区域
+              Column(
+                children: [
+                  // 主内容区域（包含header和content）
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: themeService.isDarkMode
+                            ? const Color(0xFF000000) // 深色模式纯黑色
+                            : null,
+                        gradient: themeService.isDarkMode
+                            ? null
+                            : const LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Color(0xFFe6f3fb), // 浅色模式渐变
+                                  Color(0xFFeaf3f7),
+                                  Color(0xFFf7f7f3),
+                                  Color(0xFFe9ecef),
+                                  Color(0xFFdbe3ea),
+                                  Color(0xFFd3dde6),
+                                ],
+                                stops: [0.0, 0.18, 0.38, 0.60, 0.80, 1.0],
                               ),
-                            // 固定 Header
-                            _buildHeader(context, themeService),
-                            // 主要内容区域
-                            Expanded(child: widget.content),
-                          ],
-                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          // Windows 自定义标题栏
+                          if (Platform.isWindows)
+                            WindowsTitleBar(
+                              customBackgroundColor: widget.isSearchMode
+                                  ? (themeService.isDarkMode
+                                        ? const Color(0xFF121212)
+                                        : const Color(0xFFf5f5f5))
+                                  : null,
+                            ),
+                          // 固定 Header
+                          _buildHeader(context, themeService),
+                          // 主要内容区域
+                          Expanded(child: widget.content),
+                        ],
                       ),
                     ),
-                    // 底部导航栏（可选）
-                    if (widget.showBottomNav) _buildBottomNavBar(themeService),
-                  ],
-                ),
-                // 用户菜单覆盖层 - 现在会覆盖整个屏幕包括navbar
-                if (_showUserMenu)
-                  UserMenu(
-                    viewModel: widget.settingsViewModel,
-                    isDarkMode: themeService.isDarkMode,
-                    onClose: () {
-                      setState(() {
-                        _showUserMenu = false;
-                      });
-                    },
                   ),
-              ],
-            ),
+                  // 底部导航栏（可选）
+                  if (widget.showBottomNav) _buildBottomNavBar(themeService),
+                ],
+              ),
+              // 用户菜单覆盖层 - 现在会覆盖整个屏幕包括navbar
+              if (_showUserMenu)
+                UserMenu(
+                  viewModel: widget.settingsViewModel,
+                  isDarkMode: themeService.isDarkMode,
+                  onClose: () {
+                    setState(() {
+                      _showUserMenu = false;
+                    });
+                  },
+                ),
+            ],
           ),
         );
       },
@@ -518,7 +515,7 @@ class _MainLayoutState extends State<MainLayout> {
                               color:
                                   (widget.searchQuery?.trim().isNotEmpty ??
                                       false)
-                                  ? const Color(0xFF27ae60)
+                                  ? AppBrand.primary
                                   : themeService.isDarkMode
                                   ? const Color(0xFFb0b0b0)
                                   : const Color(0xFF7f8c8d),
@@ -870,9 +867,10 @@ class _MainLayoutState extends State<MainLayout> {
                         Icon(
                           item['icon'],
                           color: isSelected
-                              ? const Color(0xFF27ae60)
+                              ? AppBrand.primary
                               : isHovered
-                              ? const Color(0xFF52c77a) // hover 时的浅绿色
+                              ? AppBrand
+                                    .hover // hover 时的浅绿色
                               : themeService.isDarkMode
                               ? const Color(0xFFb0b0b0)
                               : const Color(0xFF7f8c8d),
@@ -887,9 +885,10 @@ class _MainLayoutState extends State<MainLayout> {
                                 ? FontWeight.w600
                                 : FontWeight.w400,
                             color: isSelected
-                                ? const Color(0xFF27ae60)
+                                ? AppBrand.primary
                                 : isHovered
-                                ? const Color(0xFF52c77a) // hover 时的浅绿色
+                                ? AppBrand
+                                      .hover // hover 时的浅绿色
                                 : themeService.isDarkMode
                                 ? const Color(0xFFb0b0b0)
                                 : const Color(0xFF7f8c8d),

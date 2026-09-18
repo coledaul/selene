@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -243,7 +244,7 @@ class _VideoCardState extends State<VideoCard> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF27ae60),
+                                color: AppBrand.primary,
                                 borderRadius: BorderRadius.circular(5),
                               ),
                               child: Text(
@@ -277,7 +278,7 @@ class _VideoCardState extends State<VideoCard> {
                               widthFactor: widget.videoInfo.progressPercentage,
                               child: Container(
                                 decoration: const BoxDecoration(
-                                  color: Color(0xFF27ae60),
+                                  color: AppBrand.primary,
                                   borderRadius: BorderRadius.only(
                                     bottomLeft: Radius.circular(8),
                                     bottomRight: Radius.circular(8),
@@ -316,7 +317,7 @@ class _VideoCardState extends State<VideoCard> {
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         color: _isPlayButtonHovered
-                                            ? const Color(0xFF27ae60)
+                                            ? AppBrand.primary
                                             : Colors.transparent,
                                         border: Border.all(
                                           color: Colors.white,
@@ -363,7 +364,7 @@ class _VideoCardState extends State<VideoCard> {
                                       width: 33,
                                       height: 33,
                                       decoration: const BoxDecoration(
-                                        color: Color(0xFF27ae60),
+                                        color: AppBrand.primary,
                                         shape: BoxShape.circle,
                                       ),
                                       child: const Icon(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1555,7 +1556,7 @@ class _VideoMenuBottomSheetState extends State<VideoMenuBottomSheet>
             context,
             themeService,
             icon: Icons.play_circle_fill,
-            iconColor: const Color(0xFF27AE60),
+            iconColor: AppBrand.primary,
             title: '播放',
             subtitle: _getEpisodeSubtitle(),
             onTap: () {
@@ -1594,7 +1595,7 @@ class _VideoMenuBottomSheetState extends State<VideoMenuBottomSheet>
             context,
             themeService,
             icon: Icons.play_circle_fill,
-            iconColor: const Color(0xFF27AE60),
+            iconColor: AppBrand.primary,
             title: '播放',
             subtitle: _getEpisodeSubtitle(),
             onTap: () {
@@ -1632,7 +1633,7 @@ class _VideoMenuBottomSheetState extends State<VideoMenuBottomSheet>
             context,
             themeService,
             icon: Icons.play_circle_fill,
-            iconColor: const Color(0xFF27AE60),
+            iconColor: AppBrand.primary,
             title: '播放',
             subtitle: _getEpisodeSubtitle(),
             onTap: () {
@@ -1664,7 +1665,7 @@ class _VideoMenuBottomSheetState extends State<VideoMenuBottomSheet>
           context,
           themeService,
           icon: Icons.play_circle_fill,
-          iconColor: const Color(0xFF27AE60),
+          iconColor: AppBrand.primary,
           title: '播放',
           subtitle: _getEpisodeSubtitle(),
           onTap: () {
@@ -1705,7 +1706,7 @@ class _VideoMenuBottomSheetState extends State<VideoMenuBottomSheet>
           context,
           themeService,
           icon: Icons.play_circle_fill,
-          iconColor: const Color(0xFF27AE60),
+          iconColor: AppBrand.primary,
           title: '播放',
           subtitle: _getEpisodeSubtitle(),
           onTap: () {
@@ -1783,7 +1784,7 @@ class _VideoMenuBottomSheetState extends State<VideoMenuBottomSheet>
           context,
           themeService,
           icon: Icons.play_circle_fill,
-          iconColor: const Color(0xFF27AE60),
+          iconColor: AppBrand.primary,
           title: '播放',
           subtitle: _getEpisodeSubtitle(),
           onTap: () {

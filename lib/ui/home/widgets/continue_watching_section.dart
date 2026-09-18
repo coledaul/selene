@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:provider/provider.dart';
 import 'package:selene/domain/models/play_record.dart';
 import 'package:selene/domain/models/video_info.dart';
@@ -316,9 +317,7 @@ class _ContinueWatchingSectionState extends State<ContinueWatchingSection>
           success ? '播放记录已清空' : response.failureOrNull!.message,
           style: FontUtils.poppins(color: Colors.white),
         ),
-        backgroundColor: success
-            ? const Color(0xFF27ae60)
-            : const Color(0xFFe74c3c),
+        backgroundColor: success ? AppBrand.primary : const Color(0xFFe74c3c),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         margin: const EdgeInsets.all(16),
@@ -446,7 +445,8 @@ class _ContinueWatchingSectionState extends State<ContinueWatchingSection>
                         style: FontUtils.poppins(
                           fontSize: 14,
                           color: DeviceUtils.isPC() && _isMoreButtonHovered
-                              ? const Color(0xFF27ae60) // hover 时绿色
+                              ? AppBrand
+                                    .primary // hover 时绿色
                               : const Color(0xFF7f8c8d),
                         ),
                       ),

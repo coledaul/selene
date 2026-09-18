@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:selene/ui/core/themes/app_tokens.dart';
 import 'package:provider/provider.dart';
 import 'package:selene/ui/core/view_models/theme_view_model.dart';
 import 'package:selene/utils/device_utils.dart';
@@ -305,7 +306,7 @@ class _CapsuleTabHoverState extends State<_CapsuleTabHover> {
                 )!;
               } else if (widget.isPC && _isHovered) {
                 // PC上未选中且hover：显示绿色
-                color = const Color(0xFF27AE60);
+                color = AppBrand.primary;
               } else {
                 // 未选中且未hover：默认颜色
                 color = widget.themeService.isDarkMode
