@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:window_manager/window_manager.dart';
 
 class WindowsTitleBar extends StatefulWidget {
   final bool forceBlack;
@@ -17,7 +17,62 @@ class WindowsTitleBar extends StatefulWidget {
   State<WindowsTitleBar> createState() => _WindowsTitleBarState();
 }
 
-class _WindowsTitleBarState extends State<WindowsTitleBar> {
+class _WindowsTitleBarState extends State<WindowsTitleBar> with WindowListener {
+  bool _maximized = false;
+  bool _actionRunning = false;
+
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    _runWindowAction(() async {
+      final maximized = await windowManager.isMaximized();
+      if (mounted) setState(() => _maximized = maximized);
+    });
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowMaximize() {
+    if (mounted) setState(() => _maximized = true);
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    if (mounted) setState(() => _maximized = false);
+  }
+
+  Future<void> _runWindowAction(Future<void> Function() action) async {
+    if (_actionRunning) return;
+    _actionRunning = true;
+    try {
+      await action();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(
+          context,
+        )?.showSnackBar(const SnackBar(content: Text('窗口操作失败，请重试')));
+      }
+    } finally {
+      _actionRunning = false;
+    }
+  }
+
+  Future<void> _toggleMaximize() async {
+    if (await windowManager.isMaximized()) {
+      await windowManager.unmaximize();
+      if (mounted) setState(() => _maximized = false);
+    } else {
+      await windowManager.maximize();
+      if (mounted) setState(() => _maximized = true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -54,28 +109,33 @@ class _WindowsTitleBarState extends State<WindowsTitleBar> {
             ),
           ],
           // 可拖动区域
-          Expanded(child: MoveWindow()),
+          Expanded(
+            child: GestureDetector(
+              key: const Key('window-drag-area'),
+              behavior: HitTestBehavior.translucent,
+              onPanStart: (_) => _runWindowAction(windowManager.startDragging),
+              onDoubleTap: () => _runWindowAction(_toggleMaximize),
+              child: const SizedBox.expand(),
+            ),
+          ),
           // 右侧 Windows 风格按钮
           _buildWindowsButton(
-            onPressed: () {
-              appWindow.minimize();
-            },
+            label: '最小化',
+            onPressed: () => _runWindowAction(windowManager.minimize),
             icon: _MinimizeIcon(color: foregroundColor),
             isDark: isDark,
             isCloseButton: false,
           ),
           _buildWindowsButton(
-            onPressed: () {
-              appWindow.maximizeOrRestore();
-            },
-            icon: _MaximizeIcon(color: foregroundColor),
+            label: _maximized ? '还原' : '最大化',
+            onPressed: () => _runWindowAction(_toggleMaximize),
+            icon: _MaximizeIcon(color: foregroundColor, restored: _maximized),
             isDark: isDark,
             isCloseButton: false,
           ),
           _buildWindowsButton(
-            onPressed: () {
-              appWindow.close();
-            },
+            label: '关闭',
+            onPressed: () => _runWindowAction(windowManager.close),
             icon: Icon(Icons.close, size: 16, color: foregroundColor),
             isDark: isDark,
             isCloseButton: true,
@@ -86,6 +146,7 @@ class _WindowsTitleBarState extends State<WindowsTitleBar> {
   }
 
   Widget _buildWindowsButton({
+    required String label,
     required VoidCallback onPressed,
     required Widget icon,
     required bool isDark,
@@ -94,11 +155,19 @@ class _WindowsTitleBarState extends State<WindowsTitleBar> {
     return SizedBox(
       width: 46,
       height: 40,
-      child: _WindowsButtonHover(
-        onPressed: onPressed,
-        icon: icon,
-        isDark: isDark,
-        isCloseButton: isCloseButton,
+      child: Semantics(
+        label: label,
+        button: true,
+        child: Tooltip(
+          message: label,
+          excludeFromSemantics: true,
+          child: _WindowsButtonHover(
+            onPressed: onPressed,
+            icon: icon,
+            isDark: isDark,
+            isCloseButton: isCloseButton,
+          ),
+        ),
       ),
     );
   }
@@ -125,6 +194,7 @@ class _WindowsButtonHover extends StatefulWidget {
 class _WindowsButtonHoverState extends State<_WindowsButtonHover> {
   bool _isHovered = false;
   bool _isPressed = false;
+  bool _showFocus = false;
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +206,7 @@ class _WindowsButtonHoverState extends State<_WindowsButtonHover> {
           : (widget.isDark
                 ? Colors.white.withValues(alpha: 0.1)
                 : Colors.black.withValues(alpha: 0.06));
-    } else if (_isHovered) {
+    } else if (_isHovered || _showFocus) {
       backgroundColor = widget.isCloseButton
           ? const Color(0xFFE81123) // Windows 11 红色
           : (widget.isDark
@@ -144,25 +214,36 @@ class _WindowsButtonHoverState extends State<_WindowsButtonHover> {
                 : Colors.black.withValues(alpha: 0.04));
     }
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() {
-        _isHovered = false;
-        _isPressed = false;
-      }),
-      child: GestureDetector(
-        onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) {
-          setState(() => _isPressed = false);
-          widget.onPressed();
-        },
-        onTapCancel: () => setState(() => _isPressed = false),
-        child: Container(
-          color: backgroundColor ?? Colors.transparent,
-          child: Center(
-            child: widget.isCloseButton && _isHovered
-                ? Icon(Icons.close, size: 16, color: Colors.white)
-                : widget.icon,
+    return FocusableActionDetector(
+      onShowFocusHighlight: (value) => setState(() => _showFocus = value),
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            widget.onPressed();
+            return null;
+          },
+        ),
+      },
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() {
+          _isHovered = false;
+          _isPressed = false;
+        }),
+        child: GestureDetector(
+          onTapDown: (_) => setState(() => _isPressed = true),
+          onTapUp: (_) {
+            setState(() => _isPressed = false);
+            widget.onPressed();
+          },
+          onTapCancel: () => setState(() => _isPressed = false),
+          child: Container(
+            color: backgroundColor ?? Colors.transparent,
+            child: Center(
+              child: widget.isCloseButton && (_isHovered || _showFocus)
+                  ? Icon(Icons.close, size: 16, color: Colors.white)
+                  : widget.icon,
+            ),
           ),
         ),
       ),
@@ -207,29 +288,34 @@ class _MinimizePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _MinimizePainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 // 最大化/还原图标
 class _MaximizeIcon extends StatelessWidget {
   final Color color;
+  final bool restored;
 
-  const _MaximizeIcon({required this.color});
+  const _MaximizeIcon({required this.color, required this.restored});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 16,
       height: 16,
-      child: CustomPaint(painter: _MaximizePainter(color: color)),
+      child: CustomPaint(
+        painter: _MaximizePainter(color: color, restored: restored),
+      ),
     );
   }
 }
 
 class _MaximizePainter extends CustomPainter {
   final Color color;
+  final bool restored;
 
-  _MaximizePainter({required this.color});
+  _MaximizePainter({required this.color, required this.restored});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -246,8 +332,21 @@ class _MaximizePainter extends CustomPainter {
     );
 
     canvas.drawRect(rect, paint);
+    if (restored) {
+      final offset = size.width * 0.15;
+      canvas.drawPath(
+        Path()
+          ..moveTo(rect.left + offset, rect.top)
+          ..lineTo(rect.left + offset, rect.top - offset)
+          ..lineTo(rect.right + offset, rect.top - offset)
+          ..lineTo(rect.right + offset, rect.bottom - offset)
+          ..lineTo(rect.right, rect.bottom - offset),
+        paint,
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _MaximizePainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.restored != restored;
 }

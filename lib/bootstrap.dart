@@ -1,17 +1,21 @@
 import 'dart:io' show Platform;
 
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:macos_window_utils/macos_window_utils.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'app/app_dependencies.dart';
 import 'app/selene_app.dart';
+import 'app/windows_window_setup.dart';
 import 'data/services/douban_cache_service.dart';
 
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+
+  if (Platform.isWindows) {
+    await configureWindowsWindow();
+  }
 
   if (Platform.isMacOS) {
     await WindowManipulator.initialize(enableWindowDelegate: true);
@@ -28,16 +32,4 @@ Future<void> bootstrap() async {
     doubanCacheService: doubanCacheService,
   )..start();
   runApp(SeleneApp(dependencies: dependencies));
-
-  if (Platform.isWindows) {
-    doWhenWindowReady(() {
-      const initialSize = Size(1024, 600);
-      appWindow
-        ..minSize = initialSize
-        ..size = initialSize
-        ..alignment = Alignment.center
-        ..title = 'Selene'
-        ..show();
-    });
-  }
 }

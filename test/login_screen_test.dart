@@ -141,8 +141,15 @@ void main() {
       expect(find.byKey(const Key('username-field')), findsOneWidget);
       expect(find.byKey(const Key('password-field')), findsOneWidget);
       expect(find.byKey(const Key('remember-login-checkbox')), findsOneWidget);
-      expect(find.text('记住登录'), findsOneWidget);
-      expect(find.text('在此设备安全保存登录凭据，下次自动登录'), findsOneWidget);
+      expect(find.text('自动登录'), findsOneWidget);
+      expect(
+        tester
+            .widget<CheckboxListTile>(
+              find.byKey(const Key('remember-login-checkbox')),
+            )
+            .subtitle,
+        isNull,
+      );
       expect(
         tester
             .widget<TextFormField>(find.byKey(const Key('server-url-field')))
@@ -173,7 +180,7 @@ void main() {
     expect(LoginScreen.contentMaxWidth(isTablet: true), 480);
   });
 
-  testWidgets('勾选记住登录后通过会话控制器安全保存密码', (tester) async {
+  testWidgets('勾选自动登录后通过会话控制器安全保存密码', (tester) async {
     final fixture = await _Fixture.create(const AuthProfile());
     await tester.pumpWidget(_app(fixture));
     await tester.pumpAndSettle();

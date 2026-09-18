@@ -339,8 +339,7 @@ class _LoginScreenState extends State<LoginScreen> {
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
           dense: true,
-          title: const Text('记住登录'),
-          subtitle: const Text('在此设备安全保存登录凭据，下次自动登录'),
+          title: const Text('自动登录'),
         ),
         if (state.authMessage case final message? when message.isNotEmpty) ...[
           const SizedBox(height: 8),

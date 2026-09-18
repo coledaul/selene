@@ -14,6 +14,9 @@ class SecureCredentialStore implements CredentialStore {
           storage ??
           const FlutterSecureStorage(
             aOptions: AndroidOptions(migrateWithBackup: true),
+            // 独立分发的 macOS App 使用系统登录钥匙串，不依赖共享访问组签名。
+            // 仍由系统加密保存；只影响 macOS，不能改为普通本地配置兜底。
+            mOptions: MacOsOptions(usesDataProtectionKeychain: false),
           );
 
   static const _passwordKey = 'auth_password';

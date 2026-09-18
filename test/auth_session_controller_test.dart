@@ -9,6 +9,72 @@ import 'package:selene/data/services/credential_service.dart';
 
 void main() {
   group('AuthRepository', () {
+    test('升级后没有可读凭据时保留连接资料并回到登录页，不阻断启动', () async {
+      final profileStore = _MemoryProfileStore(
+        const AuthProfile(
+          serverUrl: 'https://example.com',
+          username: 'alice',
+          rememberLogin: true,
+        ),
+      );
+      final credentials = _MemoryCredentialStore();
+      final authenticator = _FakeAuthenticator();
+      final controller = _controller(profileStore, credentials, authenticator);
+      addTearDown(controller.dispose);
+      await controller.initialize();
+      expect(controller.status, AuthStatus.unauthenticated);
+      expect(controller.message, isNull);
+      expect(controller.profile.username, 'alice');
+      expect(controller.profile.rememberLogin, isFalse);
+      expect(profileStore.profile.rememberLogin, isFalse);
+      expect(authenticator.loginCount, 0);
+    });
+
+    test('安全存储读取失败时不自动认证，也不删除已保存凭据', () async {
+      final profileStore = _MemoryProfileStore(
+        const AuthProfile(
+          serverUrl: 'https://example.com',
+          username: 'alice',
+          rememberLogin: true,
+        ),
+      );
+      final credentials = _MemoryCredentialStore('secret')..failReads = true;
+      final authenticator = _FakeAuthenticator();
+      final controller = _controller(profileStore, credentials, authenticator);
+      addTearDown(controller.dispose);
+      await controller.initialize();
+      expect(controller.status, AuthStatus.unauthenticated);
+      expect(controller.message, isNotNull);
+      expect(credentials.password, 'secret');
+      expect(authenticator.loginCount, 0);
+    });
+
+    for (final remember in [false, true]) {
+      test('登录时凭据处理失败必须回滚会话 remember=$remember', () async {
+        final profileStore = _MemoryProfileStore(const AuthProfile());
+        final credentials = _MemoryCredentialStore()
+          ..failWrites = remember
+          ..failDeletes = !remember;
+        final authenticator = _FakeAuthenticator();
+        final controller = _controller(
+          profileStore,
+          credentials,
+          authenticator,
+        );
+        addTearDown(controller.dispose);
+        final result = await controller.login(
+          serverUrl: 'https://example.com',
+          username: 'alice',
+          password: 'secret',
+          rememberLogin: remember,
+        );
+        expect(result.failure, AuthLoginFailure.secureStorage);
+        expect(controller.status, AuthStatus.unauthenticated);
+        expect(controller.rememberedPassword, isNull);
+        expect(authenticator.clearCount, 1);
+      });
+    }
+
     test('本地模式启动不会继续发起服务器自动登录', () async {
       final profileStore = _MemoryProfileStore(
         const AuthProfile(
@@ -311,6 +377,8 @@ class _MemoryCredentialStore implements CredentialStore {
 
   String? password;
   bool failDeletes = false;
+  bool failReads = false;
+  bool failWrites = false;
   int readCount = 0;
 
   @override
@@ -324,11 +392,13 @@ class _MemoryCredentialStore implements CredentialStore {
   @override
   Future<String?> readPassword() async {
     readCount++;
+    if (failReads) throw StateError('读取失败');
     return password;
   }
 
   @override
   Future<void> writePassword(String password) async {
+    if (failWrites) throw StateError('写入失败');
     this.password = password;
   }
 }
