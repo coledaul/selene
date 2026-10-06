@@ -167,4 +167,14 @@ void main() {
     final routesSource = File('lib/routing/routes.dart').readAsStringSync();
     expect(routesSource, contains('dependencies.createDlnaDeviceRepository()'));
   });
+
+  test('下载播放器使用本地文件投屏服务，不解析远端播放地址', () {
+    final source = File(
+      'lib/ui/downloads/widgets/downloaded_video_player_screen.dart',
+    ).readAsStringSync();
+    expect(source, contains('mediaKind: PlaybackMediaKind.localFile'));
+    expect(source, contains('onCastRequested:'));
+    expect(source, contains('viewModel.connectLocalFile('));
+    expect(source, isNot(contains('resolvePlaybackMedia')));
+  });
 }

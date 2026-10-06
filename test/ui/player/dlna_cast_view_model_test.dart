@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:selene/data/repositories/dlna_device_repository.dart';
+import 'package:selene/data/ports/local_media_port.dart';
 import 'package:selene/domain/models/dlna_device.dart';
+import 'package:selene/domain/models/local_media_lease.dart';
 import 'package:selene/ui/player/view_models/dlna_cast_view_model.dart';
 import 'package:selene/utils/result.dart';
 
@@ -68,6 +70,42 @@ void main() {
 
     expect(result, isA<FailureResult<void>>());
     expect(viewModel.recentDevice, first);
+  });
+
+  test('本地文件投屏复用媒体租约并切换设备后停止旧设备', () async {
+    final localMedia = _FakeLocalMediaRepository();
+    final localViewModel = DlnaCastViewModel(
+      repository: repository,
+      localMediaRepository: localMedia,
+      playbackPollInterval: const Duration(hours: 1),
+    );
+    addTearDown(localViewModel.dispose);
+    final first = _device('device-a');
+    final second = _device('device-b');
+
+    expect(
+      await localViewModel.connectLocalFile(
+        first,
+        filePath: '/downloads/episode.mkv',
+        title: '测试视频',
+      ),
+      isA<Success<void>>(),
+    );
+    expect(repository.connectedUrls.single, localMedia.lease.url.toString());
+
+    expect(
+      await localViewModel.connectLocalFile(
+        second,
+        filePath: '/downloads/episode.mkv',
+        title: '测试视频',
+        previousDevice: first,
+      ),
+      isA<Success<void>>(),
+    );
+    expect(localMedia.publishCalls, 1);
+    expect(repository.stopPlaybackIds, <String>['device-a']);
+    expect(await localViewModel.releaseLocalMedia(), isA<Success<void>>());
+    expect(localMedia.releaseCalls, 1);
   });
 
   test('扫描结果保持 Repository 顺序且刷新会重新启动扫描', () async {
@@ -311,6 +349,8 @@ final class _FakeDlnaDeviceRepository implements DlnaDeviceRepository {
   int concurrentStatusCalls = 0;
   int maxConcurrentStatusCalls = 0;
   final List<Duration> seekTargets = <Duration>[];
+  final List<String> connectedUrls = <String>[];
+  final List<String> stopPlaybackIds = <String>[];
   bool _disposed = false;
   Future<void>? _disposeFuture;
 
@@ -349,7 +389,10 @@ final class _FakeDlnaDeviceRepository implements DlnaDeviceRepository {
     DiscoveredDlnaDevice device, {
     required String mediaUrl,
     required String title,
-  }) async => const Success<void>(null);
+  }) async {
+    connectedUrls.add(mediaUrl);
+    return const Success<void>(null);
+  }
 
   @override
   Future<Result<DlnaPlaybackSnapshot>> readPlaybackStatus(
@@ -401,8 +444,10 @@ final class _FakeDlnaDeviceRepository implements DlnaDeviceRepository {
   ) async => const Success<void>(null);
 
   @override
-  Future<Result<void>> stopPlayback(DiscoveredDlnaDevice device) async =>
-      const Success<void>(null);
+  Future<Result<void>> stopPlayback(DiscoveredDlnaDevice device) async {
+    stopPlaybackIds.add(device.id);
+    return const Success<void>(null);
+  }
 
   @override
   Future<void> dispose() => _disposeFuture ??= _dispose();
@@ -412,4 +457,31 @@ final class _FakeDlnaDeviceRepository implements DlnaDeviceRepository {
     _disposed = true;
     await _devices.close();
   }
+}
+
+final class _FakeLocalMediaRepository implements LocalMediaRepository {
+  final LocalMediaLease lease = LocalMediaLease(
+    url: Uri.parse('http://192.168.1.10:43123/selene-media/token/episode.mkv'),
+    filePath: '/downloads/episode.mkv',
+  );
+  int publishCalls = 0;
+  int releaseCalls = 0;
+
+  @override
+  Future<Result<LocalMediaLease>> publishFile({
+    required String filePath,
+    required String targetHost,
+  }) async {
+    publishCalls++;
+    return Success<LocalMediaLease>(lease);
+  }
+
+  @override
+  Future<Result<void>> release(LocalMediaLease lease) async {
+    releaseCalls++;
+    return const Success<void>(null);
+  }
+
+  @override
+  Future<void> dispose() async {}
 }

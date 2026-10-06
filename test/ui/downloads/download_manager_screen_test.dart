@@ -127,6 +127,37 @@ void main() {
     expect(capturedBack, isNotNull);
   });
 
+  testWidgets('本地播放器避开系统安全区域', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(padding: const EdgeInsets.only(top: 24, bottom: 16)),
+          child: child!,
+        ),
+        home: DownloadedVideoPlayerScreen(
+          task: _completedTask(),
+          playerBuilder:
+              ({
+                required task,
+                required filePath,
+                required overlayTitle,
+                required onBackPressed,
+              }) => const ColoredBox(
+                key: Key('fake-player'),
+                color: Colors.black,
+              ),
+        ),
+      ),
+    );
+
+    final safeArea = tester.widget<SafeArea>(find.byType(SafeArea));
+    expect(safeArea.top, isTrue);
+    expect(safeArea.bottom, isTrue);
+    expect(tester.getTopLeft(find.byKey(const Key('fake-player'))).dy, 24);
+  });
+
   testWidgets('完成任务显示导出入口并在成功后提示', (tester) async {
     final repository = _FakeDownloadRepository();
 

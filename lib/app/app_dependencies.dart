@@ -23,6 +23,7 @@ import '../data/services/download_export_service.dart';
 import '../data/services/dlna_device_preferences_service.dart';
 import '../data/services/dlna_discovery_service.dart';
 import '../data/services/dlna_playback_service.dart';
+import '../data/services/local_media_server_service.dart';
 import '../data/services/settings_preferences_service.dart';
 import '../data/services/search_stream_service.dart';
 import '../data/services/subscription_api_service.dart';
@@ -43,6 +44,8 @@ import '../data/repositories/library_repository.dart';
 import '../data/repositories/search_repository.dart';
 import '../data/repositories/sse_search_repository.dart';
 import '../data/repositories/default_download_repository.dart';
+import '../data/repositories/default_local_media_repository.dart';
+import '../data/ports/local_media_port.dart';
 import '../utils/app_logger.dart';
 
 class AppDependencies {
@@ -199,6 +202,12 @@ class AppDependencies {
       preferencesService: SharedPreferencesDlnaDeviceService(),
       discoveryService: DefaultDlnaDiscoveryService(),
       playbackService: const DefaultDlnaPlaybackService(),
+    );
+  }
+
+  LocalMediaRepository createLocalMediaRepository() {
+    return DefaultLocalMediaRepository(
+      service: DefaultLocalMediaServerService(),
     );
   }
 

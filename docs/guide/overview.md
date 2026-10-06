@@ -62,6 +62,8 @@ HTTP 与 SSE 共用 `MoonTvApiClient`、内存 CookieJar 和统一鉴权。多�
 
 `DefaultDownloadRepository` 管理持久任务、去重、并发、取消、重试、删除和启动恢复。FFmpeg Service 探测 HLS/普通视频并以流复制方式重封装为 MKV，文件 Service 使用 `.part` 临时文件和原子完成路径。
 
+下载管理中的本地视频支持投屏，页面退出时释放相关资源。
+
 ## 目录结构
 
 ```text

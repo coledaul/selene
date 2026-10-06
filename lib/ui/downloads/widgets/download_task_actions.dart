@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../domain/models/download_export_outcome.dart';
 import '../../../domain/models/video_download_task.dart';
 import '../../../utils/result.dart';
+import '../../player/view_models/dlna_cast_view_model.dart';
 import '../../core/themes/app_tokens.dart';
 import '../../core/widgets/app_icon_action_button.dart';
 import '../../core/widgets/app_button_progress.dart';
@@ -18,10 +19,12 @@ final class DownloadTaskActions extends StatefulWidget {
     super.key,
     required this.task,
     required this.viewModel,
+    this.dlnaCastViewModelFactory,
   });
 
   final VideoDownloadTask task;
   final DownloadViewModel viewModel;
+  final DlnaCastViewModel Function()? dlnaCastViewModelFactory;
 
   @override
   State<DownloadTaskActions> createState() => _DownloadTaskActionsState();
@@ -60,7 +63,11 @@ class _DownloadTaskActionsState extends State<DownloadTaskActions> {
                 ? null
                 : () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => DownloadedVideoPlayerScreen(task: task),
+                      builder: (_) => DownloadedVideoPlayerScreen(
+                        task: task,
+                        dlnaCastViewModelFactory:
+                            widget.dlnaCastViewModelFactory,
+                      ),
                     ),
                   ),
           )

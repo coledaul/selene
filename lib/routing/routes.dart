@@ -127,6 +127,10 @@ class DownloadsRoute extends GoRouteData with $DownloadsRoute {
     return DownloadManagerScreen(
       viewModelFactory: () =>
           DownloadViewModel(repository: dependencies.downloadRepository),
+      dlnaCastViewModelFactory: () => DlnaCastViewModel(
+        repository: dependencies.createDlnaDeviceRepository(),
+        localMediaRepository: dependencies.createLocalMediaRepository(),
+      ),
     );
   }
 }

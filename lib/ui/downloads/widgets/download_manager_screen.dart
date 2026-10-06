@@ -6,14 +6,20 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:selene/domain/models/video_download_task.dart';
 import 'package:selene/ui/core/widgets/app_page_bar.dart';
 import 'package:selene/ui/downloads/view_models/download_view_model.dart';
+import 'package:selene/ui/player/view_models/dlna_cast_view_model.dart';
 import 'package:selene/utils/result.dart';
 import 'download_settings_dialog.dart';
 import 'download_task_actions.dart';
 
 class DownloadManagerScreen extends StatefulWidget {
-  const DownloadManagerScreen({super.key, required this.viewModelFactory});
+  const DownloadManagerScreen({
+    super.key,
+    required this.viewModelFactory,
+    this.dlnaCastViewModelFactory,
+  });
 
   final DownloadViewModel Function() viewModelFactory;
+  final DlnaCastViewModel Function()? dlnaCastViewModelFactory;
 
   @override
   State<DownloadManagerScreen> createState() => _DownloadManagerScreenState();
@@ -93,6 +99,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
               key: ValueKey(state.tasks[index].id),
               task: state.tasks[index],
               viewModel: _viewModel,
+              dlnaCastViewModelFactory: widget.dlnaCastViewModelFactory,
             ),
           );
         },
@@ -158,10 +165,12 @@ class _DownloadTaskCard extends StatelessWidget {
     super.key,
     required this.task,
     required this.viewModel,
+    this.dlnaCastViewModelFactory,
   });
 
   final VideoDownloadTask task;
   final DownloadViewModel viewModel;
+  final DlnaCastViewModel Function()? dlnaCastViewModelFactory;
 
   @override
   Widget build(BuildContext context) {
@@ -221,6 +230,7 @@ class _DownloadTaskCard extends StatelessWidget {
                     child: DownloadTaskActions(
                       task: task,
                       viewModel: viewModel,
+                      dlnaCastViewModelFactory: dlnaCastViewModelFactory,
                     ),
                   ),
                 ],

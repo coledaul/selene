@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../data/repositories/dlna_device_repository.dart';
+import '../../../data/ports/local_media_port.dart';
 import '../../../domain/models/dlna_device.dart';
+import '../../../domain/models/local_media_lease.dart';
 import '../../../utils/result.dart';
 import '../../core/view_models/view_model.dart';
 
@@ -55,11 +57,14 @@ final class DlnaPlaybackState {
 final class DlnaCastViewModel extends ViewModel {
   DlnaCastViewModel({
     required DlnaDeviceRepository repository,
+    LocalMediaRepository? localMediaRepository,
     Duration playbackPollInterval = const Duration(milliseconds: 300),
   }) : _repository = repository,
+       _localMediaRepository = localMediaRepository,
        _playbackPollInterval = playbackPollInterval;
 
   final DlnaDeviceRepository _repository;
+  final LocalMediaRepository? _localMediaRepository;
   final Duration _playbackPollInterval;
   StreamSubscription<Map<String, DiscoveredDlnaDevice>>? _devicesSubscription;
   Timer? _scanTimer;
@@ -78,6 +83,7 @@ final class DlnaCastViewModel extends ViewModel {
   int _preferenceGeneration = 0;
   int _playbackGeneration = 0;
   int _commandGeneration = 0;
+  LocalMediaLease? _localMediaLease;
 
   Map<String, DiscoveredDlnaDevice> get devices => _devices;
   RecentDlnaDevice? get recentDevice => _recentDevice;
@@ -181,6 +187,80 @@ final class DlnaCastViewModel extends ViewModel {
     required String mediaUrl,
     required String title,
   }) => _repository.connect(device, mediaUrl: mediaUrl, title: title);
+
+  Future<Result<void>> connectLocalFile(
+    DiscoveredDlnaDevice device, {
+    required String filePath,
+    required String title,
+    DiscoveredDlnaDevice? previousDevice,
+  }) async {
+    final mediaRepository = _localMediaRepository;
+    if (mediaRepository == null) {
+      return const FailureResult<void>(
+        AppFailure(kind: FailureKind.platform, message: '本地投屏服务不可用'),
+      );
+    }
+    if (!isActive) return _cancelled();
+    final targetHost = Uri.tryParse(device.endpoint)?.host ?? '';
+    var lease = _localMediaLease;
+    if (lease == null ||
+        lease.filePath != filePath ||
+        !_sameLikelyIpv4Subnet(lease.url.host, targetHost)) {
+      final releaseResult = await _releaseLocalMedia();
+      if (releaseResult.isFailure) return releaseResult;
+      if (!isActive) return _cancelled();
+      final published = await mediaRepository.publishFile(
+        filePath: filePath,
+        targetHost: targetHost,
+      );
+      if (published.isFailure) {
+        return FailureResult<void>(published.failureOrNull!);
+      }
+      lease = published.valueOrNull!;
+    }
+    final result = await connect(
+      device,
+      mediaUrl: lease.url.toString(),
+      title: title,
+    );
+    if (result.isFailure) {
+      if (!identical(lease, _localMediaLease)) {
+        await mediaRepository.release(lease);
+      }
+      return result;
+    }
+    if (!isActive) {
+      await mediaRepository.release(lease);
+      return _cancelled();
+    }
+    if (previousDevice != null && previousDevice.id != device.id) {
+      await _repository.stopPlayback(previousDevice);
+    }
+    _localMediaLease = lease;
+    return result;
+  }
+
+  Future<Result<void>> releaseLocalMedia() => _releaseLocalMedia();
+
+  Future<Result<void>> _releaseLocalMedia() async {
+    final lease = _localMediaLease;
+    _localMediaLease = null;
+    if (lease == null || _localMediaRepository == null) {
+      return const Success<void>(null);
+    }
+    return _localMediaRepository.release(lease);
+  }
+
+  bool _sameLikelyIpv4Subnet(String left, String right) {
+    final leftParts = left.split('.');
+    final rightParts = right.split('.');
+    if (leftParts.length != 4 || rightParts.length != 4) {
+      return left == right;
+    }
+    return leftParts[0] == rightParts[0] &&
+        leftParts[1] == rightParts[1] &&
+        leftParts[2] == rightParts[2];
+  }
 
   Future<Result<void>> stopPlayback(DiscoveredDlnaDevice device) =>
       _repository.stopPlayback(device);
@@ -392,7 +472,13 @@ final class DlnaCastViewModel extends ViewModel {
     _resetPlaybackMonitoring(notify: false);
     _scanTimer?.cancel();
     unawaited(_devicesSubscription?.cancel());
+    unawaited(_disposeLocalMedia());
     unawaited(_repository.dispose());
     super.dispose();
+  }
+
+  Future<void> _disposeLocalMedia() async {
+    await _releaseLocalMedia();
+    await _localMediaRepository?.dispose();
   }
 }

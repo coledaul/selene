@@ -17,7 +17,7 @@ import 'package:selene/ui/core/widgets/windows_title_bar.dart';
 import 'package:selene/ui/core/widgets/video_card.dart';
 import 'package:selene/ui/player/view_models/player_view_model.dart';
 import 'package:selene/ui/player/view_models/dlna_cast_view_model.dart';
-import 'package:selene/ui/player/widgets/dlna_device_dialog.dart';
+import 'package:selene/ui/player/widgets/dlna_cast_dialog_coordinator.dart';
 import 'package:selene/ui/player/widgets/dlna_player.dart';
 import 'package:selene/ui/player/widgets/player_details_panel.dart';
 import 'package:selene/ui/player/widgets/player_detail_actions.dart';
@@ -1091,8 +1091,6 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   Future<void> _showDlnaDeviceDialog() async {
     if (currentDetail == null) return;
-    await _recentDeviceLoad;
-    if (!mounted) return;
     final castUrl = await _resolveRemoteCastUrl();
     if (!mounted || castUrl == null || castUrl.isEmpty) return;
 
@@ -1100,42 +1098,40 @@ class _PlayerScreenState extends State<PlayerScreen>
     final wasCasting = _isCasting;
     final previousDevice = _dlnaDevice;
     Duration? resumePosition;
-    await showDialog<void>(
+    await DlnaCastDialogCoordinator.show(
       context: context,
-      builder: (_) => DLNADeviceDialog(
-        currentDevice: previousDevice,
-        recentDevice: _dlnaCastViewModel.recentDevice,
-        castViewModel: _dlnaCastViewModel,
-        onConnect: (device) async {
-          if (!mounted || sourceGeneration != _playbackSourceGeneration) {
-            return const FailureResult<void>(
-              AppFailure(
-                kind: FailureKind.cancellation,
-                message: '播放内容已变化，请重新选择投屏设备',
-              ),
-            );
-          }
-          resumePosition = wasCasting
-              ? (_dlnaCurrentPosition ??
-                    _dlnaPlayerController?.currentPosition ??
-                    _castStartPosition)
-              : _videoPlayerController?.currentPosition;
-          return _connectToDlnaDevice(
-            device,
-            castUrl: castUrl,
-            previousDevice: previousDevice,
-            wasCasting: wasCasting,
+      viewModel: _dlnaCastViewModel,
+      currentDevice: previousDevice,
+      recentDeviceLoad: _recentDeviceLoad,
+      onConnect: (device) async {
+        if (!mounted || sourceGeneration != _playbackSourceGeneration) {
+          return const FailureResult<void>(
+            AppFailure(
+              kind: FailureKind.cancellation,
+              message: '播放内容已变化，请重新选择投屏设备',
+            ),
           );
-        },
-        onCastStarted: (device) {
-          _activateDlnaDevice(
-            device,
-            resumePosition: resumePosition,
-            wasCasting: wasCasting,
-          );
-          unawaited(_rememberDlnaDevice(device));
-        },
-      ),
+        }
+        resumePosition = wasCasting
+            ? (_dlnaCurrentPosition ??
+                  _dlnaPlayerController?.currentPosition ??
+                  _castStartPosition)
+            : _videoPlayerController?.currentPosition;
+        return _connectToDlnaDevice(
+          device,
+          castUrl: castUrl,
+          previousDevice: previousDevice,
+          wasCasting: wasCasting,
+        );
+      },
+      onCastStarted: (device) {
+        _activateDlnaDevice(
+          device,
+          resumePosition: resumePosition,
+          wasCasting: wasCasting,
+        );
+        unawaited(_rememberDlnaDevice(device));
+      },
     );
   }
 
