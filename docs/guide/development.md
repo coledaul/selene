@@ -7,7 +7,7 @@
 | Flutter / Dart | Flutter `>=3.47.6`，Dart `>=3.12.0 <4.0.0` |
 | Android | minSdk 24、compileSdk 37、Gradle 9.3.1、AGP 9.1.0、Kotlin 2.4.0、NDK 29.0.14033849 |
 | iOS | iOS 14.0，macOS 与 Xcode |
-| macOS | macOS 11.0，macOS 与 Xcode |
+| macOS | macOS 12.0，macOS 与 Xcode |
 | Windows | 有工程与运行适配，不在 `build.sh` 发布范围内 |
 
 使用 Flutter stable 和仓库现有 `pubspec.lock`。首次平台构建需要访问 pub、Maven Central，以及 FFmpegKit 插件声明的 Apple/Windows 预编译产物来源。

@@ -188,7 +188,7 @@ if grep -Eq 'PULL_TOKEN|REPO_URL|@main' "$release_workflow" "$release_assets_wor
 fi
 
 macos_job="$(awk '/^  macos:/,0' "$release_assets_workflow")"
-if ! grep -Fq 'runs-on: macos-15' <<<"$macos_job" ||
+if ! grep -Fq 'runs-on: macos-26' <<<"$macos_job" ||
   ! grep -Fq './build.sh --macos-only' <<<"$macos_job" ||
   ! grep -Fq 'name: release-macos' <<<"$macos_job" ||
   ! grep -Fq 'path: dist/selene-*-macos-universal.dmg' <<<"$macos_job" ||

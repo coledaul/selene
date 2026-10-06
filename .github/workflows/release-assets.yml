@@ -240,7 +240,7 @@ jobs:
 
   macos:
     name: Build macOS universal DMG
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
     env:
       APP_VERSION: ${{ inputs.version }}
