@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'live_player_ui_state.dart';
@@ -9,6 +9,7 @@ part of 'live_player_ui_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -34,39 +35,54 @@ mixin _$LivePlayerUiState {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as LivePlayerUiState;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is LivePlayerUiState &&
-            (identical(other.currentChannel, currentChannel) ||
-                other.currentChannel == currentChannel) &&
-            (identical(other.currentSource, currentSource) ||
-                other.currentSource == currentSource) &&
-            const DeepCollectionEquality().equals(other.channels, channels) &&
-            const DeepCollectionEquality().equals(other.sources, sources) &&
-            const DeepCollectionEquality().equals(other.programs, programs) &&
-            (identical(other.loadingEpg, loadingEpg) ||
-                other.loadingEpg == loadingEpg) &&
-            (identical(other.selectedGroup, selectedGroup) ||
-                other.selectedGroup == selectedGroup) &&
-            (identical(other.error, error) || other.error == error));
+            (identical(other.currentChannel, _this.currentChannel) ||
+                other.currentChannel == _this.currentChannel) &&
+            (identical(other.currentSource, _this.currentSource) ||
+                other.currentSource == _this.currentSource) &&
+            const DeepCollectionEquality().equals(
+              other.channels,
+              _this.channels,
+            ) &&
+            const DeepCollectionEquality().equals(
+              other.sources,
+              _this.sources,
+            ) &&
+            const DeepCollectionEquality().equals(
+              other.programs,
+              _this.programs,
+            ) &&
+            (identical(other.loadingEpg, _this.loadingEpg) ||
+                other.loadingEpg == _this.loadingEpg) &&
+            (identical(other.selectedGroup, _this.selectedGroup) ||
+                other.selectedGroup == _this.selectedGroup) &&
+            (identical(other.error, _this.error) ||
+                other.error == _this.error));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    currentChannel,
-    currentSource,
-    const DeepCollectionEquality().hash(channels),
-    const DeepCollectionEquality().hash(sources),
-    const DeepCollectionEquality().hash(programs),
-    loadingEpg,
-    selectedGroup,
-    error,
-  );
+  int get hashCode {
+    final _this = this as LivePlayerUiState;
+    return Object.hash(
+      runtimeType,
+      _this.currentChannel,
+      _this.currentSource,
+      const DeepCollectionEquality().hash(_this.channels),
+      const DeepCollectionEquality().hash(_this.sources),
+      const DeepCollectionEquality().hash(_this.programs),
+      _this.loadingEpg,
+      _this.selectedGroup,
+      _this.error,
+    );
+  }
 
   @override
   String toString() {
-    return 'LivePlayerUiState(currentChannel: $currentChannel, currentSource: $currentSource, channels: $channels, sources: $sources, programs: $programs, loadingEpg: $loadingEpg, selectedGroup: $selectedGroup, error: $error)';
+    final _this = this as LivePlayerUiState;
+    return 'LivePlayerUiState(currentChannel: ${_this.currentChannel}, currentSource: ${_this.currentSource}, channels: ${_this.channels}, sources: ${_this.sources}, programs: ${_this.programs}, loadingEpg: ${_this.loadingEpg}, selectedGroup: ${_this.selectedGroup}, error: ${_this.error})';
   }
 }
 
@@ -112,7 +128,7 @@ class _$LivePlayerUiStateCopyWithImpl<$Res>
     Object? error = freezed,
   }) {
     return _then(
-      _self.copyWith(
+      LivePlayerUiState(
         currentChannel: null == currentChannel
             ? _self.currentChannel
             : currentChannel // ignore: cast_nullable_to_non_nullable
@@ -370,9 +386,9 @@ class _LivePlayerUiState extends LivePlayerUiState {
   const _LivePlayerUiState({
     required this.currentChannel,
     required this.currentSource,
-    final List<LiveChannel> channels = const <LiveChannel>[],
-    final List<LiveSource> sources = const <LiveSource>[],
-    final List<EpgProgram>? programs,
+    List<LiveChannel> channels = const <LiveChannel>[],
+    List<LiveSource> sources = const <LiveSource>[],
+    List<EpgProgram>? programs,
     this.loadingEpg = false,
     this.selectedGroup = '全部',
     this.error,
@@ -439,9 +455,9 @@ class _LivePlayerUiState extends LivePlayerUiState {
                 other.currentChannel == currentChannel) &&
             (identical(other.currentSource, currentSource) ||
                 other.currentSource == currentSource) &&
-            const DeepCollectionEquality().equals(other._channels, _channels) &&
-            const DeepCollectionEquality().equals(other._sources, _sources) &&
-            const DeepCollectionEquality().equals(other._programs, _programs) &&
+            const DeepCollectionEquality().equals(other.channels, _channels) &&
+            const DeepCollectionEquality().equals(other.sources, _sources) &&
+            const DeepCollectionEquality().equals(other.programs, _programs) &&
             (identical(other.loadingEpg, loadingEpg) ||
                 other.loadingEpg == loadingEpg) &&
             (identical(other.selectedGroup, selectedGroup) ||
@@ -450,17 +466,19 @@ class _LivePlayerUiState extends LivePlayerUiState {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    currentChannel,
-    currentSource,
-    const DeepCollectionEquality().hash(_channels),
-    const DeepCollectionEquality().hash(_sources),
-    const DeepCollectionEquality().hash(_programs),
-    loadingEpg,
-    selectedGroup,
-    error,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      currentChannel,
+      currentSource,
+      const DeepCollectionEquality().hash(_channels),
+      const DeepCollectionEquality().hash(_sources),
+      const DeepCollectionEquality().hash(_programs),
+      loadingEpg,
+      selectedGroup,
+      error,
+    );
+  }
 
   @override
   String toString() {

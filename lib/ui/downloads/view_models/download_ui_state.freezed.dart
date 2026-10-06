@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'download_ui_state.dart';
@@ -9,6 +9,7 @@ part of 'download_ui_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -30,30 +31,38 @@ mixin _$DownloadUiState {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as DownloadUiState;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is DownloadUiState &&
-            const DeepCollectionEquality().equals(other.tasks, tasks) &&
-            (identical(other.initialized, initialized) ||
-                other.initialized == initialized) &&
-            (identical(other.initializationError, initializationError) ||
-                other.initializationError == initializationError) &&
-            (identical(other.maxConcurrentDownloads, maxConcurrentDownloads) ||
-                other.maxConcurrentDownloads == maxConcurrentDownloads));
+            const DeepCollectionEquality().equals(other.tasks, _this.tasks) &&
+            (identical(other.initialized, _this.initialized) ||
+                other.initialized == _this.initialized) &&
+            (identical(other.initializationError, _this.initializationError) ||
+                other.initializationError == _this.initializationError) &&
+            (identical(
+                  other.maxConcurrentDownloads,
+                  _this.maxConcurrentDownloads,
+                ) ||
+                other.maxConcurrentDownloads == _this.maxConcurrentDownloads));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    const DeepCollectionEquality().hash(tasks),
-    initialized,
-    initializationError,
-    maxConcurrentDownloads,
-  );
+  int get hashCode {
+    final _this = this as DownloadUiState;
+    return Object.hash(
+      runtimeType,
+      const DeepCollectionEquality().hash(_this.tasks),
+      _this.initialized,
+      _this.initializationError,
+      _this.maxConcurrentDownloads,
+    );
+  }
 
   @override
   String toString() {
-    return 'DownloadUiState(tasks: $tasks, initialized: $initialized, initializationError: $initializationError, maxConcurrentDownloads: $maxConcurrentDownloads)';
+    final _this = this as DownloadUiState;
+    return 'DownloadUiState(tasks: ${_this.tasks}, initialized: ${_this.initialized}, initializationError: ${_this.initializationError}, maxConcurrentDownloads: ${_this.maxConcurrentDownloads})';
   }
 }
 
@@ -91,7 +100,7 @@ class _$DownloadUiStateCopyWithImpl<$Res>
     Object? maxConcurrentDownloads = null,
   }) {
     return _then(
-      _self.copyWith(
+      DownloadUiState(
         tasks: null == tasks
             ? _self.tasks
             : tasks // ignore: cast_nullable_to_non_nullable
@@ -307,7 +316,7 @@ extension DownloadUiStatePatterns on DownloadUiState {
 
 class _DownloadUiState implements DownloadUiState {
   const _DownloadUiState({
-    final List<VideoDownloadTask> tasks = const <VideoDownloadTask>[],
+    List<VideoDownloadTask> tasks = const <VideoDownloadTask>[],
     this.initialized = false,
     this.initializationError,
     this.maxConcurrentDownloads = 3,
@@ -344,7 +353,7 @@ class _DownloadUiState implements DownloadUiState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _DownloadUiState &&
-            const DeepCollectionEquality().equals(other._tasks, _tasks) &&
+            const DeepCollectionEquality().equals(other.tasks, _tasks) &&
             (identical(other.initialized, initialized) ||
                 other.initialized == initialized) &&
             (identical(other.initializationError, initializationError) ||
@@ -354,13 +363,15 @@ class _DownloadUiState implements DownloadUiState {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    const DeepCollectionEquality().hash(_tasks),
-    initialized,
-    initializationError,
-    maxConcurrentDownloads,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      const DeepCollectionEquality().hash(_tasks),
+      initialized,
+      initializationError,
+      maxConcurrentDownloads,
+    );
+  }
 
   @override
   String toString() {

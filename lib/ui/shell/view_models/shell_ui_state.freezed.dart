@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'shell_ui_state.dart';
@@ -9,6 +9,7 @@ part of 'shell_ui_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -29,29 +30,35 @@ mixin _$ShellUiState {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as ShellUiState;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is ShellUiState &&
-            (identical(other.query, query) || other.query == query) &&
+            (identical(other.query, _this.query) ||
+                other.query == _this.query) &&
             const DeepCollectionEquality().equals(
               other.suggestions,
-              suggestions,
+              _this.suggestions,
             ) &&
-            (identical(other.loadingSuggestions, loadingSuggestions) ||
-                other.loadingSuggestions == loadingSuggestions));
+            (identical(other.loadingSuggestions, _this.loadingSuggestions) ||
+                other.loadingSuggestions == _this.loadingSuggestions));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    query,
-    const DeepCollectionEquality().hash(suggestions),
-    loadingSuggestions,
-  );
+  int get hashCode {
+    final _this = this as ShellUiState;
+    return Object.hash(
+      runtimeType,
+      _this.query,
+      const DeepCollectionEquality().hash(_this.suggestions),
+      _this.loadingSuggestions,
+    );
+  }
 
   @override
   String toString() {
-    return 'ShellUiState(query: $query, suggestions: $suggestions, loadingSuggestions: $loadingSuggestions)';
+    final _this = this as ShellUiState;
+    return 'ShellUiState(query: ${_this.query}, suggestions: ${_this.suggestions}, loadingSuggestions: ${_this.loadingSuggestions})';
   }
 }
 
@@ -82,7 +89,7 @@ class _$ShellUiStateCopyWithImpl<$Res> implements $ShellUiStateCopyWith<$Res> {
     Object? loadingSuggestions = null,
   }) {
     return _then(
-      _self.copyWith(
+      ShellUiState(
         query: null == query
             ? _self.query
             : query // ignore: cast_nullable_to_non_nullable
@@ -289,7 +296,7 @@ extension ShellUiStatePatterns on ShellUiState {
 class _ShellUiState implements ShellUiState {
   const _ShellUiState({
     this.query = '',
-    final List<String> suggestions = const <String>[],
+    List<String> suggestions = const <String>[],
     this.loadingSuggestions = false,
   }) : _suggestions = suggestions;
 
@@ -324,7 +331,7 @@ class _ShellUiState implements ShellUiState {
             other is _ShellUiState &&
             (identical(other.query, query) || other.query == query) &&
             const DeepCollectionEquality().equals(
-              other._suggestions,
+              other.suggestions,
               _suggestions,
             ) &&
             (identical(other.loadingSuggestions, loadingSuggestions) ||
@@ -332,12 +339,14 @@ class _ShellUiState implements ShellUiState {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    query,
-    const DeepCollectionEquality().hash(_suggestions),
-    loadingSuggestions,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      query,
+      const DeepCollectionEquality().hash(_suggestions),
+      loadingSuggestions,
+    );
+  }
 
   @override
   String toString() {

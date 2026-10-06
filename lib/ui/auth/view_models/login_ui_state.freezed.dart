@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'login_ui_state.dart';
@@ -9,6 +9,7 @@ part of 'login_ui_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -34,43 +35,48 @@ mixin _$LoginUiState {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as LoginUiState;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is LoginUiState &&
-            (identical(other.serverUrl, serverUrl) ||
-                other.serverUrl == serverUrl) &&
-            (identical(other.username, username) ||
-                other.username == username) &&
-            (identical(other.password, password) ||
-                other.password == password) &&
-            (identical(other.subscriptionUrl, subscriptionUrl) ||
-                other.subscriptionUrl == subscriptionUrl) &&
-            (identical(other.rememberLogin, rememberLogin) ||
-                other.rememberLogin == rememberLogin) &&
-            (identical(other.localMode, localMode) ||
-                other.localMode == localMode) &&
-            (identical(other.passwordVisible, passwordVisible) ||
-                other.passwordVisible == passwordVisible) &&
-            (identical(other.authMessage, authMessage) ||
-                other.authMessage == authMessage));
+            (identical(other.serverUrl, _this.serverUrl) ||
+                other.serverUrl == _this.serverUrl) &&
+            (identical(other.username, _this.username) ||
+                other.username == _this.username) &&
+            (identical(other.password, _this.password) ||
+                other.password == _this.password) &&
+            (identical(other.subscriptionUrl, _this.subscriptionUrl) ||
+                other.subscriptionUrl == _this.subscriptionUrl) &&
+            (identical(other.rememberLogin, _this.rememberLogin) ||
+                other.rememberLogin == _this.rememberLogin) &&
+            (identical(other.localMode, _this.localMode) ||
+                other.localMode == _this.localMode) &&
+            (identical(other.passwordVisible, _this.passwordVisible) ||
+                other.passwordVisible == _this.passwordVisible) &&
+            (identical(other.authMessage, _this.authMessage) ||
+                other.authMessage == _this.authMessage));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    serverUrl,
-    username,
-    password,
-    subscriptionUrl,
-    rememberLogin,
-    localMode,
-    passwordVisible,
-    authMessage,
-  );
+  int get hashCode {
+    final _this = this as LoginUiState;
+    return Object.hash(
+      runtimeType,
+      _this.serverUrl,
+      _this.username,
+      _this.password,
+      _this.subscriptionUrl,
+      _this.rememberLogin,
+      _this.localMode,
+      _this.passwordVisible,
+      _this.authMessage,
+    );
+  }
 
   @override
   String toString() {
-    return 'LoginUiState(serverUrl: $serverUrl, username: $username, password: $password, subscriptionUrl: $subscriptionUrl, rememberLogin: $rememberLogin, localMode: $localMode, passwordVisible: $passwordVisible, authMessage: $authMessage)';
+    final _this = this as LoginUiState;
+    return 'LoginUiState(serverUrl: ${_this.serverUrl}, username: ${_this.username}, password: ${_this.password}, subscriptionUrl: ${_this.subscriptionUrl}, rememberLogin: ${_this.rememberLogin}, localMode: ${_this.localMode}, passwordVisible: ${_this.passwordVisible}, authMessage: ${_this.authMessage})';
   }
 }
 
@@ -115,7 +121,7 @@ class _$LoginUiStateCopyWithImpl<$Res> implements $LoginUiStateCopyWith<$Res> {
     Object? authMessage = freezed,
   }) {
     return _then(
-      _self.copyWith(
+      LoginUiState(
         serverUrl: null == serverUrl
             ? _self.serverUrl
             : serverUrl // ignore: cast_nullable_to_non_nullable
@@ -437,17 +443,19 @@ class _LoginUiState extends LoginUiState {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    serverUrl,
-    username,
-    password,
-    subscriptionUrl,
-    rememberLogin,
-    localMode,
-    passwordVisible,
-    authMessage,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      serverUrl,
+      username,
+      password,
+      subscriptionUrl,
+      rememberLogin,
+      localMode,
+      passwordVisible,
+      authMessage,
+    );
+  }
 
   @override
   String toString() {

@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'video_metadata_ui_state.dart';
@@ -9,6 +9,7 @@ part of 'video_metadata_ui_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -32,37 +33,42 @@ mixin _$VideoMetadataUiState {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as VideoMetadataUiState;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is VideoMetadataUiState &&
-            (identical(other.doubanDetails, doubanDetails) ||
-                other.doubanDetails == doubanDetails) &&
-            (identical(other.bangumiDetails, bangumiDetails) ||
-                other.bangumiDetails == bangumiDetails) &&
-            (identical(other.loadingDouban, loadingDouban) ||
-                other.loadingDouban == loadingDouban) &&
-            (identical(other.loadingBangumi, loadingBangumi) ||
-                other.loadingBangumi == loadingBangumi) &&
-            (identical(other.doubanError, doubanError) ||
-                other.doubanError == doubanError) &&
-            (identical(other.bangumiError, bangumiError) ||
-                other.bangumiError == bangumiError));
+            (identical(other.doubanDetails, _this.doubanDetails) ||
+                other.doubanDetails == _this.doubanDetails) &&
+            (identical(other.bangumiDetails, _this.bangumiDetails) ||
+                other.bangumiDetails == _this.bangumiDetails) &&
+            (identical(other.loadingDouban, _this.loadingDouban) ||
+                other.loadingDouban == _this.loadingDouban) &&
+            (identical(other.loadingBangumi, _this.loadingBangumi) ||
+                other.loadingBangumi == _this.loadingBangumi) &&
+            (identical(other.doubanError, _this.doubanError) ||
+                other.doubanError == _this.doubanError) &&
+            (identical(other.bangumiError, _this.bangumiError) ||
+                other.bangumiError == _this.bangumiError));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    doubanDetails,
-    bangumiDetails,
-    loadingDouban,
-    loadingBangumi,
-    doubanError,
-    bangumiError,
-  );
+  int get hashCode {
+    final _this = this as VideoMetadataUiState;
+    return Object.hash(
+      runtimeType,
+      _this.doubanDetails,
+      _this.bangumiDetails,
+      _this.loadingDouban,
+      _this.loadingBangumi,
+      _this.doubanError,
+      _this.bangumiError,
+    );
+  }
 
   @override
   String toString() {
-    return 'VideoMetadataUiState(doubanDetails: $doubanDetails, bangumiDetails: $bangumiDetails, loadingDouban: $loadingDouban, loadingBangumi: $loadingBangumi, doubanError: $doubanError, bangumiError: $bangumiError)';
+    final _this = this as VideoMetadataUiState;
+    return 'VideoMetadataUiState(doubanDetails: ${_this.doubanDetails}, bangumiDetails: ${_this.bangumiDetails}, loadingDouban: ${_this.loadingDouban}, loadingBangumi: ${_this.loadingBangumi}, doubanError: ${_this.doubanError}, bangumiError: ${_this.bangumiError})';
   }
 }
 
@@ -104,7 +110,7 @@ class _$VideoMetadataUiStateCopyWithImpl<$Res>
     Object? bangumiError = freezed,
   }) {
     return _then(
-      _self.copyWith(
+      VideoMetadataUiState(
         doubanDetails: freezed == doubanDetails
             ? _self.doubanDetails
             : doubanDetails // ignore: cast_nullable_to_non_nullable
@@ -394,15 +400,17 @@ class _VideoMetadataUiState implements VideoMetadataUiState {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    doubanDetails,
-    bangumiDetails,
-    loadingDouban,
-    loadingBangumi,
-    doubanError,
-    bangumiError,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      doubanDetails,
+      bangumiDetails,
+      loadingDouban,
+      loadingBangumi,
+      doubanError,
+      bangumiError,
+    );
+  }
 
   @override
   String toString() {

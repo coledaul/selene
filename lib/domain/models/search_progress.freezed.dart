@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'search_progress.dart';
@@ -9,6 +9,7 @@ part of 'search_progress.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -32,36 +33,42 @@ mixin _$SearchProgress {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as SearchProgress;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is SearchProgress &&
-            (identical(other.totalSources, totalSources) ||
-                other.totalSources == totalSources) &&
-            (identical(other.completedSources, completedSources) ||
-                other.completedSources == completedSources) &&
-            (identical(other.currentSource, currentSource) ||
-                other.currentSource == currentSource) &&
-            (identical(other.isComplete, isComplete) ||
-                other.isComplete == isComplete) &&
-            (identical(other.isFailure, isFailure) ||
-                other.isFailure == isFailure) &&
-            (identical(other.error, error) || other.error == error));
+            (identical(other.totalSources, _this.totalSources) ||
+                other.totalSources == _this.totalSources) &&
+            (identical(other.completedSources, _this.completedSources) ||
+                other.completedSources == _this.completedSources) &&
+            (identical(other.currentSource, _this.currentSource) ||
+                other.currentSource == _this.currentSource) &&
+            (identical(other.isComplete, _this.isComplete) ||
+                other.isComplete == _this.isComplete) &&
+            (identical(other.isFailure, _this.isFailure) ||
+                other.isFailure == _this.isFailure) &&
+            (identical(other.error, _this.error) ||
+                other.error == _this.error));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    totalSources,
-    completedSources,
-    currentSource,
-    isComplete,
-    isFailure,
-    error,
-  );
+  int get hashCode {
+    final _this = this as SearchProgress;
+    return Object.hash(
+      runtimeType,
+      _this.totalSources,
+      _this.completedSources,
+      _this.currentSource,
+      _this.isComplete,
+      _this.isFailure,
+      _this.error,
+    );
+  }
 
   @override
   String toString() {
-    return 'SearchProgress(totalSources: $totalSources, completedSources: $completedSources, currentSource: $currentSource, isComplete: $isComplete, isFailure: $isFailure, error: $error)';
+    final _this = this as SearchProgress;
+    return 'SearchProgress(totalSources: ${_this.totalSources}, completedSources: ${_this.completedSources}, currentSource: ${_this.currentSource}, isComplete: ${_this.isComplete}, isFailure: ${_this.isFailure}, error: ${_this.error})';
   }
 }
 
@@ -103,7 +110,7 @@ class _$SearchProgressCopyWithImpl<$Res>
     Object? error = freezed,
   }) {
     return _then(
-      _self.copyWith(
+      SearchProgress(
         totalSources: null == totalSources
             ? _self.totalSources
             : totalSources // ignore: cast_nullable_to_non_nullable
@@ -388,15 +395,17 @@ class _SearchProgress extends SearchProgress {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    totalSources,
-    completedSources,
-    currentSource,
-    isComplete,
-    isFailure,
-    error,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      totalSources,
+      completedSources,
+      currentSource,
+      isComplete,
+      isFailure,
+      error,
+    );
+  }
 
   @override
   String toString() {

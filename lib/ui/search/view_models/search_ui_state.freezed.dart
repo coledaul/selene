@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'search_ui_state.dart';
@@ -9,6 +9,7 @@ part of 'search_ui_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -38,49 +39,64 @@ mixin _$SearchUiState {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as SearchUiState;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is SearchUiState &&
-            (identical(other.query, query) || other.query == query) &&
-            const DeepCollectionEquality().equals(other.history, history) &&
-            const DeepCollectionEquality().equals(other.results, results) &&
-            (identical(other.status, status) || other.status == status) &&
-            (identical(other.aggregatedView, aggregatedView) ||
-                other.aggregatedView == aggregatedView) &&
-            (identical(other.selectedSource, selectedSource) ||
-                other.selectedSource == selectedSource) &&
-            (identical(other.selectedYear, selectedYear) ||
-                other.selectedYear == selectedYear) &&
-            (identical(other.selectedTitle, selectedTitle) ||
-                other.selectedTitle == selectedTitle) &&
-            (identical(other.sortOrder, sortOrder) ||
-                other.sortOrder == sortOrder) &&
-            (identical(other.progress, progress) ||
-                other.progress == progress) &&
-            (identical(other.error, error) || other.error == error) &&
-            (identical(other.warning, warning) || other.warning == warning));
+            (identical(other.query, _this.query) ||
+                other.query == _this.query) &&
+            const DeepCollectionEquality().equals(
+              other.history,
+              _this.history,
+            ) &&
+            const DeepCollectionEquality().equals(
+              other.results,
+              _this.results,
+            ) &&
+            (identical(other.status, _this.status) ||
+                other.status == _this.status) &&
+            (identical(other.aggregatedView, _this.aggregatedView) ||
+                other.aggregatedView == _this.aggregatedView) &&
+            (identical(other.selectedSource, _this.selectedSource) ||
+                other.selectedSource == _this.selectedSource) &&
+            (identical(other.selectedYear, _this.selectedYear) ||
+                other.selectedYear == _this.selectedYear) &&
+            (identical(other.selectedTitle, _this.selectedTitle) ||
+                other.selectedTitle == _this.selectedTitle) &&
+            (identical(other.sortOrder, _this.sortOrder) ||
+                other.sortOrder == _this.sortOrder) &&
+            (identical(other.progress, _this.progress) ||
+                other.progress == _this.progress) &&
+            (identical(other.error, _this.error) ||
+                other.error == _this.error) &&
+            (identical(other.warning, _this.warning) ||
+                other.warning == _this.warning));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    query,
-    const DeepCollectionEquality().hash(history),
-    const DeepCollectionEquality().hash(results),
-    status,
-    aggregatedView,
-    selectedSource,
-    selectedYear,
-    selectedTitle,
-    sortOrder,
-    progress,
-    error,
-    warning,
-  );
+  int get hashCode {
+    final _this = this as SearchUiState;
+    return Object.hash(
+      runtimeType,
+      _this.query,
+      const DeepCollectionEquality().hash(_this.history),
+      const DeepCollectionEquality().hash(_this.results),
+      _this.status,
+      _this.aggregatedView,
+      _this.selectedSource,
+      _this.selectedYear,
+      _this.selectedTitle,
+      _this.sortOrder,
+      _this.progress,
+      _this.error,
+      _this.warning,
+    );
+  }
 
   @override
   String toString() {
-    return 'SearchUiState(query: $query, history: $history, results: $results, status: $status, aggregatedView: $aggregatedView, selectedSource: $selectedSource, selectedYear: $selectedYear, selectedTitle: $selectedTitle, sortOrder: $sortOrder, progress: $progress, error: $error, warning: $warning)';
+    final _this = this as SearchUiState;
+    return 'SearchUiState(query: ${_this.query}, history: ${_this.history}, results: ${_this.results}, status: ${_this.status}, aggregatedView: ${_this.aggregatedView}, selectedSource: ${_this.selectedSource}, selectedYear: ${_this.selectedYear}, selectedTitle: ${_this.selectedTitle}, sortOrder: ${_this.sortOrder}, progress: ${_this.progress}, error: ${_this.error}, warning: ${_this.warning})';
   }
 }
 
@@ -136,7 +152,7 @@ class _$SearchUiStateCopyWithImpl<$Res>
     Object? warning = freezed,
   }) {
     return _then(
-      _self.copyWith(
+      SearchUiState(
         query: null == query
             ? _self.query
             : query // ignore: cast_nullable_to_non_nullable
@@ -447,8 +463,8 @@ extension SearchUiStatePatterns on SearchUiState {
 class _SearchUiState extends SearchUiState {
   const _SearchUiState({
     this.query = '',
-    final List<String> history = const <String>[],
-    final List<SearchResult> results = const <SearchResult>[],
+    List<String> history = const <String>[],
+    List<SearchResult> results = const <SearchResult>[],
     this.status = SearchStatus.idle,
     this.aggregatedView = true,
     this.selectedSource = 'all',
@@ -522,8 +538,8 @@ class _SearchUiState extends SearchUiState {
         (other.runtimeType == runtimeType &&
             other is _SearchUiState &&
             (identical(other.query, query) || other.query == query) &&
-            const DeepCollectionEquality().equals(other._history, _history) &&
-            const DeepCollectionEquality().equals(other._results, _results) &&
+            const DeepCollectionEquality().equals(other.history, _history) &&
+            const DeepCollectionEquality().equals(other.results, _results) &&
             (identical(other.status, status) || other.status == status) &&
             (identical(other.aggregatedView, aggregatedView) ||
                 other.aggregatedView == aggregatedView) &&
@@ -542,21 +558,23 @@ class _SearchUiState extends SearchUiState {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    query,
-    const DeepCollectionEquality().hash(_history),
-    const DeepCollectionEquality().hash(_results),
-    status,
-    aggregatedView,
-    selectedSource,
-    selectedYear,
-    selectedTitle,
-    sortOrder,
-    progress,
-    error,
-    warning,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      query,
+      const DeepCollectionEquality().hash(_history),
+      const DeepCollectionEquality().hash(_results),
+      status,
+      aggregatedView,
+      selectedSource,
+      selectedYear,
+      selectedTitle,
+      sortOrder,
+      progress,
+      error,
+      warning,
+    );
+  }
 
   @override
   String toString() {

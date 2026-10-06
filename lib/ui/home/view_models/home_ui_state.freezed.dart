@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'home_ui_state.dart';
@@ -9,6 +9,7 @@ part of 'home_ui_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -38,71 +39,88 @@ mixin _$HomeUiState {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as HomeUiState;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is HomeUiState &&
-            (identical(other.bottomNavigationIndex, bottomNavigationIndex) ||
-                other.bottomNavigationIndex == bottomNavigationIndex) &&
-            (identical(other.topTabIndex, topTabIndex) ||
-                other.topTabIndex == topTabIndex) &&
+            (identical(
+                  other.bottomNavigationIndex,
+                  _this.bottomNavigationIndex,
+                ) ||
+                other.bottomNavigationIndex == _this.bottomNavigationIndex) &&
+            (identical(other.topTabIndex, _this.topTabIndex) ||
+                other.topTabIndex == _this.topTabIndex) &&
             const DeepCollectionEquality().equals(
               other.playRecords,
-              playRecords,
+              _this.playRecords,
             ) &&
-            const DeepCollectionEquality().equals(other.favorites, favorites) &&
-            (identical(other.playRecordsLoading, playRecordsLoading) ||
-                other.playRecordsLoading == playRecordsLoading) &&
-            (identical(other.playRecordsError, playRecordsError) ||
-                other.playRecordsError == playRecordsError) &&
-            (identical(other.favoritesLoading, favoritesLoading) ||
-                other.favoritesLoading == favoritesLoading) &&
-            (identical(other.favoritesError, favoritesError) ||
-                other.favoritesError == favoritesError) &&
-            const DeepCollectionEquality().equals(other.hotMovies, hotMovies) &&
+            const DeepCollectionEquality().equals(
+              other.favorites,
+              _this.favorites,
+            ) &&
+            (identical(other.playRecordsLoading, _this.playRecordsLoading) ||
+                other.playRecordsLoading == _this.playRecordsLoading) &&
+            (identical(other.playRecordsError, _this.playRecordsError) ||
+                other.playRecordsError == _this.playRecordsError) &&
+            (identical(other.favoritesLoading, _this.favoritesLoading) ||
+                other.favoritesLoading == _this.favoritesLoading) &&
+            (identical(other.favoritesError, _this.favoritesError) ||
+                other.favoritesError == _this.favoritesError) &&
+            const DeepCollectionEquality().equals(
+              other.hotMovies,
+              _this.hotMovies,
+            ) &&
             const DeepCollectionEquality().equals(
               other.hotTvShows,
-              hotTvShows,
+              _this.hotTvShows,
             ) &&
-            const DeepCollectionEquality().equals(other.hotShows, hotShows) &&
+            const DeepCollectionEquality().equals(
+              other.hotShows,
+              _this.hotShows,
+            ) &&
             const DeepCollectionEquality().equals(
               other.todayAnime,
-              todayAnime,
+              _this.todayAnime,
             ) &&
             const DeepCollectionEquality().equals(
               other.failedSections,
-              failedSections,
+              _this.failedSections,
             ) &&
             const DeepCollectionEquality().equals(
               other.loadingSections,
-              loadingSections,
+              _this.loadingSections,
             ) &&
-            (identical(other.availableUpdate, availableUpdate) ||
-                other.availableUpdate == availableUpdate));
+            (identical(other.availableUpdate, _this.availableUpdate) ||
+                other.availableUpdate == _this.availableUpdate));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    bottomNavigationIndex,
-    topTabIndex,
-    const DeepCollectionEquality().hash(playRecords),
-    const DeepCollectionEquality().hash(favorites),
-    playRecordsLoading,
-    playRecordsError,
-    favoritesLoading,
-    favoritesError,
-    const DeepCollectionEquality().hash(hotMovies),
-    const DeepCollectionEquality().hash(hotTvShows),
-    const DeepCollectionEquality().hash(hotShows),
-    const DeepCollectionEquality().hash(todayAnime),
-    const DeepCollectionEquality().hash(failedSections),
-    const DeepCollectionEquality().hash(loadingSections),
-    availableUpdate,
-  );
+  int get hashCode {
+    final _this = this as HomeUiState;
+    return Object.hash(
+      runtimeType,
+      _this.bottomNavigationIndex,
+      _this.topTabIndex,
+      const DeepCollectionEquality().hash(_this.playRecords),
+      const DeepCollectionEquality().hash(_this.favorites),
+      _this.playRecordsLoading,
+      _this.playRecordsError,
+      _this.favoritesLoading,
+      _this.favoritesError,
+      const DeepCollectionEquality().hash(_this.hotMovies),
+      const DeepCollectionEquality().hash(_this.hotTvShows),
+      const DeepCollectionEquality().hash(_this.hotShows),
+      const DeepCollectionEquality().hash(_this.todayAnime),
+      const DeepCollectionEquality().hash(_this.failedSections),
+      const DeepCollectionEquality().hash(_this.loadingSections),
+      _this.availableUpdate,
+    );
+  }
 
   @override
   String toString() {
-    return 'HomeUiState(bottomNavigationIndex: $bottomNavigationIndex, topTabIndex: $topTabIndex, playRecords: $playRecords, favorites: $favorites, playRecordsLoading: $playRecordsLoading, playRecordsError: $playRecordsError, favoritesLoading: $favoritesLoading, favoritesError: $favoritesError, hotMovies: $hotMovies, hotTvShows: $hotTvShows, hotShows: $hotShows, todayAnime: $todayAnime, failedSections: $failedSections, loadingSections: $loadingSections, availableUpdate: $availableUpdate)';
+    final _this = this as HomeUiState;
+    return 'HomeUiState(bottomNavigationIndex: ${_this.bottomNavigationIndex}, topTabIndex: ${_this.topTabIndex}, playRecords: ${_this.playRecords}, favorites: ${_this.favorites}, playRecordsLoading: ${_this.playRecordsLoading}, playRecordsError: ${_this.playRecordsError}, favoritesLoading: ${_this.favoritesLoading}, favoritesError: ${_this.favoritesError}, hotMovies: ${_this.hotMovies}, hotTvShows: ${_this.hotTvShows}, hotShows: ${_this.hotShows}, todayAnime: ${_this.todayAnime}, failedSections: ${_this.failedSections}, loadingSections: ${_this.loadingSections}, availableUpdate: ${_this.availableUpdate})';
   }
 }
 
@@ -163,7 +181,7 @@ class _$HomeUiStateCopyWithImpl<$Res> implements $HomeUiStateCopyWith<$Res> {
     Object? availableUpdate = freezed,
   }) {
     return _then(
-      _self.copyWith(
+      HomeUiState(
         bottomNavigationIndex: null == bottomNavigationIndex
             ? _self.bottomNavigationIndex
             : bottomNavigationIndex // ignore: cast_nullable_to_non_nullable
@@ -505,18 +523,18 @@ class _HomeUiState implements HomeUiState {
   const _HomeUiState({
     this.bottomNavigationIndex = 0,
     this.topTabIndex = 0,
-    final List<PlayRecord> playRecords = const <PlayRecord>[],
-    final List<FavoriteItem> favorites = const <FavoriteItem>[],
+    List<PlayRecord> playRecords = const <PlayRecord>[],
+    List<FavoriteItem> favorites = const <FavoriteItem>[],
     this.playRecordsLoading = false,
     this.playRecordsError,
     this.favoritesLoading = false,
     this.favoritesError,
-    final List<VideoInfo> hotMovies = const <VideoInfo>[],
-    final List<VideoInfo> hotTvShows = const <VideoInfo>[],
-    final List<VideoInfo> hotShows = const <VideoInfo>[],
-    final List<VideoInfo> todayAnime = const <VideoInfo>[],
-    final Set<String> failedSections = const <String>{},
-    final Set<String> loadingSections = const <String>{},
+    List<VideoInfo> hotMovies = const <VideoInfo>[],
+    List<VideoInfo> hotTvShows = const <VideoInfo>[],
+    List<VideoInfo> hotShows = const <VideoInfo>[],
+    List<VideoInfo> todayAnime = const <VideoInfo>[],
+    Set<String> failedSections = const <String>{},
+    Set<String> loadingSections = const <String>{},
     this.availableUpdate,
   }) : _playRecords = playRecords,
        _favorites = favorites,
@@ -636,11 +654,11 @@ class _HomeUiState implements HomeUiState {
             (identical(other.topTabIndex, topTabIndex) ||
                 other.topTabIndex == topTabIndex) &&
             const DeepCollectionEquality().equals(
-              other._playRecords,
+              other.playRecords,
               _playRecords,
             ) &&
             const DeepCollectionEquality().equals(
-              other._favorites,
+              other.favorites,
               _favorites,
             ) &&
             (identical(other.playRecordsLoading, playRecordsLoading) ||
@@ -652,24 +670,24 @@ class _HomeUiState implements HomeUiState {
             (identical(other.favoritesError, favoritesError) ||
                 other.favoritesError == favoritesError) &&
             const DeepCollectionEquality().equals(
-              other._hotMovies,
+              other.hotMovies,
               _hotMovies,
             ) &&
             const DeepCollectionEquality().equals(
-              other._hotTvShows,
+              other.hotTvShows,
               _hotTvShows,
             ) &&
-            const DeepCollectionEquality().equals(other._hotShows, _hotShows) &&
+            const DeepCollectionEquality().equals(other.hotShows, _hotShows) &&
             const DeepCollectionEquality().equals(
-              other._todayAnime,
+              other.todayAnime,
               _todayAnime,
             ) &&
             const DeepCollectionEquality().equals(
-              other._failedSections,
+              other.failedSections,
               _failedSections,
             ) &&
             const DeepCollectionEquality().equals(
-              other._loadingSections,
+              other.loadingSections,
               _loadingSections,
             ) &&
             (identical(other.availableUpdate, availableUpdate) ||
@@ -677,24 +695,26 @@ class _HomeUiState implements HomeUiState {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    bottomNavigationIndex,
-    topTabIndex,
-    const DeepCollectionEquality().hash(_playRecords),
-    const DeepCollectionEquality().hash(_favorites),
-    playRecordsLoading,
-    playRecordsError,
-    favoritesLoading,
-    favoritesError,
-    const DeepCollectionEquality().hash(_hotMovies),
-    const DeepCollectionEquality().hash(_hotTvShows),
-    const DeepCollectionEquality().hash(_hotShows),
-    const DeepCollectionEquality().hash(_todayAnime),
-    const DeepCollectionEquality().hash(_failedSections),
-    const DeepCollectionEquality().hash(_loadingSections),
-    availableUpdate,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      bottomNavigationIndex,
+      topTabIndex,
+      const DeepCollectionEquality().hash(_playRecords),
+      const DeepCollectionEquality().hash(_favorites),
+      playRecordsLoading,
+      playRecordsError,
+      favoritesLoading,
+      favoritesError,
+      const DeepCollectionEquality().hash(_hotMovies),
+      const DeepCollectionEquality().hash(_hotTvShows),
+      const DeepCollectionEquality().hash(_hotShows),
+      const DeepCollectionEquality().hash(_todayAnime),
+      const DeepCollectionEquality().hash(_failedSections),
+      const DeepCollectionEquality().hash(_loadingSections),
+      availableUpdate,
+    );
+  }
 
   @override
   String toString() {

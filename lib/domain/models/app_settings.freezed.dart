@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'app_settings.dart';
@@ -9,6 +9,7 @@ part of 'app_settings.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -29,37 +30,42 @@ mixin _$AppSettings {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as AppSettings;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is AppSettings &&
-            (identical(other.doubanDataSource, doubanDataSource) ||
-                other.doubanDataSource == doubanDataSource) &&
-            (identical(other.doubanImageSource, doubanImageSource) ||
-                other.doubanImageSource == doubanImageSource) &&
-            (identical(other.m3u8ProxyUrl, m3u8ProxyUrl) ||
-                other.m3u8ProxyUrl == m3u8ProxyUrl) &&
-            (identical(other.preferSpeedTest, preferSpeedTest) ||
-                other.preferSpeedTest == preferSpeedTest) &&
-            (identical(other.localSearch, localSearch) ||
-                other.localSearch == localSearch) &&
-            (identical(other.appVersion, appVersion) ||
-                other.appVersion == appVersion));
+            (identical(other.doubanDataSource, _this.doubanDataSource) ||
+                other.doubanDataSource == _this.doubanDataSource) &&
+            (identical(other.doubanImageSource, _this.doubanImageSource) ||
+                other.doubanImageSource == _this.doubanImageSource) &&
+            (identical(other.m3u8ProxyUrl, _this.m3u8ProxyUrl) ||
+                other.m3u8ProxyUrl == _this.m3u8ProxyUrl) &&
+            (identical(other.preferSpeedTest, _this.preferSpeedTest) ||
+                other.preferSpeedTest == _this.preferSpeedTest) &&
+            (identical(other.localSearch, _this.localSearch) ||
+                other.localSearch == _this.localSearch) &&
+            (identical(other.appVersion, _this.appVersion) ||
+                other.appVersion == _this.appVersion));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    doubanDataSource,
-    doubanImageSource,
-    m3u8ProxyUrl,
-    preferSpeedTest,
-    localSearch,
-    appVersion,
-  );
+  int get hashCode {
+    final _this = this as AppSettings;
+    return Object.hash(
+      runtimeType,
+      _this.doubanDataSource,
+      _this.doubanImageSource,
+      _this.m3u8ProxyUrl,
+      _this.preferSpeedTest,
+      _this.localSearch,
+      _this.appVersion,
+    );
+  }
 
   @override
   String toString() {
-    return 'AppSettings(doubanDataSource: $doubanDataSource, doubanImageSource: $doubanImageSource, m3u8ProxyUrl: $m3u8ProxyUrl, preferSpeedTest: $preferSpeedTest, localSearch: $localSearch, appVersion: $appVersion)';
+    final _this = this as AppSettings;
+    return 'AppSettings(doubanDataSource: ${_this.doubanDataSource}, doubanImageSource: ${_this.doubanImageSource}, m3u8ProxyUrl: ${_this.m3u8ProxyUrl}, preferSpeedTest: ${_this.preferSpeedTest}, localSearch: ${_this.localSearch}, appVersion: ${_this.appVersion})';
   }
 }
 
@@ -100,7 +106,7 @@ class _$AppSettingsCopyWithImpl<$Res> implements $AppSettingsCopyWith<$Res> {
     Object? appVersion = null,
   }) {
     return _then(
-      _self.copyWith(
+      AppSettings(
         doubanDataSource: null == doubanDataSource
             ? _self.doubanDataSource
             : doubanDataSource // ignore: cast_nullable_to_non_nullable
@@ -391,15 +397,17 @@ class _AppSettings implements AppSettings {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    doubanDataSource,
-    doubanImageSource,
-    m3u8ProxyUrl,
-    preferSpeedTest,
-    localSearch,
-    appVersion,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      doubanDataSource,
+      doubanImageSource,
+      m3u8ProxyUrl,
+      preferSpeedTest,
+      localSearch,
+      appVersion,
+    );
+  }
 
   @override
   String toString() {

@@ -173,7 +173,7 @@ void main() {
       final pubspec = File('pubspec.yaml').readAsStringSync();
 
       expect(pubspec, contains("sdk: '>=3.12.0 <4.0.0'"));
-      expect(pubspec, contains("flutter: '>=3.44.0'"));
+      expect(pubspec, contains("flutter: '>=3.47.6'"));
     });
 
     test('Only composition code imports concrete data implementations', () {

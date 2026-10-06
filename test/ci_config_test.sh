@@ -36,7 +36,7 @@ for workflow in "$ci_workflow" "$release_assets_workflow" "$rolling_workflow"; d
 done
 
 if ! grep -q "enable-swift-package-manager: true" "$repo_root/pubspec.yaml"; then
-  echo "pubspec.yaml must enable Swift Package Manager for Flutter 3.44 Apple builds"
+  echo "pubspec.yaml must enable Swift Package Manager for Flutter 3.47.6 Apple builds"
   exit 1
 fi
 

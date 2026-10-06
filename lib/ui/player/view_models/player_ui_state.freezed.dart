@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'player_ui_state.dart';
@@ -9,6 +9,7 @@ part of 'player_ui_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -50,91 +51,100 @@ mixin _$PlayerUiState {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as PlayerUiState;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is PlayerUiState &&
-            (identical(other.currentDetail, currentDetail) ||
-                other.currentDetail == currentDetail) &&
-            (identical(other.searchTitle, searchTitle) ||
-                other.searchTitle == searchTitle) &&
-            (identical(other.videoTitle, videoTitle) ||
-                other.videoTitle == videoTitle) &&
-            (identical(other.videoDescription, videoDescription) ||
-                other.videoDescription == videoDescription) &&
-            (identical(other.videoYear, videoYear) ||
-                other.videoYear == videoYear) &&
-            (identical(other.videoCover, videoCover) ||
-                other.videoCover == videoCover) &&
-            (identical(other.doubanId, doubanId) ||
-                other.doubanId == doubanId) &&
-            (identical(other.doubanDetails, doubanDetails) ||
-                other.doubanDetails == doubanDetails) &&
-            (identical(other.currentSource, currentSource) ||
-                other.currentSource == currentSource) &&
-            (identical(other.currentId, currentId) ||
-                other.currentId == currentId) &&
-            (identical(other.preferSource, preferSource) ||
-                other.preferSource == preferSource) &&
-            (identical(other.totalEpisodes, totalEpisodes) ||
-                other.totalEpisodes == totalEpisodes) &&
-            (identical(other.currentEpisodeIndex, currentEpisodeIndex) ||
-                other.currentEpisodeIndex == currentEpisodeIndex) &&
-            (identical(other.favorite, favorite) ||
-                other.favorite == favorite) &&
-            (identical(other.loading, loading) || other.loading == loading) &&
-            (identical(other.loadingProgress, loadingProgress) ||
-                other.loadingProgress == loadingProgress) &&
-            (identical(other.loadingMessage, loadingMessage) ||
-                other.loadingMessage == loadingMessage) &&
-            (identical(other.loadingEmoji, loadingEmoji) ||
-                other.loadingEmoji == loadingEmoji) &&
-            (identical(other.errorMessage, errorMessage) ||
-                other.errorMessage == errorMessage) &&
-            (identical(other.warningMessage, warningMessage) ||
-                other.warningMessage == warningMessage) &&
-            (identical(other.resumeEpisodeIndex, resumeEpisodeIndex) ||
-                other.resumeEpisodeIndex == resumeEpisodeIndex) &&
-            (identical(other.resumePlayTime, resumePlayTime) ||
-                other.resumePlayTime == resumePlayTime) &&
-            const DeepCollectionEquality().equals(other.sources, sources) &&
+            (identical(other.currentDetail, _this.currentDetail) ||
+                other.currentDetail == _this.currentDetail) &&
+            (identical(other.searchTitle, _this.searchTitle) ||
+                other.searchTitle == _this.searchTitle) &&
+            (identical(other.videoTitle, _this.videoTitle) ||
+                other.videoTitle == _this.videoTitle) &&
+            (identical(other.videoDescription, _this.videoDescription) ||
+                other.videoDescription == _this.videoDescription) &&
+            (identical(other.videoYear, _this.videoYear) ||
+                other.videoYear == _this.videoYear) &&
+            (identical(other.videoCover, _this.videoCover) ||
+                other.videoCover == _this.videoCover) &&
+            (identical(other.doubanId, _this.doubanId) ||
+                other.doubanId == _this.doubanId) &&
+            (identical(other.doubanDetails, _this.doubanDetails) ||
+                other.doubanDetails == _this.doubanDetails) &&
+            (identical(other.currentSource, _this.currentSource) ||
+                other.currentSource == _this.currentSource) &&
+            (identical(other.currentId, _this.currentId) ||
+                other.currentId == _this.currentId) &&
+            (identical(other.preferSource, _this.preferSource) ||
+                other.preferSource == _this.preferSource) &&
+            (identical(other.totalEpisodes, _this.totalEpisodes) ||
+                other.totalEpisodes == _this.totalEpisodes) &&
+            (identical(other.currentEpisodeIndex, _this.currentEpisodeIndex) ||
+                other.currentEpisodeIndex == _this.currentEpisodeIndex) &&
+            (identical(other.favorite, _this.favorite) ||
+                other.favorite == _this.favorite) &&
+            (identical(other.loading, _this.loading) ||
+                other.loading == _this.loading) &&
+            (identical(other.loadingProgress, _this.loadingProgress) ||
+                other.loadingProgress == _this.loadingProgress) &&
+            (identical(other.loadingMessage, _this.loadingMessage) ||
+                other.loadingMessage == _this.loadingMessage) &&
+            (identical(other.loadingEmoji, _this.loadingEmoji) ||
+                other.loadingEmoji == _this.loadingEmoji) &&
+            (identical(other.errorMessage, _this.errorMessage) ||
+                other.errorMessage == _this.errorMessage) &&
+            (identical(other.warningMessage, _this.warningMessage) ||
+                other.warningMessage == _this.warningMessage) &&
+            (identical(other.resumeEpisodeIndex, _this.resumeEpisodeIndex) ||
+                other.resumeEpisodeIndex == _this.resumeEpisodeIndex) &&
+            (identical(other.resumePlayTime, _this.resumePlayTime) ||
+                other.resumePlayTime == _this.resumePlayTime) &&
+            const DeepCollectionEquality().equals(
+              other.sources,
+              _this.sources,
+            ) &&
             const DeepCollectionEquality().equals(
               other.sourceSpeeds,
-              sourceSpeeds,
+              _this.sourceSpeeds,
             ));
   }
 
   @override
-  int get hashCode => Object.hashAll([
-    runtimeType,
-    currentDetail,
-    searchTitle,
-    videoTitle,
-    videoDescription,
-    videoYear,
-    videoCover,
-    doubanId,
-    doubanDetails,
-    currentSource,
-    currentId,
-    preferSource,
-    totalEpisodes,
-    currentEpisodeIndex,
-    favorite,
-    loading,
-    loadingProgress,
-    loadingMessage,
-    loadingEmoji,
-    errorMessage,
-    warningMessage,
-    resumeEpisodeIndex,
-    resumePlayTime,
-    const DeepCollectionEquality().hash(sources),
-    const DeepCollectionEquality().hash(sourceSpeeds),
-  ]);
+  int get hashCode {
+    final _this = this as PlayerUiState;
+    return Object.hashAll([
+      runtimeType,
+      _this.currentDetail,
+      _this.searchTitle,
+      _this.videoTitle,
+      _this.videoDescription,
+      _this.videoYear,
+      _this.videoCover,
+      _this.doubanId,
+      _this.doubanDetails,
+      _this.currentSource,
+      _this.currentId,
+      _this.preferSource,
+      _this.totalEpisodes,
+      _this.currentEpisodeIndex,
+      _this.favorite,
+      _this.loading,
+      _this.loadingProgress,
+      _this.loadingMessage,
+      _this.loadingEmoji,
+      _this.errorMessage,
+      _this.warningMessage,
+      _this.resumeEpisodeIndex,
+      _this.resumePlayTime,
+      const DeepCollectionEquality().hash(_this.sources),
+      const DeepCollectionEquality().hash(_this.sourceSpeeds),
+    ]);
+  }
 
   @override
   String toString() {
-    return 'PlayerUiState(currentDetail: $currentDetail, searchTitle: $searchTitle, videoTitle: $videoTitle, videoDescription: $videoDescription, videoYear: $videoYear, videoCover: $videoCover, doubanId: $doubanId, doubanDetails: $doubanDetails, currentSource: $currentSource, currentId: $currentId, preferSource: $preferSource, totalEpisodes: $totalEpisodes, currentEpisodeIndex: $currentEpisodeIndex, favorite: $favorite, loading: $loading, loadingProgress: $loadingProgress, loadingMessage: $loadingMessage, loadingEmoji: $loadingEmoji, errorMessage: $errorMessage, warningMessage: $warningMessage, resumeEpisodeIndex: $resumeEpisodeIndex, resumePlayTime: $resumePlayTime, sources: $sources, sourceSpeeds: $sourceSpeeds)';
+    final _this = this as PlayerUiState;
+    return 'PlayerUiState(currentDetail: ${_this.currentDetail}, searchTitle: ${_this.searchTitle}, videoTitle: ${_this.videoTitle}, videoDescription: ${_this.videoDescription}, videoYear: ${_this.videoYear}, videoCover: ${_this.videoCover}, doubanId: ${_this.doubanId}, doubanDetails: ${_this.doubanDetails}, currentSource: ${_this.currentSource}, currentId: ${_this.currentId}, preferSource: ${_this.preferSource}, totalEpisodes: ${_this.totalEpisodes}, currentEpisodeIndex: ${_this.currentEpisodeIndex}, favorite: ${_this.favorite}, loading: ${_this.loading}, loadingProgress: ${_this.loadingProgress}, loadingMessage: ${_this.loadingMessage}, loadingEmoji: ${_this.loadingEmoji}, errorMessage: ${_this.errorMessage}, warningMessage: ${_this.warningMessage}, resumeEpisodeIndex: ${_this.resumeEpisodeIndex}, resumePlayTime: ${_this.resumePlayTime}, sources: ${_this.sources}, sourceSpeeds: ${_this.sourceSpeeds})';
   }
 }
 
@@ -212,7 +222,7 @@ class _$PlayerUiStateCopyWithImpl<$Res>
     Object? sourceSpeeds = null,
   }) {
     return _then(
-      _self.copyWith(
+      PlayerUiState(
         currentDetail: freezed == currentDetail
             ? _self.currentDetail
             : currentDetail // ignore: cast_nullable_to_non_nullable
@@ -650,8 +660,8 @@ class _PlayerUiState implements PlayerUiState {
     this.warningMessage,
     this.resumeEpisodeIndex = 0,
     this.resumePlayTime = 0,
-    final List<SearchResult> sources = const <SearchResult>[],
-    final Map<String, PlayerSourceSpeed> sourceSpeeds =
+    List<SearchResult> sources = const <SearchResult>[],
+    Map<String, PlayerSourceSpeed> sourceSpeeds =
         const <String, PlayerSourceSpeed>{},
   }) : _sources = sources,
        _sourceSpeeds = sourceSpeeds;
@@ -792,41 +802,43 @@ class _PlayerUiState implements PlayerUiState {
                 other.resumeEpisodeIndex == resumeEpisodeIndex) &&
             (identical(other.resumePlayTime, resumePlayTime) ||
                 other.resumePlayTime == resumePlayTime) &&
-            const DeepCollectionEquality().equals(other._sources, _sources) &&
+            const DeepCollectionEquality().equals(other.sources, _sources) &&
             const DeepCollectionEquality().equals(
-              other._sourceSpeeds,
+              other.sourceSpeeds,
               _sourceSpeeds,
             ));
   }
 
   @override
-  int get hashCode => Object.hashAll([
-    runtimeType,
-    currentDetail,
-    searchTitle,
-    videoTitle,
-    videoDescription,
-    videoYear,
-    videoCover,
-    doubanId,
-    doubanDetails,
-    currentSource,
-    currentId,
-    preferSource,
-    totalEpisodes,
-    currentEpisodeIndex,
-    favorite,
-    loading,
-    loadingProgress,
-    loadingMessage,
-    loadingEmoji,
-    errorMessage,
-    warningMessage,
-    resumeEpisodeIndex,
-    resumePlayTime,
-    const DeepCollectionEquality().hash(_sources),
-    const DeepCollectionEquality().hash(_sourceSpeeds),
-  ]);
+  int get hashCode {
+    return Object.hashAll([
+      runtimeType,
+      currentDetail,
+      searchTitle,
+      videoTitle,
+      videoDescription,
+      videoYear,
+      videoCover,
+      doubanId,
+      doubanDetails,
+      currentSource,
+      currentId,
+      preferSource,
+      totalEpisodes,
+      currentEpisodeIndex,
+      favorite,
+      loading,
+      loadingProgress,
+      loadingMessage,
+      loadingEmoji,
+      errorMessage,
+      warningMessage,
+      resumeEpisodeIndex,
+      resumePlayTime,
+      const DeepCollectionEquality().hash(_sources),
+      const DeepCollectionEquality().hash(_sourceSpeeds),
+    ]);
+  }
 
   @override
   String toString() {

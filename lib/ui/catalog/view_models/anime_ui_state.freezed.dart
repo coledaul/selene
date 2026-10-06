@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'anime_ui_state.dart';
@@ -9,6 +9,7 @@ part of 'anime_ui_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -44,72 +45,81 @@ mixin _$AnimeUiState {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as AnimeUiState;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is AnimeUiState &&
-            (identical(other.category, category) ||
-                other.category == category) &&
-            (identical(other.weekday, weekday) || other.weekday == weekday) &&
-            (identical(other.animeType, animeType) ||
-                other.animeType == animeType) &&
-            (identical(other.animeRegion, animeRegion) ||
-                other.animeRegion == animeRegion) &&
-            (identical(other.animeYear, animeYear) ||
-                other.animeYear == animeYear) &&
-            (identical(other.animePlatform, animePlatform) ||
-                other.animePlatform == animePlatform) &&
-            (identical(other.animeSort, animeSort) ||
-                other.animeSort == animeSort) &&
-            (identical(other.movieType, movieType) ||
-                other.movieType == movieType) &&
-            (identical(other.movieRegion, movieRegion) ||
-                other.movieRegion == movieRegion) &&
-            (identical(other.movieYear, movieYear) ||
-                other.movieYear == movieYear) &&
-            (identical(other.movieSort, movieSort) ||
-                other.movieSort == movieSort) &&
+            (identical(other.category, _this.category) ||
+                other.category == _this.category) &&
+            (identical(other.weekday, _this.weekday) ||
+                other.weekday == _this.weekday) &&
+            (identical(other.animeType, _this.animeType) ||
+                other.animeType == _this.animeType) &&
+            (identical(other.animeRegion, _this.animeRegion) ||
+                other.animeRegion == _this.animeRegion) &&
+            (identical(other.animeYear, _this.animeYear) ||
+                other.animeYear == _this.animeYear) &&
+            (identical(other.animePlatform, _this.animePlatform) ||
+                other.animePlatform == _this.animePlatform) &&
+            (identical(other.animeSort, _this.animeSort) ||
+                other.animeSort == _this.animeSort) &&
+            (identical(other.movieType, _this.movieType) ||
+                other.movieType == _this.movieType) &&
+            (identical(other.movieRegion, _this.movieRegion) ||
+                other.movieRegion == _this.movieRegion) &&
+            (identical(other.movieYear, _this.movieYear) ||
+                other.movieYear == _this.movieYear) &&
+            (identical(other.movieSort, _this.movieSort) ||
+                other.movieSort == _this.movieSort) &&
             const DeepCollectionEquality().equals(
               other.animeItems,
-              animeItems,
+              _this.animeItems,
             ) &&
             const DeepCollectionEquality().equals(
               other.calendarItems,
-              calendarItems,
+              _this.calendarItems,
             ) &&
-            (identical(other.page, page) || other.page == page) &&
-            (identical(other.loading, loading) || other.loading == loading) &&
-            (identical(other.loadingMore, loadingMore) ||
-                other.loadingMore == loadingMore) &&
-            (identical(other.hasMore, hasMore) || other.hasMore == hasMore) &&
-            (identical(other.error, error) || other.error == error));
+            (identical(other.page, _this.page) || other.page == _this.page) &&
+            (identical(other.loading, _this.loading) ||
+                other.loading == _this.loading) &&
+            (identical(other.loadingMore, _this.loadingMore) ||
+                other.loadingMore == _this.loadingMore) &&
+            (identical(other.hasMore, _this.hasMore) ||
+                other.hasMore == _this.hasMore) &&
+            (identical(other.error, _this.error) ||
+                other.error == _this.error));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    category,
-    weekday,
-    animeType,
-    animeRegion,
-    animeYear,
-    animePlatform,
-    animeSort,
-    movieType,
-    movieRegion,
-    movieYear,
-    movieSort,
-    const DeepCollectionEquality().hash(animeItems),
-    const DeepCollectionEquality().hash(calendarItems),
-    page,
-    loading,
-    loadingMore,
-    hasMore,
-    error,
-  );
+  int get hashCode {
+    final _this = this as AnimeUiState;
+    return Object.hash(
+      runtimeType,
+      _this.category,
+      _this.weekday,
+      _this.animeType,
+      _this.animeRegion,
+      _this.animeYear,
+      _this.animePlatform,
+      _this.animeSort,
+      _this.movieType,
+      _this.movieRegion,
+      _this.movieYear,
+      _this.movieSort,
+      const DeepCollectionEquality().hash(_this.animeItems),
+      const DeepCollectionEquality().hash(_this.calendarItems),
+      _this.page,
+      _this.loading,
+      _this.loadingMore,
+      _this.hasMore,
+      _this.error,
+    );
+  }
 
   @override
   String toString() {
-    return 'AnimeUiState(category: $category, weekday: $weekday, animeType: $animeType, animeRegion: $animeRegion, animeYear: $animeYear, animePlatform: $animePlatform, animeSort: $animeSort, movieType: $movieType, movieRegion: $movieRegion, movieYear: $movieYear, movieSort: $movieSort, animeItems: $animeItems, calendarItems: $calendarItems, page: $page, loading: $loading, loadingMore: $loadingMore, hasMore: $hasMore, error: $error)';
+    final _this = this as AnimeUiState;
+    return 'AnimeUiState(category: ${_this.category}, weekday: ${_this.weekday}, animeType: ${_this.animeType}, animeRegion: ${_this.animeRegion}, animeYear: ${_this.animeYear}, animePlatform: ${_this.animePlatform}, animeSort: ${_this.animeSort}, movieType: ${_this.movieType}, movieRegion: ${_this.movieRegion}, movieYear: ${_this.movieYear}, movieSort: ${_this.movieSort}, animeItems: ${_this.animeItems}, calendarItems: ${_this.calendarItems}, page: ${_this.page}, loading: ${_this.loading}, loadingMore: ${_this.loadingMore}, hasMore: ${_this.hasMore}, error: ${_this.error})';
   }
 }
 
@@ -174,7 +184,7 @@ class _$AnimeUiStateCopyWithImpl<$Res> implements $AnimeUiStateCopyWith<$Res> {
     Object? error = freezed,
   }) {
     return _then(
-      _self.copyWith(
+      AnimeUiState(
         category: null == category
             ? _self.category
             : category // ignore: cast_nullable_to_non_nullable
@@ -541,8 +551,8 @@ class _AnimeUiState implements AnimeUiState {
     this.movieRegion = 'all',
     this.movieYear = 'all',
     this.movieSort = 'T',
-    final List<DoubanMovie> animeItems = const <DoubanMovie>[],
-    final List<BangumiItem> calendarItems = const <BangumiItem>[],
+    List<DoubanMovie> animeItems = const <DoubanMovie>[],
+    List<BangumiItem> calendarItems = const <BangumiItem>[],
     this.page = 0,
     this.loading = false,
     this.loadingMore = false,
@@ -651,11 +661,11 @@ class _AnimeUiState implements AnimeUiState {
             (identical(other.movieSort, movieSort) ||
                 other.movieSort == movieSort) &&
             const DeepCollectionEquality().equals(
-              other._animeItems,
+              other.animeItems,
               _animeItems,
             ) &&
             const DeepCollectionEquality().equals(
-              other._calendarItems,
+              other.calendarItems,
               _calendarItems,
             ) &&
             (identical(other.page, page) || other.page == page) &&
@@ -667,27 +677,29 @@ class _AnimeUiState implements AnimeUiState {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    category,
-    weekday,
-    animeType,
-    animeRegion,
-    animeYear,
-    animePlatform,
-    animeSort,
-    movieType,
-    movieRegion,
-    movieYear,
-    movieSort,
-    const DeepCollectionEquality().hash(_animeItems),
-    const DeepCollectionEquality().hash(_calendarItems),
-    page,
-    loading,
-    loadingMore,
-    hasMore,
-    error,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      category,
+      weekday,
+      animeType,
+      animeRegion,
+      animeYear,
+      animePlatform,
+      animeSort,
+      movieType,
+      movieRegion,
+      movieYear,
+      movieSort,
+      const DeepCollectionEquality().hash(_animeItems),
+      const DeepCollectionEquality().hash(_calendarItems),
+      page,
+      loading,
+      loadingMore,
+      hasMore,
+      error,
+    );
+  }
 
   @override
   String toString() {

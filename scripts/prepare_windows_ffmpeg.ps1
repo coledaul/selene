@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 
 $archiveName = "ffmpeg-kit-windows-x86_64-full-8.1.2.zip"
 $archiveUrl = "https://github.com/sk3llo/ffmpeg_kit_flutter/releases/download/8.1.2-full/$archiveName"
-$expectedSha256 = "bc9653b6fae63f86ecd4338a6b4eed56bcca57bd84f3fcf214b3cec8490046ea"
+$expectedSha256 = "ea5821daaf836da2e2931cf1f342bbcb82c5f233a895b69a6574e71dc637ecf1"
 $archivePath = Join-Path ([System.IO.Path]::GetTempPath()) $archiveName
 
 if (Test-Path -LiteralPath $OutputDirectory) {

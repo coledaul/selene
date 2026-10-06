@@ -8,7 +8,7 @@
 
 <div align="center">
 
-![Flutter](https://img.shields.io/badge/Flutter-3.44.0+-02569B?logo=flutter)
+![Flutter](https://img.shields.io/badge/Flutter-3.47.6+-02569B?logo=flutter)
 ![Dart](https://img.shields.io/badge/Dart-3.12.0+-0175C2?logo=dart)
 ![Android](https://img.shields.io/badge/Android-7.0+_API_24-3DDC84?logo=android)
 ![iOS](https://img.shields.io/badge/iOS-14.0+-000000?logo=ios)
@@ -112,7 +112,7 @@ xattr -dr com.apple.quarantine "/Applications/Selene.app"
 
 ### 核心技术栈
 
-- **Flutter 3.44+** - 跨平台 UI 框架
+- **Flutter 3.47.6+** - 跨平台 UI 框架
 - **Dart 3.12+** - 编程语言
 - **MVVM** - View、ViewModel、Repository 与 Service 分层
 - **Provider** - 应用组合与主题监听

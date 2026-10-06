@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'subscription.dart';
@@ -9,6 +9,7 @@ part of 'subscription.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -30,34 +31,42 @@ mixin _$SubscriptionCandidate {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as SubscriptionCandidate;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is SubscriptionCandidate &&
-            (identical(other.url, url) || other.url == url) &&
+            (identical(other.url, _this.url) || other.url == _this.url) &&
             const DeepCollectionEquality().equals(
               other.searchSources,
-              searchSources,
+              _this.searchSources,
             ) &&
             const DeepCollectionEquality().equals(
               other.liveSources,
-              liveSources,
+              _this.liveSources,
             ) &&
-            (identical(other.replacesExistingData, replacesExistingData) ||
-                other.replacesExistingData == replacesExistingData));
+            (identical(
+                  other.replacesExistingData,
+                  _this.replacesExistingData,
+                ) ||
+                other.replacesExistingData == _this.replacesExistingData));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    url,
-    const DeepCollectionEquality().hash(searchSources),
-    const DeepCollectionEquality().hash(liveSources),
-    replacesExistingData,
-  );
+  int get hashCode {
+    final _this = this as SubscriptionCandidate;
+    return Object.hash(
+      runtimeType,
+      _this.url,
+      const DeepCollectionEquality().hash(_this.searchSources),
+      const DeepCollectionEquality().hash(_this.liveSources),
+      _this.replacesExistingData,
+    );
+  }
 
   @override
   String toString() {
-    return 'SubscriptionCandidate(url: $url, searchSources: $searchSources, liveSources: $liveSources, replacesExistingData: $replacesExistingData)';
+    final _this = this as SubscriptionCandidate;
+    return 'SubscriptionCandidate(url: ${_this.url}, searchSources: ${_this.searchSources}, liveSources: ${_this.liveSources}, replacesExistingData: ${_this.replacesExistingData})';
   }
 }
 
@@ -95,7 +104,7 @@ class _$SubscriptionCandidateCopyWithImpl<$Res>
     Object? replacesExistingData = null,
   }) {
     return _then(
-      _self.copyWith(
+      SubscriptionCandidate(
         url: null == url
             ? _self.url
             : url // ignore: cast_nullable_to_non_nullable
@@ -312,8 +321,8 @@ extension SubscriptionCandidatePatterns on SubscriptionCandidate {
 class _SubscriptionCandidate implements SubscriptionCandidate {
   const _SubscriptionCandidate({
     required this.url,
-    required final List<SearchResource> searchSources,
-    required final List<LiveSource> liveSources,
+    required List<SearchResource> searchSources,
+    required List<LiveSource> liveSources,
     required this.replacesExistingData,
   }) : _searchSources = searchSources,
        _liveSources = liveSources;
@@ -357,11 +366,11 @@ class _SubscriptionCandidate implements SubscriptionCandidate {
             other is _SubscriptionCandidate &&
             (identical(other.url, url) || other.url == url) &&
             const DeepCollectionEquality().equals(
-              other._searchSources,
+              other.searchSources,
               _searchSources,
             ) &&
             const DeepCollectionEquality().equals(
-              other._liveSources,
+              other.liveSources,
               _liveSources,
             ) &&
             (identical(other.replacesExistingData, replacesExistingData) ||
@@ -369,13 +378,15 @@ class _SubscriptionCandidate implements SubscriptionCandidate {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    url,
-    const DeepCollectionEquality().hash(_searchSources),
-    const DeepCollectionEquality().hash(_liveSources),
-    replacesExistingData,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      url,
+      const DeepCollectionEquality().hash(_searchSources),
+      const DeepCollectionEquality().hash(_liveSources),
+      replacesExistingData,
+    );
+  }
 
   @override
   String toString() {

@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'catalog_ui_state.dart';
@@ -9,6 +9,7 @@ part of 'catalog_ui_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -39,49 +40,58 @@ mixin _$CatalogUiState {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as CatalogUiState;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is CatalogUiState &&
-            const DeepCollectionEquality().equals(other.items, items) &&
-            (identical(other.category, category) ||
-                other.category == category) &&
-            (identical(other.secondary, secondary) ||
-                other.secondary == secondary) &&
-            (identical(other.type, type) || other.type == type) &&
-            (identical(other.region, region) || other.region == region) &&
-            (identical(other.year, year) || other.year == year) &&
-            (identical(other.platform, platform) ||
-                other.platform == platform) &&
-            (identical(other.sort, sort) || other.sort == sort) &&
-            (identical(other.page, page) || other.page == page) &&
-            (identical(other.loading, loading) || other.loading == loading) &&
-            (identical(other.loadingMore, loadingMore) ||
-                other.loadingMore == loadingMore) &&
-            (identical(other.hasMore, hasMore) || other.hasMore == hasMore) &&
-            (identical(other.error, error) || other.error == error));
+            const DeepCollectionEquality().equals(other.items, _this.items) &&
+            (identical(other.category, _this.category) ||
+                other.category == _this.category) &&
+            (identical(other.secondary, _this.secondary) ||
+                other.secondary == _this.secondary) &&
+            (identical(other.type, _this.type) || other.type == _this.type) &&
+            (identical(other.region, _this.region) ||
+                other.region == _this.region) &&
+            (identical(other.year, _this.year) || other.year == _this.year) &&
+            (identical(other.platform, _this.platform) ||
+                other.platform == _this.platform) &&
+            (identical(other.sort, _this.sort) || other.sort == _this.sort) &&
+            (identical(other.page, _this.page) || other.page == _this.page) &&
+            (identical(other.loading, _this.loading) ||
+                other.loading == _this.loading) &&
+            (identical(other.loadingMore, _this.loadingMore) ||
+                other.loadingMore == _this.loadingMore) &&
+            (identical(other.hasMore, _this.hasMore) ||
+                other.hasMore == _this.hasMore) &&
+            (identical(other.error, _this.error) ||
+                other.error == _this.error));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    const DeepCollectionEquality().hash(items),
-    category,
-    secondary,
-    type,
-    region,
-    year,
-    platform,
-    sort,
-    page,
-    loading,
-    loadingMore,
-    hasMore,
-    error,
-  );
+  int get hashCode {
+    final _this = this as CatalogUiState;
+    return Object.hash(
+      runtimeType,
+      const DeepCollectionEquality().hash(_this.items),
+      _this.category,
+      _this.secondary,
+      _this.type,
+      _this.region,
+      _this.year,
+      _this.platform,
+      _this.sort,
+      _this.page,
+      _this.loading,
+      _this.loadingMore,
+      _this.hasMore,
+      _this.error,
+    );
+  }
 
   @override
   String toString() {
-    return 'CatalogUiState(items: $items, category: $category, secondary: $secondary, type: $type, region: $region, year: $year, platform: $platform, sort: $sort, page: $page, loading: $loading, loadingMore: $loadingMore, hasMore: $hasMore, error: $error)';
+    final _this = this as CatalogUiState;
+    return 'CatalogUiState(items: ${_this.items}, category: ${_this.category}, secondary: ${_this.secondary}, type: ${_this.type}, region: ${_this.region}, year: ${_this.year}, platform: ${_this.platform}, sort: ${_this.sort}, page: ${_this.page}, loading: ${_this.loading}, loadingMore: ${_this.loadingMore}, hasMore: ${_this.hasMore}, error: ${_this.error})';
   }
 }
 
@@ -137,7 +147,7 @@ class _$CatalogUiStateCopyWithImpl<$Res>
     Object? error = freezed,
   }) {
     return _then(
-      _self.copyWith(
+      CatalogUiState(
         items: null == items
             ? _self.items
             : items // ignore: cast_nullable_to_non_nullable
@@ -443,7 +453,7 @@ extension CatalogUiStatePatterns on CatalogUiState {
 
 class _CatalogUiState implements CatalogUiState {
   const _CatalogUiState({
-    final List<DoubanMovie> items = const <DoubanMovie>[],
+    List<DoubanMovie> items = const <DoubanMovie>[],
     required this.category,
     required this.secondary,
     this.type = 'all',
@@ -514,7 +524,7 @@ class _CatalogUiState implements CatalogUiState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _CatalogUiState &&
-            const DeepCollectionEquality().equals(other._items, _items) &&
+            const DeepCollectionEquality().equals(other.items, _items) &&
             (identical(other.category, category) ||
                 other.category == category) &&
             (identical(other.secondary, secondary) ||
@@ -534,22 +544,24 @@ class _CatalogUiState implements CatalogUiState {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    const DeepCollectionEquality().hash(_items),
-    category,
-    secondary,
-    type,
-    region,
-    year,
-    platform,
-    sort,
-    page,
-    loading,
-    loadingMore,
-    hasMore,
-    error,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      const DeepCollectionEquality().hash(_items),
+      category,
+      secondary,
+      type,
+      region,
+      year,
+      platform,
+      sort,
+      page,
+      loading,
+      loadingMore,
+      hasMore,
+      error,
+    );
+  }
 
   @override
   String toString() {

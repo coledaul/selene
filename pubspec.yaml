@@ -20,7 +20,7 @@ version: 1.8.8+2168
 
 environment:
   sdk: '>=3.12.0 <4.0.0'
-  flutter: '>=3.44.0'
+  flutter: '>=3.47.6'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -36,17 +36,17 @@ dependencies:
   
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.6
+  cupertino_icons: ^2.0.0
   
   # 添加用于创建美观UI的依赖
-  google_fonts: ^8.1.0
+  google_fonts: ^9.0.0
   flutter_svg: ^2.0.10+1
   http: ^1.2.1
   shared_preferences: ^2.5.4
   lucide_icons_flutter: ^3.1.14+1
   provider: ^6.1.2
   web_socket_channel: ^3.0.3
-  cached_network_image: ^3.3.1
+  cached_network_image: ^4.0.4
   url_launcher: ^6.3.0
   path_provider: ^2.1.3
   flutter_file_dialog: ^3.3.2
@@ -56,7 +56,7 @@ dependencies:
   cookie_jar: ^4.0.9
   flutter_secure_storage: ^11.2.0
   gal: ^2.3.0
-  app_settings: ^8.0.3
+  app_settings: ^9.0.0
   gbk_codec: ^0.4.0
   scrollable_positioned_list: ^0.3.8
   dlna_dart: ^0.1.1
@@ -64,10 +64,10 @@ dependencies:
   media_kit: ^1.2.3
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
-  ffmpeg_kit_flutter_new_full: ^2.4.3
-  package_info_plus: ^10.2.1
+  ffmpeg_kit_flutter_new_full: ^2.5.7
+  package_info_plus: ^10.2.2
   window_manager: ^0.5.2
-  volume_controller: ^3.4.0
+  volume_controller: ^3.7.1
   screen_brightness: ^2.1.7
   gpt_markdown: ^1.1.4
   bs58check: ^1.0.2
@@ -76,11 +76,11 @@ dependencies:
   intl: ^0.20.2
   pip: ^0.0.3
   freezed_annotation: ^3.1.0
-  go_router: ^17.3.0
+  go_router: ^18.0.2
   json_annotation: ^4.12.0
-  background_downloader: ^9.5.7
+  background_downloader: ^9.6.3
   crypto: ^3.0.7
-  permission_handler: ^12.0.3
+  permission_handler: ^13.0.2
 
 dev_dependencies:
   flutter_test:
@@ -92,10 +92,10 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  build_runner: ^2.15.1
-  freezed: ^3.2.5
-  go_router_builder: ^4.4.0
-  json_serializable: ^6.14.0
+  build_runner: ^2.16.1
+  freezed: ^4.0.2
+  go_router_builder: ^4.5.0
+  json_serializable: ^6.14.1
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
 

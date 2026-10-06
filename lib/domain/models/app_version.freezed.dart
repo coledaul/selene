@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'app_version.dart';
@@ -9,6 +9,7 @@ part of 'app_version.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -31,34 +32,39 @@ mixin _$AppVersionInfo {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as AppVersionInfo;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is AppVersionInfo &&
-            (identical(other.currentVersion, currentVersion) ||
-                other.currentVersion == currentVersion) &&
-            (identical(other.latestVersion, latestVersion) ||
-                other.latestVersion == latestVersion) &&
-            (identical(other.releaseNotes, releaseNotes) ||
-                other.releaseNotes == releaseNotes) &&
-            (identical(other.releaseUri, releaseUri) ||
-                other.releaseUri == releaseUri) &&
-            (identical(other.androidAsset, androidAsset) ||
-                other.androidAsset == androidAsset));
+            (identical(other.currentVersion, _this.currentVersion) ||
+                other.currentVersion == _this.currentVersion) &&
+            (identical(other.latestVersion, _this.latestVersion) ||
+                other.latestVersion == _this.latestVersion) &&
+            (identical(other.releaseNotes, _this.releaseNotes) ||
+                other.releaseNotes == _this.releaseNotes) &&
+            (identical(other.releaseUri, _this.releaseUri) ||
+                other.releaseUri == _this.releaseUri) &&
+            (identical(other.androidAsset, _this.androidAsset) ||
+                other.androidAsset == _this.androidAsset));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    currentVersion,
-    latestVersion,
-    releaseNotes,
-    releaseUri,
-    androidAsset,
-  );
+  int get hashCode {
+    final _this = this as AppVersionInfo;
+    return Object.hash(
+      runtimeType,
+      _this.currentVersion,
+      _this.latestVersion,
+      _this.releaseNotes,
+      _this.releaseUri,
+      _this.androidAsset,
+    );
+  }
 
   @override
   String toString() {
-    return 'AppVersionInfo(currentVersion: $currentVersion, latestVersion: $latestVersion, releaseNotes: $releaseNotes, releaseUri: $releaseUri, androidAsset: $androidAsset)';
+    final _this = this as AppVersionInfo;
+    return 'AppVersionInfo(currentVersion: ${_this.currentVersion}, latestVersion: ${_this.latestVersion}, releaseNotes: ${_this.releaseNotes}, releaseUri: ${_this.releaseUri}, androidAsset: ${_this.androidAsset})';
   }
 }
 
@@ -98,7 +104,7 @@ class _$AppVersionInfoCopyWithImpl<$Res>
     Object? androidAsset = freezed,
   }) {
     return _then(
-      _self.copyWith(
+      AppVersionInfo(
         currentVersion: null == currentVersion
             ? _self.currentVersion
             : currentVersion // ignore: cast_nullable_to_non_nullable
@@ -368,14 +374,16 @@ class _AppVersionInfo implements AppVersionInfo {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    currentVersion,
-    latestVersion,
-    releaseNotes,
-    releaseUri,
-    androidAsset,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      currentVersion,
+      latestVersion,
+      releaseNotes,
+      releaseUri,
+      androidAsset,
+    );
+  }
 
   @override
   String toString() {

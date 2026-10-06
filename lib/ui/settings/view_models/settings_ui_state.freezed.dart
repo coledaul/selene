@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'settings_ui_state.dart';
@@ -9,6 +9,7 @@ part of 'settings_ui_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -32,35 +33,41 @@ mixin _$SettingsUiState {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as SettingsUiState;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is SettingsUiState &&
-            (identical(other.loading, loading) || other.loading == loading) &&
-            (identical(other.localMode, localMode) ||
-                other.localMode == localMode) &&
-            (identical(other.username, username) ||
-                other.username == username) &&
-            (identical(other.role, role) || other.role == role) &&
-            (identical(other.settings, settings) ||
-                other.settings == settings) &&
-            (identical(other.availableUpdate, availableUpdate) ||
-                other.availableUpdate == availableUpdate));
+            (identical(other.loading, _this.loading) ||
+                other.loading == _this.loading) &&
+            (identical(other.localMode, _this.localMode) ||
+                other.localMode == _this.localMode) &&
+            (identical(other.username, _this.username) ||
+                other.username == _this.username) &&
+            (identical(other.role, _this.role) || other.role == _this.role) &&
+            (identical(other.settings, _this.settings) ||
+                other.settings == _this.settings) &&
+            (identical(other.availableUpdate, _this.availableUpdate) ||
+                other.availableUpdate == _this.availableUpdate));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    loading,
-    localMode,
-    username,
-    role,
-    settings,
-    availableUpdate,
-  );
+  int get hashCode {
+    final _this = this as SettingsUiState;
+    return Object.hash(
+      runtimeType,
+      _this.loading,
+      _this.localMode,
+      _this.username,
+      _this.role,
+      _this.settings,
+      _this.availableUpdate,
+    );
+  }
 
   @override
   String toString() {
-    return 'SettingsUiState(loading: $loading, localMode: $localMode, username: $username, role: $role, settings: $settings, availableUpdate: $availableUpdate)';
+    final _this = this as SettingsUiState;
+    return 'SettingsUiState(loading: ${_this.loading}, localMode: ${_this.localMode}, username: ${_this.username}, role: ${_this.role}, settings: ${_this.settings}, availableUpdate: ${_this.availableUpdate})';
   }
 }
 
@@ -105,7 +112,7 @@ class _$SettingsUiStateCopyWithImpl<$Res>
     Object? availableUpdate = freezed,
   }) {
     return _then(
-      _self.copyWith(
+      SettingsUiState(
         loading: null == loading
             ? _self.loading
             : loading // ignore: cast_nullable_to_non_nullable
@@ -417,15 +424,17 @@ class _SettingsUiState implements SettingsUiState {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    loading,
-    localMode,
-    username,
-    role,
-    settings,
-    availableUpdate,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      loading,
+      localMode,
+      username,
+      role,
+      settings,
+      availableUpdate,
+    );
+  }
 
   @override
   String toString() {

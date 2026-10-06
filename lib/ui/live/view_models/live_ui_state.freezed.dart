@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'live_ui_state.dart';
@@ -9,6 +9,7 @@ part of 'live_ui_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 T _$identity<T>(T value) => value;
 
 /// @nodoc
@@ -32,41 +33,52 @@ mixin _$LiveUiState {
 
   @override
   bool operator ==(Object other) {
+    final _this = this as LiveUiState;
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is LiveUiState &&
-            const DeepCollectionEquality().equals(other.sources, sources) &&
-            const DeepCollectionEquality().equals(other.groups, groups) &&
-            (identical(other.currentSource, currentSource) ||
-                other.currentSource == currentSource) &&
-            (identical(other.selectedGroup, selectedGroup) ||
-                other.selectedGroup == selectedGroup) &&
-            (identical(other.loading, loading) || other.loading == loading) &&
-            (identical(other.refreshing, refreshing) ||
-                other.refreshing == refreshing) &&
-            (identical(other.initialLoad, initialLoad) ||
-                other.initialLoad == initialLoad) &&
-            (identical(other.error, error) || other.error == error) &&
-            (identical(other.notice, notice) || other.notice == notice));
+            const DeepCollectionEquality().equals(
+              other.sources,
+              _this.sources,
+            ) &&
+            const DeepCollectionEquality().equals(other.groups, _this.groups) &&
+            (identical(other.currentSource, _this.currentSource) ||
+                other.currentSource == _this.currentSource) &&
+            (identical(other.selectedGroup, _this.selectedGroup) ||
+                other.selectedGroup == _this.selectedGroup) &&
+            (identical(other.loading, _this.loading) ||
+                other.loading == _this.loading) &&
+            (identical(other.refreshing, _this.refreshing) ||
+                other.refreshing == _this.refreshing) &&
+            (identical(other.initialLoad, _this.initialLoad) ||
+                other.initialLoad == _this.initialLoad) &&
+            (identical(other.error, _this.error) ||
+                other.error == _this.error) &&
+            (identical(other.notice, _this.notice) ||
+                other.notice == _this.notice));
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    const DeepCollectionEquality().hash(sources),
-    const DeepCollectionEquality().hash(groups),
-    currentSource,
-    selectedGroup,
-    loading,
-    refreshing,
-    initialLoad,
-    error,
-    notice,
-  );
+  int get hashCode {
+    final _this = this as LiveUiState;
+    return Object.hash(
+      runtimeType,
+      const DeepCollectionEquality().hash(_this.sources),
+      const DeepCollectionEquality().hash(_this.groups),
+      _this.currentSource,
+      _this.selectedGroup,
+      _this.loading,
+      _this.refreshing,
+      _this.initialLoad,
+      _this.error,
+      _this.notice,
+    );
+  }
 
   @override
   String toString() {
-    return 'LiveUiState(sources: $sources, groups: $groups, currentSource: $currentSource, selectedGroup: $selectedGroup, loading: $loading, refreshing: $refreshing, initialLoad: $initialLoad, error: $error, notice: $notice)';
+    final _this = this as LiveUiState;
+    return 'LiveUiState(sources: ${_this.sources}, groups: ${_this.groups}, currentSource: ${_this.currentSource}, selectedGroup: ${_this.selectedGroup}, loading: ${_this.loading}, refreshing: ${_this.refreshing}, initialLoad: ${_this.initialLoad}, error: ${_this.error}, notice: ${_this.notice})';
   }
 }
 
@@ -113,7 +125,7 @@ class _$LiveUiStateCopyWithImpl<$Res> implements $LiveUiStateCopyWith<$Res> {
     Object? notice = freezed,
   }) {
     return _then(
-      _self.copyWith(
+      LiveUiState(
         sources: null == sources
             ? _self.sources
             : sources // ignore: cast_nullable_to_non_nullable
@@ -379,8 +391,8 @@ extension LiveUiStatePatterns on LiveUiState {
 
 class _LiveUiState extends LiveUiState {
   const _LiveUiState({
-    final List<LiveSource> sources = const <LiveSource>[],
-    final List<LiveChannelGroup> groups = const <LiveChannelGroup>[],
+    List<LiveSource> sources = const <LiveSource>[],
+    List<LiveChannelGroup> groups = const <LiveChannelGroup>[],
     this.currentSource,
     this.selectedGroup = '全部',
     this.loading = true,
@@ -442,8 +454,8 @@ class _LiveUiState extends LiveUiState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _LiveUiState &&
-            const DeepCollectionEquality().equals(other._sources, _sources) &&
-            const DeepCollectionEquality().equals(other._groups, _groups) &&
+            const DeepCollectionEquality().equals(other.sources, _sources) &&
+            const DeepCollectionEquality().equals(other.groups, _groups) &&
             (identical(other.currentSource, currentSource) ||
                 other.currentSource == currentSource) &&
             (identical(other.selectedGroup, selectedGroup) ||
@@ -458,18 +470,20 @@ class _LiveUiState extends LiveUiState {
   }
 
   @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    const DeepCollectionEquality().hash(_sources),
-    const DeepCollectionEquality().hash(_groups),
-    currentSource,
-    selectedGroup,
-    loading,
-    refreshing,
-    initialLoad,
-    error,
-    notice,
-  );
+  int get hashCode {
+    return Object.hash(
+      runtimeType,
+      const DeepCollectionEquality().hash(_sources),
+      const DeepCollectionEquality().hash(_groups),
+      currentSource,
+      selectedGroup,
+      loading,
+      refreshing,
+      initialLoad,
+      error,
+      notice,
+    );
+  }
 
   @override
   String toString() {
