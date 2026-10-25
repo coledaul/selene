@@ -41,6 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
+      APP_VERSION: ${{ inputs.version }}
       SELENE_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/app/release.jks
     steps:
       - name: Check out source
@@ -221,7 +222,7 @@ jobs:
             -GithubEnvironmentFile "$env:GITHUB_ENV"
 
       - name: Build Windows release
-        run: flutter build windows --release
+        run: flutter build windows --release --build-name=${{ inputs.version }}
 
       - name: Create portable archive
         shell: pwsh

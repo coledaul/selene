@@ -137,6 +137,7 @@ fi
 for required in \
   "tags:" \
   "'v*'" \
+  "'!*-*'" \
   "contents: read" \
   "contents: write" \
   "GH_REPO" \
@@ -165,12 +166,18 @@ if ! grep -Fq -- '--licenses' "$release_assets_workflow" ||
 fi
 
 android_job="$(awk '/^  android:/,/^  windows:/' "$release_assets_workflow")"
-if ! grep -Fq 'cache: gradle' <<<"$android_job" ||
+if ! grep -Fq 'APP_VERSION: ${{ inputs.version }}' <<<"$android_job" ||
+  ! grep -Fq 'cache: gradle' <<<"$android_job" ||
   ! grep -Fq 'for retry_delay in 0 30 90; do' <<<"$android_job" ||
   ! grep -Fq 'build_status="${PIPESTATUS[0]}"' <<<"$android_job" ||
   ! grep -Fq 'Received status code (429|5[0-9]{2})' <<<"$android_job" ||
   ! grep -Fq 'if ! grep -Eqi "$transient_pattern" "$log_file"; then' <<<"$android_job"; then
-  echo "Android releases must cache Gradle dependencies and retry only transient download failures"
+  echo "Android releases must propagate APP_VERSION, cache Gradle dependencies, and retry only transient download failures"
+  exit 1
+fi
+
+if ! grep -Fq 'flutter build windows --release --build-name=${{ inputs.version }}' "$release_assets_workflow"; then
+  echo "Windows releases must embed inputs.version via --build-name"
   exit 1
 fi
 

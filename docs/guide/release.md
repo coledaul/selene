@@ -78,20 +78,20 @@ iOS IPA 不签名；macOS DMG 要求主可执行文件同时包含 `arm64` 和 `
 
 - `ci.yml` 在 `main` push 和 Pull Request 上运行，也可由 Release 复用；它只具有 `contents: read` 权限，不接触签名 Secret。
 - `rolling.yml` 只接受成功完成的 `main` push CI，并使用该次 CI 的精确提交 SHA；手动运行时仅接受当前 `main`，且会先执行同一套 CI。失败、取消、Pull Request、过期提交和已有正式版本标签的提交都不会构建 Rolling。
-- Rolling 是固定的 GitHub Prerelease，公开版本取自 `CHANGELOG.md` 顶部唯一的 `## [x.y.z] - 未发布`；标题使用 `Selene <version> Rolling`，安装包使用 `selene-<version>-rolling-<12 位 SHA>-<platform>` 命名，并附带 `SHA256SUMS.txt`。待发布版本缺失、重复或不是第一个版本段落时停止发布；段落为空时成功跳过 Rolling。
-- Rolling 的公开版本与资产身份以待发布 CHANGELOG 为准，构建时仍使用目标提交 `pubspec.yaml` 的实际版本定位原始产物；正式发布准备阶段才同步应用内部版本。Rolling 不会成为 Latest，也不会进入应用内更新通道；中间 Actions artifacts 保留 1 天。
-- `release.yml` 仅由 `vMAJOR.MINOR.PATCH` 标签触发，要求标签版本与 `pubspec.yaml` 及带日期的 CHANGELOG 版本段落一致、标签提交已经包含在 `main` 中，同时保留顶部待发布段落，并在构建前自动等待同一套 CI 检查通过。
-- `release-assets.yml` 按调用方给出的精确提交构建三平台产物；正式版 artifacts 保留 7 天，Rolling artifacts 保留 1 天。Android 签名 Secrets 由调用方逐项传递。
+- Rolling 是 GitHub Prerelease，公开版本取自 `CHANGELOG.md` 顶部唯一的 `## [x.y.z] - 未发布`，将应用版本构建为 `<version>-pre` 并发布到附注标签 `v<version>-pre`（标题为 `Selene <version> Rolling`），安装包使用 `selene-<version>-rolling-<12 位 SHA>-<platform>` 命名并附带 `SHA256SUMS.txt`。待发布版本缺失、重复或不是第一个版本段落时停止发布；段落为空时成功跳过 Rolling。
+- Rolling 不会成为 Latest；正式版发布后，已安装 `<version>-pre` 测试包的客户端可识别同版本正式版更新。中间 Actions artifacts 保留 1 天。
+- `release.yml` 仅由 `vMAJOR.MINOR.PATCH` 标签触发（排除 `*-*` 预发布标签），要求标签版本与 `pubspec.yaml` 及带日期的 CHANGELOG 版本段落一致、标签提交已经包含在 `main` 中，同时保留顶部待发布段落，并在构建前自动等待同一套 CI 检查通过。
+- `release-assets.yml` 按调用方给出的精确提交与版本号构建三平台产物；正式版 artifacts 保留 7 天，Rolling artifacts 保留 1 天。Android 签名 Secrets 由调用方逐项传递。
 - GitHub Release 说明取自 `CHANGELOG.md` 中对应的正式版本；版本段落缺失或为空时停止发布，客户端与发布页使用同一份内容。
 - 自动产物为两个已验证签名的 Android APK、Windows x64 便携版、macOS Universal DMG 和 `SHA256SUMS.txt`。
 - Android 应用内更新依赖两个 APK 的稳定命名，以及 GitHub 返回的完成状态、大小、原始地址和 `sha256:` digest；不得随意改名或改为外部下载地址。
 - workflow 先创建 Draft Release，上传并核对全部五个资产后才公开为 Latest；任何构建或校验失败都会阻止不完整版本发布。
-- 正式版成功公开后才清理指向该正式提交或其祖先的 Rolling Release、全部公开资产和 `rolling` tag。正式构建失败时保留 Rolling；若 `rolling` 已指向正式提交之后的新开发提交，则保留新的 Rolling。
+- 正式版成功公开后才清理指向该正式提交或其祖先的 Rolling Release、全部公开资产和预发布标签。正式构建失败时保留 Rolling；若 Rolling 已指向正式提交之后的新开发提交，则保留新的 Rolling。
 - iOS 无签名 IPA 不进入自动 Release。
 
 所有第三方 Action 都固定到完整 commit SHA。更新 Action 时应核对上游发布说明与 commit，不得改回浮动的 `@main`。
 
-`rolling` 是自动化拥有的可移动标签，每次 Rolling 发布都允许更新；任何 `vMAJOR.MINOR.PATCH` 正式标签都是不可移动、不可复用的发布记录。不要手工修改 `rolling` Release 或 tag，也不要强制移动正式标签。
+`v<version>-pre` 是自动化拥有的可移动预发布附注标签，每次 Rolling 发布都允许更新；任何 `vMAJOR.MINOR.PATCH` 正式标签都是不可移动、不可复用的发布记录。不要手工修改 Rolling Release 或预发布标签，也不要强制移动正式标签。
 
 ## 社区贡献
 

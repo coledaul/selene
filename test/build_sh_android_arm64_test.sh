@@ -50,6 +50,12 @@ output="$(
   PATH="$tmp_dir/bin:$PATH" ./build.sh --android-arm64-only 2>&1
 )"
 
+if ! grep -Fxq -- "--build-name=1.2.3" "$tmp_dir/flutter-build-args.txt"; then
+  echo "expected build.sh to pass pubspec version as --build-name"
+  cat "$tmp_dir/flutter-build-args.txt"
+  exit 1
+fi
+
 if ! grep -Fxq "android-arm64" "$tmp_dir/flutter-build-args.txt"; then
   echo "expected Android ARM64 to be the only target platform"
   cat "$tmp_dir/flutter-build-args.txt"
@@ -93,6 +99,23 @@ fi
 if [ ! -f "$tmp_dir/dist/selene-1.2.3-armv8.apk" ] ||
    [ ! -f "$tmp_dir/dist/selene-1.2.3-armv7a.apk" ]; then
   echo "expected the existing Android-only option to keep both artifacts"
+  echo "$output"
+  exit 1
+fi
+
+output="$(
+  cd "$tmp_dir"
+  APP_VERSION="1.2.4-pre" PATH="$tmp_dir/bin:$PATH" ./build.sh --android-arm64-only 2>&1
+)"
+
+if ! grep -Fxq -- "--build-name=1.2.4-pre" "$tmp_dir/flutter-build-args.txt"; then
+  echo "expected build.sh to honor explicit APP_VERSION override for Rolling prereleases"
+  cat "$tmp_dir/flutter-build-args.txt"
+  exit 1
+fi
+
+if [ ! -f "$tmp_dir/dist/selene-1.2.4-pre-armv8.apk" ]; then
+  echo "expected Rolling prerelease ARM64 artifact in dist"
   echo "$output"
   exit 1
 fi

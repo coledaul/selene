@@ -196,6 +196,68 @@ void main() {
       expect(requests, 1);
     });
 
+    test('当前为同版本 -pre 预发布且远端已发布正式版时提示更新', () async {
+      final dio = Dio()
+        ..httpClientAdapter = _UpdateAdapter(
+          (_) => _jsonResponse(<String, Object?>{
+            'tag_name': 'v1.8.3',
+            'html_url':
+                'https://github.com/coledaul/selene/releases/tag/v1.8.3',
+          }),
+        );
+      addTearDown(() => dio.close(force: true));
+
+      final result = await GitHubUpdateApiService(
+        dio: dio,
+        packageInfo: () async => _packageInfo('1.8.3-pre'),
+      ).check();
+
+      expect(result.isSuccess, isTrue);
+      expect(result.valueOrNull?.currentVersion, '1.8.3-pre');
+      expect(result.valueOrNull?.latestVersion, '1.8.3');
+    });
+
+    test('当前为下一版本 -pre 预发布且远端仍为旧正式版时不提示降级', () async {
+      final dio = Dio()
+        ..httpClientAdapter = _UpdateAdapter(
+          (_) => _jsonResponse(<String, Object?>{
+            'tag_name': 'v1.8.2',
+            'html_url':
+                'https://github.com/coledaul/selene/releases/tag/v1.8.2',
+          }),
+        );
+      addTearDown(() => dio.close(force: true));
+
+      final result = await GitHubUpdateApiService(
+        dio: dio,
+        packageInfo: () async => _packageInfo('1.8.3-pre'),
+      ).check();
+
+      expect(result.isSuccess, isTrue);
+      expect(result.valueOrNull, isNull);
+    });
+
+    test('拒绝草稿或预发布响应进入正式更新通道', () async {
+      final dio = Dio()
+        ..httpClientAdapter = _UpdateAdapter(
+          (_) => _jsonResponse(<String, Object?>{
+            'tag_name': 'v1.8.3-pre',
+            'prerelease': true,
+            'html_url':
+                'https://github.com/coledaul/selene/releases/tag/v1.8.3-pre',
+          }),
+        );
+      addTearDown(() => dio.close(force: true));
+
+      final result = await GitHubUpdateApiService(
+        dio: dio,
+        packageInfo: () async => _packageInfo('1.8.2'),
+      ).check();
+
+      expect(result.failureOrNull?.kind, FailureKind.parsing);
+      expect(result.failureOrNull?.message, '版本信息格式无效');
+    });
+
     test('拒绝跳转到目标仓库之外的发布页', () async {
       final dio = Dio()
         ..httpClientAdapter = _UpdateAdapter(

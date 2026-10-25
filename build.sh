@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 版本信息
-APP_VERSION=""
+APP_VERSION="${APP_VERSION:-}"
 
 # 读取版本号
 read_version() {
@@ -21,14 +21,21 @@ read_version() {
     
     # 从 pubspec.yaml 中提取版本号
     if [ -f "pubspec.yaml" ]; then
-        APP_VERSION=$(grep "^version:" pubspec.yaml | sed 's/version: *//' | tr -d ' ')
-        if [ -z "$APP_VERSION" ]; then
+        local pubspec_version
+        pubspec_version=$(grep "^version:" pubspec.yaml | sed 's/version: *//' | tr -d ' ')
+        if [ -z "$pubspec_version" ]; then
             log_error "无法从 pubspec.yaml 中读取版本号"
             exit 1
         fi
-        APP_VERSION=$(echo "$APP_VERSION" | cut -d'+' -f1)
-        if [ -z "$APP_VERSION" ]; then
+        pubspec_version=$(echo "$pubspec_version" | cut -d'+' -f1)
+        if [ -z "$pubspec_version" ]; then
             log_error "无法从 pubspec.yaml 中读取版本号"
+            exit 1
+        fi
+        if [ -z "$APP_VERSION" ]; then
+            APP_VERSION="$pubspec_version"
+        elif [[ ! "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            log_error "无效的目标版本号: $APP_VERSION"
             exit 1
         fi
         log_success "项目版本号: $APP_VERSION"
@@ -105,6 +112,7 @@ build_android() {
     
     # 构建 APK，添加优化参数
     flutter build apk --release \
+        --build-name="$APP_VERSION" \
         --target-platform "$ANDROID_TARGET_PLATFORMS" \
         --split-per-abi \
         --obfuscate \
@@ -122,7 +130,7 @@ build_macos() {
         return 1
     fi
     
-    flutter build macos --release
+    flutter build macos --release --build-name="$APP_VERSION"
 
     local app_path="build/macos/Build/Products/Release/Selene.app"
     if [ ! -d "$app_path" ]; then
@@ -162,7 +170,7 @@ build_ios() {
     mkdir -p build/ios
     
     # 构建 iOS 无签名版本
-    flutter build ios --release --no-codesign
+    flutter build ios --release --no-codesign --build-name="$APP_VERSION"
     
     # 检查构建是否成功
     if [ ! -d "build/ios/iphoneos/Runner.app" ]; then

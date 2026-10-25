@@ -98,6 +98,10 @@ final class GitHubUpdateApiService implements UpdateApiService {
           ? Uri.tryParse(rawReleaseUrl)
           : null;
       if (latest.isEmpty ||
+          data?['draft'] == true ||
+          data?['prerelease'] == true ||
+          _hasPrereleaseSuffix(latest) ||
+          _parseVersionParts(latest) == null ||
           releaseUri == null ||
           !AppLinks.isReleaseUri(releaseUri, tag: tag)) {
         return const FailureResult(
@@ -225,8 +229,11 @@ final class GitHubUpdateApiService implements UpdateApiService {
   }
 
   bool _isNewer(String current, String latest) {
-    final currentParts = _parseVersion(current);
-    final latestParts = _parseVersion(latest);
+    final currentParts = _parseVersionParts(current);
+    final latestParts = _parseVersionParts(latest);
+    if (currentParts == null || latestParts == null) {
+      return false;
+    }
     final length = currentParts.length > latestParts.length
         ? currentParts.length
         : latestParts.length;
@@ -237,13 +244,51 @@ final class GitHubUpdateApiService implements UpdateApiService {
         return latestPart > currentPart;
       }
     }
-    return false;
+    // 主版本号相同时，仅当当前版本为预发布版（如 1.9.1-pre）且目标版本为正式版时视为有更新。
+    return _hasPrereleaseSuffix(current) && !_hasPrereleaseSuffix(latest);
   }
 
-  List<int> _parseVersion(String value) => value
-      .split(RegExp(r'[.+-]'))
-      .map((part) => int.tryParse(part) ?? 0)
-      .toList(growable: false);
+  bool _hasPrereleaseSuffix(String value) {
+    var normalized = value.trim();
+    if (normalized.startsWith('v')) {
+      normalized = normalized.substring(1);
+    }
+    final plusIndex = normalized.indexOf('+');
+    if (plusIndex >= 0) {
+      normalized = normalized.substring(0, plusIndex);
+    }
+    return normalized.contains('-');
+  }
+
+  List<int>? _parseVersionParts(String value) {
+    var normalized = value.trim();
+    if (normalized.startsWith('v')) {
+      normalized = normalized.substring(1);
+    }
+    if (normalized.isEmpty) {
+      return null;
+    }
+    final suffixIndex = normalized.indexOf(RegExp(r'[-+]'));
+    if (suffixIndex >= 0) {
+      normalized = normalized.substring(0, suffixIndex);
+    }
+    final rawParts = normalized.split('.');
+    if (rawParts.isEmpty) {
+      return null;
+    }
+    final parts = <int>[];
+    for (final rawPart in rawParts) {
+      if (rawPart.isEmpty) {
+        return null;
+      }
+      final parsed = int.tryParse(rawPart);
+      if (parsed == null || parsed < 0) {
+        return null;
+      }
+      parts.add(parsed);
+    }
+    return parts;
+  }
 
   @override
   void dispose() {
