@@ -4,7 +4,7 @@
 
 | 平台 | 当前基线 |
 | --- | --- |
-| Flutter / Dart | Flutter `>=3.47.6`，Dart `>=3.12.0 <4.0.0` |
+| Flutter / Dart | Flutter `>=3.47.8`，Dart `>=3.12.0 <4.0.0` |
 | Android | minSdk 24、compileSdk 37、Gradle 9.3.1、AGP 9.1.0、Kotlin 2.4.0、NDK 29.0.14033849 |
 | iOS | iOS 14.0，macOS 与 Xcode |
 | macOS | macOS 12.0，macOS 与 Xcode |
@@ -12,7 +12,7 @@
 
 使用 Flutter stable 和仓库现有 `pubspec.lock`。首次平台构建需要访问 pub、Maven Central，以及 FFmpegKit 插件声明的 Apple/Windows 预编译产物来源。
 
-项目在 Flutter 3.47.6 上启用 Swift Package Manager；支持 SwiftPM 的 Apple 插件使用 SwiftPM，其余插件由 Flutter 回退到 CocoaPods。不要重新关闭该配置，否则仅提供 SwiftPM 清单的插件会阻止 iOS/macOS 构建。
+项目在 Flutter 3.47.8 上启用 Swift Package Manager；支持 SwiftPM 的 Apple 插件使用 SwiftPM，其余插件由 Flutter 回退到 CocoaPods。不要重新关闭该配置，否则仅提供 SwiftPM 清单的插件会阻止 iOS/macOS 构建。
 
 ```bash
 flutter doctor -v

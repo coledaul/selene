@@ -36,7 +36,14 @@ for workflow in "$ci_workflow" "$release_assets_workflow" "$rolling_workflow"; d
 done
 
 if ! grep -q "enable-swift-package-manager: true" "$repo_root/pubspec.yaml"; then
-  echo "pubspec.yaml must enable Swift Package Manager for Flutter 3.47.6 Apple builds"
+  echo "pubspec.yaml must enable Swift Package Manager for Flutter 3.47.8 Apple builds"
+  exit 1
+fi
+
+if ! grep -Fq "flutter: '>=3.47.8'" "$repo_root/pubspec.yaml" ||
+  ! grep -Fq "flutter-version: 3.47.8" "$ci_workflow" ||
+  [ "$(grep -Fc "flutter-version: 3.47.8" "$release_assets_workflow")" -ne 3 ]; then
+  echo "pubspec.yaml, CI, and Release workflows must all pin Flutter 3.47.8"
   exit 1
 fi
 
